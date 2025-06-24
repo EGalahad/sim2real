@@ -360,23 +360,31 @@ class BasePolicy:
             
                 self.joint_pos_multistep = np.roll(self.joint_pos_multistep, 1, axis=0)
                 self.joint_vel_multistep = np.roll(self.joint_vel_multistep, 1, axis=0)
-                self.prev_actions = np.roll(self.prev_actions, 1, axis=1)
 
                 self.joint_pos_multistep[0, :] = self.state_processor.joint_pos
                 self.joint_vel_multistep[0, :] = self.state_processor.joint_vel
-                self.prev_actions[:, 0] = action
 
                 # Prepare observations
-                self.pre_compute_obs_callback()
-                obs_dict = self.prepare_obs_for_rl()
-                state_dict.update(obs_dict)
-                state_dict["is_init"] = np.zeros(1, dtype=bool)
+                try:
+                    self.pre_compute_obs_callback()
+                    obs_dict = self.prepare_obs_for_rl()
+                    state_dict.update(obs_dict)
+                    state_dict["is_init"] = np.zeros(1, dtype=bool)
 
-                # Inference
-                action, state_dict = self.policy(state_dict)
+                    # Inference
+                    action, state_dict = self.policy(state_dict)
 
-                # Clip policy action
-                action = action.clip(-100, 100)
+                    # Clip policy action
+                    action = action.clip(-100, 100)
+                    self.prev_actions = np.roll(self.prev_actions, 1, axis=1)
+                    self.prev_actions[:, 0] = action
+                    
+                    action = self.prev_actions[:, 0]
+                except Exception as e:
+                    print(f"Error in policy inference: {e}")
+                    action = np.zeros(self.num_actions)
+                    continue
+
 
                 # rule based control flow
                 if self.get_ready_state:
