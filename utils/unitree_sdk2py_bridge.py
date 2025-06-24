@@ -126,7 +126,6 @@ class UnitreeSdk2Bridge:
         self.mj_model = mj_model
         self.mj_data = mj_data
 
-        self.free_base = scene_config["FREE_BASE"]
         self.torques = np.zeros(self.mj_model.nu)
 
         self.use_sensor = scene_config["USE_SENSOR"]

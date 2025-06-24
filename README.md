@@ -1,10 +1,8 @@
 # Quick Start
 
 
-Use conda and python 3.9.
-
-## Install unitree sdk2 python
-
+Follow the instructions here, **must** use mamba to install ros2:
+https://robostack.github.io/GettingStarted.html#install-mamba
 
 ## Install ROS Humble
 
@@ -17,8 +15,17 @@ conda config --env --add channels robostack-staging
 conda config --env --remove channels defaults
 
 
-conda install ros-humble-desktop
+mamba install ros-humble-desktop
 ```
+python 3.11 is by default, installed by mamba.
+```bash
+mamba install -c conda-forge python=3.11
+```
+
+
+## Install unitree sdk2 python
+
+
 
 ## Run policy
 

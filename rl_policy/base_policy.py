@@ -9,7 +9,6 @@ import sys
 sys.path.append(".")
 from typing import Dict
 
-from utils.history_handler import HistoryHandler
 from utils.state_processor import StateProcessor
 from utils.command_sender import CommandSender
 from utils.math import quat_rotate_inverse_numpy
