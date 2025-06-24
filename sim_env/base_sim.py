@@ -43,8 +43,7 @@ class BaseSimulator:
         pass
 
     def init_scene(self):
-        # robot_scene = self.scene_config["ROBOT_SCENE"]
-        robot_scene = "/home/elijah/Documents/projects/percep-loco/HV-dev/humanoidverse/data/robots/g1/scene_29dof_nohand.xml"
+        robot_scene = self.scene_config["ROBOT_SCENE"]
         self.mj_model = mujoco.MjModel.from_xml_path(robot_scene)
         self.mj_data = mujoco.MjData(self.mj_model)
         self.mj_model.opt.timestep = self.sim_dt

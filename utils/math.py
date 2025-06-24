@@ -4,6 +4,30 @@ from scipy.spatial.transform import Rotation as R
 def yaw_from_quat(quat):
     return R.from_quat(quat, scalar_first=True).as_euler('xyz', degrees=False)[:, 2:3]
 
+def normalize(x: np.ndarray) -> np.ndarray:
+    return x / np.linalg.norm(x, axis=-1, keepdims=True)
+
+def yaw_quat(quat: np.ndarray) -> np.ndarray:
+    """Extract the yaw component of a quaternion.
+
+    Args:
+        quat: The orientation in (w, x, y, z). Shape is (..., 4)
+
+    Returns:
+        A quaternion with only yaw component.
+    """
+    shape = quat.shape
+    quat_yaw = quat.clone().view(-1, 4)
+    qw = quat_yaw[:, 0]
+    qx = quat_yaw[:, 1]
+    qy = quat_yaw[:, 2]
+    qz = quat_yaw[:, 3]
+    yaw = np.arctan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy * qy + qz * qz))
+    quat_yaw[:] = 0.0
+    quat_yaw[:, 3] = np.sin(yaw / 2)
+    quat_yaw[:, 0] = np.cos(yaw / 2)
+    quat_yaw = normalize(quat_yaw)
+    return quat_yaw.view(shape)
 
 
 def quat_rotate_inverse_numpy(q: np.ndarray, v: np.ndarray) -> np.ndarray:
