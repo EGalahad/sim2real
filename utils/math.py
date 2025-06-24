@@ -17,7 +17,7 @@ def yaw_quat(quat: np.ndarray) -> np.ndarray:
         A quaternion with only yaw component.
     """
     shape = quat.shape
-    quat_yaw = quat.clone().view(-1, 4)
+    quat_yaw = quat.copy().reshape(-1, 4)
     qw = quat_yaw[:, 0]
     qx = quat_yaw[:, 1]
     qy = quat_yaw[:, 2]
@@ -27,7 +27,7 @@ def yaw_quat(quat: np.ndarray) -> np.ndarray:
     quat_yaw[:, 3] = np.sin(yaw / 2)
     quat_yaw[:, 0] = np.cos(yaw / 2)
     quat_yaw = normalize(quat_yaw)
-    return quat_yaw.view(shape)
+    return quat_yaw.reshape(shape)
 
 
 def quat_rotate_inverse_numpy(q: np.ndarray, v: np.ndarray) -> np.ndarray:

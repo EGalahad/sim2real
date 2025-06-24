@@ -1,0 +1,17 @@
+ROBOT_SCENE: "data/robots/g1/scene_29dof_door.xml" # Robot scene, for Sim2Sim
+
+PRINT_SCENE_INFORMATION: True # Print link, joint and sensors information of robot
+ENABLE_ELASTIC_BAND: True # Virtual spring band, used for lifting h1
+
+SIMULATE_DT: 0.002  # Need to be larger than the runtime of viewer.sync()
+VIEWER_DT: 0.02  # Viewer update time
+USE_SENSOR: False
+USE_HISTORY: True # True
+
+USE_JOYSTICK: 0 # Simulate Unitree WirelessController using a gamepad (0: disable, 1: enable)
+JOYSTICK_TYPE: "xbox" # support "xbox" and "switch" gamepad layout
+JOYSTICK_DEVICE: 0 # Joystick number
+
+door_friction: 20.0
+door_damping: 10.0
+door_stiffness: 0.0
