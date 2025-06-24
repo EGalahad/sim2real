@@ -1,7 +1,4 @@
-ROBOT_SCENE: "../humanoidverse/data/robots/g1/scene_29dof_nohand.xml" # Robot scene, for Sim2Sim
-ASSET_ROOT: "../humanoidverse/data/robots/g1" # Robot Asset Root
-
-FREE_BASE: True
+ROBOT_SCENE: "robots/g1/scene_29dof_nohand.xml" # Robot scene, for Sim2Sim
 
 PRINT_SCENE_INFORMATION: True # Print link, joint and sensors information of robot
 ENABLE_ELASTIC_BAND: True # Virtual spring band, used for lifting h1
