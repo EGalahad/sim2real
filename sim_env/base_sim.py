@@ -64,7 +64,7 @@ class BaseSimulator:
         else:
             self.viewer = mujoco.viewer.launch_passive(self.mj_model, self.mj_data)
         self.viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
-        self.viewer.cam.trackbodyid = 0
+        self.viewer.cam.trackbodyid = 1
 
     def init_unitree_bridge(self):
         self.unitree_bridge = UnitreeSdk2Bridge(
