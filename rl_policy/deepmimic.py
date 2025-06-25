@@ -1,7 +1,7 @@
 import numpy as np
-import rclpy
 import time
 import threading
+from loguru import logger
 
 import argparse
 import yaml
@@ -17,12 +17,11 @@ class DeepMimicPolicy(BasePolicy):
         self,
         robot_config,
         policy_config,
-        node,
         model_path,
         rl_rate=50,
     ):
         super().__init__(
-            robot_config, policy_config, node, model_path, rl_rate
+            robot_config, policy_config, model_path, rl_rate
         )
         self.start_time = time.time()
         self.ref_motion_phase = np.zeros(1)
@@ -44,7 +43,7 @@ class DeepMimicPolicy(BasePolicy):
         if keycode == "space" or keycode == "]":
             self.start_time = time.time()
             self.ref_motion_phase[:] = 0
-            self.node.get_logger().info("Resetting ref motion phase")
+            logger.info("Resetting ref motion phase")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Robot")
@@ -61,17 +60,11 @@ if __name__ == "__main__":
         policy_config = yaml.load(file, Loader=yaml.FullLoader)
     with open(args.robot_config) as file:
         robot_config = yaml.load(file, Loader=yaml.FullLoader)
-    rclpy.init(args=None)
-    node = rclpy.create_node("deepmimic_policy")
-
-    thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
-    thread.start()
 
     policy = DeepMimicPolicy(
         robot_config=robot_config,
         policy_config=policy_config,
         model_path=args.model_path,
-        node=node,
         rl_rate=50,
     )
     policy.run()

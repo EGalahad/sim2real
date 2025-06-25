@@ -1,13 +1,12 @@
 import mujoco
 import mujoco.viewer
-import rclpy
-from rclpy.node import Node
 import threading
-import numpy as np
 import time
 import argparse
 import yaml
 from threading import Thread
+import sched
+import os
 
 import sys
 
@@ -19,11 +18,9 @@ from utils.unitree_sdk2py_bridge import UnitreeSdk2Bridge, ElasticBand
 
 
 class BaseSimulator:
-    def __init__(self, robot_config, scene_config, node):
+    def __init__(self, robot_config, scene_config):
         self.robot_config = robot_config
         self.scene_config = scene_config
-        self.node: Node = node
-        self.rate = self.node.create_rate(1 / self.scene_config["SIMULATE_DT"])
         self.sim_dt = self.scene_config["SIMULATE_DT"]
         self.viewer_dt = self.scene_config["VIEWER_DT"]
 
@@ -35,6 +32,25 @@ class BaseSimulator:
         self.init_publisher()
 
         self.sim_thread = Thread(target=self.SimulationThread)
+
+        try:
+            if os.name == 'posix':
+                import ctypes
+                libc = ctypes.CDLL("libc.so.6")
+                # 设置实时调度策略
+                SCHED_FIFO = 1
+                class sched_param(ctypes.Structure):
+                    _fields_ = [("sched_priority", ctypes.c_int)]
+                
+                param = sched_param()
+                param.sched_priority = 50
+                try:
+                    libc.sched_setscheduler(0, SCHED_FIFO, ctypes.byref(param))
+                    print("Set real-time scheduling priority")
+                except:
+                    print("Could not set real-time priority (try running with sudo)")
+        except:
+            pass
 
     def init_subscriber(self):
         pass
@@ -54,15 +70,17 @@ class BaseSimulator:
                 self.band_attached_link = self.mj_model.body("torso_link").id
             else:
                 self.band_attached_link = self.mj_model.body("base_link").id
-            self.viewer = mujoco.viewer.launch_passive(
-                self.mj_model,
-                self.mj_data,
-                key_callback=self.elastic_band.MujuocoKeyCallback,
-                show_left_ui=False,
-                show_right_ui=False,
-            )
+            key_callback = self.elastic_band.MujuocoKeyCallback
         else:
-            self.viewer = mujoco.viewer.launch_passive(self.mj_model, self.mj_data)
+            key_callback = None
+
+        self.viewer = mujoco.viewer.launch_passive(
+            self.mj_model,
+            self.mj_data,
+            key_callback=key_callback,
+            show_left_ui=False,
+            show_right_ui=False,
+        )
         self.viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
         self.viewer.cam.trackbodyid = 1
 
@@ -93,29 +111,37 @@ class BaseSimulator:
         self.mj_data.ctrl[:] = self.unitree_bridge.torques
         mujoco.mj_step(self.mj_model, self.mj_data)
 
-    def SimulationThread(
-        self,
-    ):
+    def SimulationThread(self):
         sim_cnt = 0
         start_time = time.time()
-
-        self.viewer.cam.azimuth = 30
-        self.viewer.cam.elevation = -20
-        self.viewer.cam.distance = 4.0
-        self.viewer.cam.lookat = [0.0, 0.0, 1.0]
+        
+        # 使用scheduler进行精确时间控制
+        scheduler = sched.scheduler(time.perf_counter, time.sleep)
+        next_run_time = time.perf_counter()
+        
         while self.viewer.is_running():
-            self.sim_step()
+            # 调度下一次执行
+            scheduler.enterabs(next_run_time, 1, self._sim_step_scheduled, ())
+            scheduler.run()
+            
+            next_run_time += self.sim_dt
+            sim_cnt += 1
+            
             if sim_cnt % (self.viewer_dt / self.sim_dt) == 0:
                 self.viewer.sync()
-            # self.viewer.sync()
+        
             # Get FPS
-            sim_cnt += 1
             if sim_cnt % 100 == 0:
-                end_time = time.time()
-                self.node.get_logger().info(f"FPS: {100 / (end_time - start_time)}")
-                start_time = end_time
-            self.rate.sleep()
-        rclpy.shutdown()
+                current_time = time.time()
+                print(f"FPS: {100 / (current_time - start_time)}")
+                start_time = current_time
+
+    def _sim_step_scheduled(self):
+        loop_start = time.perf_counter()
+        self.sim_step()
+        elapsed = time.perf_counter() - loop_start
+        if elapsed > self.sim_dt:
+            print(f"Sim step took {elapsed:.6f} seconds, expected {self.sim_dt}")
 
 
 if __name__ == "__main__":
@@ -137,11 +163,6 @@ if __name__ == "__main__":
         ChannelFactoryInitialize(robot_config["DOMAIN_ID"], robot_config["INTERFACE"])
     else:
         ChannelFactoryInitialize(robot_config["DOMAIN_ID"])
-    rclpy.init(args=None)
-    node = rclpy.create_node("sim_mujoco")
 
-    thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
-    thread.start()
-
-    simulation = BaseSimulator(robot_config, scene_config, node)
+    simulation = BaseSimulator(robot_config, scene_config)
     simulation.sim_thread.start()
