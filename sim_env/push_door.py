@@ -2,21 +2,20 @@ import sys
 
 sys.path.append(".")
 from sim_env.base_sim import BaseSimulator
-from std_msgs.msg import Float32MultiArray
-from geometry_msgs.msg import Pose
-import rclpy
+import zmq
 import numpy as np
 from threading import Thread
 import mujoco
 from scipy.spatial.transform import Rotation as R
+import time
 
 np.set_printoptions(precision=3, suppress=True)
 
 
 class PushDoor(BaseSimulator):
-    def __init__(self, robot_config, scene_config, node):
+    def __init__(self, robot_config, scene_config):
         self.object_names = ["Wall", "Door", "pelvis"]
-        super().__init__(robot_config, scene_config, node)
+        super().__init__(robot_config, scene_config)
 
         self.door_friction = scene_config["door_friction"]
         self.door_damping = scene_config["door_damping"]
@@ -43,12 +42,23 @@ class PushDoor(BaseSimulator):
             self.pos_sensor_adrs[obj_name] = self.mj_model.sensor_adr[pos_sensor_id]
             self.quat_sensor_adrs[obj_name] = self.mj_model.sensor_adr[quat_sensor_id]
 
-        # Create additional publishers
-        self.pose_pubs = {}
-        for obj_name in self.object_names:
-            self.pose_pubs[obj_name] = self.node.create_publisher(
-                Pose, f"/pose/{obj_name}", 10
-            )
+        # Initialize ZMQ context and publishers with fixed ports
+        self.zmq_context = zmq.Context()
+        self.pose_publishers = {}
+        
+        # Use fixed ports to avoid conflicts
+        from utils.common import PORTS
+        object_names = ["Wall", "Door", "pelvis"]
+        object_ports = {obj_name: PORTS[obj_name] for obj_name in object_names}
+        
+        for obj_name, port in object_ports.items():
+            socket = self.zmq_context.socket(zmq.PUB)
+            socket.bind(f"tcp://*:{port}")
+            self.pose_publishers[obj_name] = socket
+            print(f"Publishing {obj_name} poses on port {port}")
+
+        # Give time for sockets to bind
+        time.sleep(1)
 
         # Start state publishing thread
         self.publish_rate = 100  # Hz
@@ -56,10 +66,9 @@ class PushDoor(BaseSimulator):
         self.state_thread.start()
 
     def state_publisher_thread(self):
-        rate = self.node.create_rate(self.publish_rate)
         print("Starting state publisher thread")
-
-        while rclpy.ok():
+        
+        while True:
             try:
                 for obj_name in self.object_names:
                     pos = self.mj_data.sensordata[
@@ -68,21 +77,20 @@ class PushDoor(BaseSimulator):
                     quat = self.mj_data.sensordata[
                         self.quat_sensor_adrs[obj_name] : self.quat_sensor_adrs[obj_name] + 4
                     ]
-                    msg = Pose()
-                    msg.position.x = pos[0]
-                    msg.position.y = pos[1]
-                    msg.position.z = pos[2]
-                    msg.orientation.w = quat[0]
-                    msg.orientation.x = quat[1]
-                    msg.orientation.y = quat[2]
-                    msg.orientation.z = quat[3]
-                    self.pose_pubs[obj_name].publish(msg)
-
-                rate.sleep()
+                    
+                    # Combine position and quaternion into a single numpy array
+                    pose_data = np.concatenate([pos, quat]).astype(np.float64)  # Ensure consistent dtype
+                    
+                    # Send via ZMQ
+                    self.pose_publishers[obj_name].send_multipart([
+                        obj_name.encode('utf-8'),
+                        pose_data.tobytes()
+                    ])
+                    
+                time.sleep(1.0 / self.publish_rate)
             except Exception as e:
-                self.node.get_logger().error(
-                    f"Error in state publisher thread: {str(e)}"
-                )
+                print(f"Error in state publisher thread: {str(e)}")
+                time.sleep(0.1)
 
     def sim_step(self):
         self.unitree_bridge.PublishLowState()
@@ -107,7 +115,7 @@ class PushDoor(BaseSimulator):
             + self.door_damping * (0.0 - door_joint_qvel)
         )
         self.mj_data.ctrl[self.door_ctrl_id] = door_ctrl
-        print(f"door_torque: {door_ctrl}")
+        # print(f"door_torque: {door_ctrl}")
 
         mujoco.mj_step(self.mj_model, self.mj_data)
 
@@ -135,11 +143,6 @@ if __name__ == "__main__":
         ChannelFactoryInitialize(robot_config["DOMAIN_ID"], robot_config["INTERFACE"])
     else:
         ChannelFactoryInitialize(robot_config["DOMAIN_ID"])
-    rclpy.init(args=None)
-    node = rclpy.create_node("sim_mujoco")
 
-    thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
-    thread.start()
-
-    simulation = PushDoor(robot_config, scene_config, node)
+    simulation = PushDoor(robot_config, scene_config)
     simulation.sim_thread.start()
