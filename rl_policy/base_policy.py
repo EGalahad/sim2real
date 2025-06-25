@@ -268,7 +268,6 @@ class BasePolicy:
             self.use_policy_action = True
             self.get_ready_state = False
             self.node.get_logger().info("Using policy actions")
-            # self.frame_start_time = self.node.get_clock().now().nanoseconds / 1e9
             self.phase = 0.0
         elif keycode == "o":
             self.use_policy_action = False
@@ -311,7 +310,6 @@ class BasePolicy:
     def handle_joystick_button(self, cur_key):
         # Handle button press
         if cur_key == "start":
-            self.history_handler.reset([0])
             self.use_policy_action = True
             self.get_ready_state = False
             self.node.get_logger().info(colored("Using policy actions", "blue"))

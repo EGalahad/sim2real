@@ -41,7 +41,7 @@ class DeepMimicPolicy(BasePolicy):
     
     def handle_keyboard_button(self, keycode):
         super().handle_keyboard_button(keycode)
-        if keycode == "space":
+        if keycode == "space" or keycode == "]":
             self.start_time = time.time()
             self.ref_motion_phase[:] = 0
             self.node.get_logger().info("Resetting ref motion phase")
