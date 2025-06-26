@@ -1,8 +1,4 @@
 import numpy as np
-import time
-import threading
-from loguru import logger
-
 import argparse
 import yaml
 import sys
@@ -13,37 +9,10 @@ np.set_printoptions(precision=3, suppress=True, linewidth=1000)
 
 
 class DeepMimicPolicy(BasePolicy):
-    def __init__(
-        self,
-        robot_config,
-        policy_config,
-        model_path,
-        rl_rate=50,
-    ):
-        super().__init__(
-            robot_config, policy_config, model_path, rl_rate
-        )
-        self.start_time = time.time()
-        self.ref_motion_phase = np.zeros(1)
-        self.motion_duration_second = self.policy_config["motion_duration_second"]
-
-    def prepare_obs_for_rl(self):
-        t = time.time()
-        self.ref_motion_phase[:] = (t - self.start_time) / self.motion_duration_second
-        # self.ref_motion_phase[:] = np.clip(self.ref_motion_phase, 0, 1)
-        self.ref_motion_phase %= 1.0
-        return super().prepare_obs_for_rl()
-    
-    def _get_obs_ref_motion_phase(self):
-        print("ref_motion_phase:", self.ref_motion_phase)
-        return self.ref_motion_phase
-    
     def handle_keyboard_button(self, keycode):
         super().handle_keyboard_button(keycode)
         if keycode == "space" or keycode == "]":
-            self.start_time = time.time()
-            self.ref_motion_phase[:] = 0
-            logger.info("Resetting ref motion phase")
+            self.reset()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Robot")
@@ -53,18 +22,20 @@ if __name__ == "__main__":
     parser.add_argument(
         "--robot_config", type=str, default="config/robot/g1.yaml", help="robot config file"
     )
-    parser.add_argument("--model_path", type=str, default=None, help="model path")
     args = parser.parse_args()
 
     with open(args.policy_config) as file:
         policy_config = yaml.load(file, Loader=yaml.FullLoader)
     with open(args.robot_config) as file:
         robot_config = yaml.load(file, Loader=yaml.FullLoader)
+    model_path = args.policy_config.replace(".yaml", ".onnx")
+
+    policy_config["observation"]["command"]["ref_motion_phase"]["motion_duration_second"] = policy_config["motion_duration_second"]
 
     policy = DeepMimicPolicy(
         robot_config=robot_config,
         policy_config=policy_config,
-        model_path=args.model_path,
+        model_path=model_path,
         rl_rate=50,
     )
     policy.run()

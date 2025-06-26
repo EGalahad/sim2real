@@ -5,7 +5,7 @@ import numpy as np
 from termcolor import colored
 import sys
 sys.path.append(".")
-from typing import Dict
+from typing import Dict, Type
 import sched
 
 from loguru import logger
@@ -17,6 +17,28 @@ from utils.strings import resolve_matching_names_values
 
 from unitree_sdk2py.core.channel import ChannelSubscriber, ChannelFactoryInitialize
 from unitree_sdk2py.idl.unitree_go.msg.dds_ import WirelessController_
+
+# Import observation classes
+from rl_policy.observations import Observation
+
+class ObsGroup:
+    def __init__(
+        self,
+        name: str,
+        funcs: Dict[str, Observation],
+    ):
+        self.name = name
+        self.funcs = funcs
+
+    def compute(self) -> np.ndarray:
+        # torch.compiler.cudagraph_mark_step_begin()
+        output = self._compute()
+        return output
+    
+    def _compute(self) -> np.ndarray:
+        # update only if outdated
+        tensors = [func.compute() for func in self.funcs.values()]
+        return np.concatenate(tensors, axis=-1)
 
 
 class BasePolicy:
@@ -169,6 +191,9 @@ class BasePolicy:
             )
             self.key_listener_thread.start()
 
+        # Setup observations after state processor is initialized
+        self.setup_observations()
+
 
     def setup_policy(self, model_path):
         # load onnx policy
@@ -185,17 +210,38 @@ class BasePolicy:
 
     def setup_observations(self):
         """Setup observations for policy inference"""
-        # TODO: For future use of observation groups and observation classes
-        pass
+        self.observations: Dict[str, ObsGroup] = {}
+        self.reset_callbacks = []
+        self.update_callbacks = []
+        
+        # Create observation instances based on config
+        for obs_group, obs_items in self.obs_cfg.items():
+            print(f"obs_group: {obs_group}")
+            obs_funcs = {}
+            for obs_name, obs_config in obs_items.items():
+                obs_class: Type[Observation] = Observation.registry[obs_name]
+                obs_func = obs_class(env=self, **obs_config)
+                obs_funcs[obs_name] = obs_func
+                self.reset_callbacks.append(obs_func.reset)
+                self.update_callbacks.append(obs_func.update)
+                print(f"\t{obs_name}: {obs_config}")
+            self.observations[obs_group] = ObsGroup(obs_group, obs_funcs)
+
+    def reset(self):
+        for reset_callback in self.reset_callbacks:
+            reset_callback()
+
+    def update(self):
+        for update_callback in self.update_callbacks:
+            update_callback(self.state_dict)
 
     def prepare_obs_for_rl(self):
-        """Prepare observation for policy inference"""
+        """Prepare observation for policy inference using observation classes"""
         obs_dict: Dict[str, np.ndarray] = {}
-        for obs_group in self.obs_cfg.keys():
-            obs_keys = self.obs_cfg[obs_group].keys()
-            obs_list = [getattr(self, f"_get_obs_{key}")() for key in obs_keys]
-            obs_dict[obs_group] = np.concatenate(obs_list, axis=0)
-        return {key: value[None, :].astype(np.float32) for key, value in obs_dict.items()}
+        for obs_group in self.observations.values():
+            obs = obs_group.compute()
+            obs_dict[obs_group.name] = obs[None, :].astype(np.float32)
+        return obs_dict
 
     def get_init_target(self):
         if self.init_count > 500:
@@ -208,8 +254,12 @@ class BasePolicy:
         self.init_count += 1
         return q_target
 
-    def pre_compute_obs_callback(self):
-        pass
+    # def pre_compute_obs_callback(self):
+    #     pass
+
+    def _get_obs_root_angvel_b(self):
+        base_ang_vel = self.state_processor.root_ang_vel_b
+        return base_ang_vel
 
     def _get_obs_root_ang_vel_b(self):
         base_ang_vel = self.state_processor.root_ang_vel_b
@@ -312,16 +362,16 @@ class BasePolicy:
         if cur_key == "start":
             self.use_policy_action = True
             self.get_ready_state = False
-            self.node.get_logger().info(colored("Using policy actions", "blue"))
+            logger.info(colored("Using policy actions", "blue"))
             self.phase = 0.0
         elif cur_key == "B+Y":
             self.use_policy_action = False
             self.get_ready_state = False
-            self.node.get_logger().info(colored("Actions set to zero", "blue"))
+            logger.info(colored("Actions set to zero", "blue"))
         elif cur_key == "A+X":
             self.get_ready_state = True
             self.init_count = 0
-            self.node.get_logger().info(colored("Setting to init state", "blue"))
+            logger.info(colored("Setting to init state", "blue"))
         elif cur_key == "Y+left":
             self.command_sender.kp_level -= 0.1
         elif cur_key == "Y+right":
@@ -334,7 +384,7 @@ class BasePolicy:
             self.command_sender.kp_level = 1.0
 
         if cur_key in ["5", "6", "4", "7", "0"]:
-            self.node.get_logger().info(
+            logger.info(
                 colored(f"Debug kp level: {self.command_sender.kp_level}", "green")
             )
 
@@ -344,12 +394,13 @@ class BasePolicy:
         # 初始化状态变量
         state_dict = {}
         state_dict["adapt_hx"] = np.zeros((1, 128), dtype=np.float32)
+        state_dict["action"] = np.zeros(self.num_actions)
+        self.state_dict = state_dict
+        self.total_inference_cnt = total_inference_cnt
+
         self.joint_pos_multistep = np.zeros((16, self.num_dofs))
         self.joint_vel_multistep = np.zeros((4, self.num_dofs))
         self.prev_actions = np.zeros((self.num_actions, 3))
-        self.action = np.zeros(self.num_actions)
-        self.state_dict = state_dict
-        self.total_inference_cnt = total_inference_cnt
         
         try:
             # 使用scheduler进行精确时间控制
@@ -367,7 +418,6 @@ class BasePolicy:
             pass
 
     def _rl_step_scheduled(self):
-        """包装的RL推理步骤用于调度器"""
         loop_start = time.perf_counter()
         
         if self.use_joystick and self.wc_msg is not None:
@@ -377,15 +427,17 @@ class BasePolicy:
             print("low state not ready.")
             return
         
-        self.joint_pos_multistep = np.roll(self.joint_pos_multistep, 1, axis=0)
-        self.joint_vel_multistep = np.roll(self.joint_vel_multistep, 1, axis=0)
-
-        self.joint_pos_multistep[0, :] = self.state_processor.joint_pos
-        self.joint_vel_multistep[0, :] = self.state_processor.joint_vel
-
         try:
             # Prepare observations
-            self.pre_compute_obs_callback()
+            self.update()
+        
+            self.joint_pos_multistep = np.roll(self.joint_pos_multistep, 1, axis=0)
+            self.joint_vel_multistep = np.roll(self.joint_vel_multistep, 1, axis=0)
+
+            self.joint_pos_multistep[0, :] = self.state_processor.joint_pos
+            self.joint_vel_multistep[0, :] = self.state_processor.joint_vel
+
+
             obs_dict = self.prepare_obs_for_rl()
             self.state_dict.update(obs_dict)
             self.state_dict["is_init"] = np.zeros(1, dtype=bool)
@@ -395,13 +447,14 @@ class BasePolicy:
 
             # Clip policy action
             action = action.clip(-100, 100)
+
             self.prev_actions = np.roll(self.prev_actions, 1, axis=1)
             self.prev_actions[:, 0] = action
-            
-            self.action = self.prev_actions[:, 0]
+
+            self.state_dict["action"] = action
         except Exception as e:
             print(f"Error in policy inference: {e}")
-            self.action = np.zeros(self.num_actions)
+            self.state_dict["action"] = np.zeros(self.num_actions)
             return
 
         # rule based control flow
@@ -411,7 +464,7 @@ class BasePolicy:
             q_target = self.state_processor.joint_pos
         else:
             policy_action = np.zeros((self.num_dofs))
-            policy_action[self.controlled_joint_indices] = self.action
+            policy_action[self.controlled_joint_indices] = self.state_dict["action"]
             policy_action = policy_action * self.action_scale
             q_target = policy_action + self.default_dof_angles
 

@@ -4,7 +4,7 @@
 
     <worldbody>
 
-        <body name="Wall" pos="0.8 0.0 0.0" quat="0 0 0 1">
+        <body name="Wall" pos="1.0 0.0 0.0" quat="0 0 0 1">
             <geom name="wall_geom_right" type="box" size="0.05 0.5 1.025" pos="0 -1.1 1.025"
                 rgba="0.6 0.6 0.6 1"
                 contype="2" conaffinity="1"/>
