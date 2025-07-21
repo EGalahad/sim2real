@@ -1,3 +1,5 @@
+"""This script listens to the Vicon data and publishes the object poses via ZMQ"""
+
 import time
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -46,6 +48,8 @@ class Vicon:
         self.pose_publishers = {}
         
         # Use fixed ports for each object
+        import sys
+        sys.path.append(".")
         from utils.common import PORTS
         
         # Define port mapping for vicon objects
@@ -55,7 +59,7 @@ class Vicon:
             port = vicon_ports[publish_name]  # Default port if not found
             socket = self.zmq_context.socket(zmq.PUB)
             socket.bind(f"tcp://*:{port}")
-            self.pose_publishers[vicon_obj] = socket
+            self.pose_publishers[publish_name] = socket
             print(f"Publishing {publish_name} (vicon: {vicon_obj}) poses on port {port}")
 
         # Give time for sockets to bind
@@ -79,9 +83,15 @@ class Vicon:
             current_time = time.time()
 
             # Position and orientation
-            position = np.array([x, y, z])/1000. # Convert to meters
-            rotation = R.from_euler('xyz', [roll, pitch, yaw], degrees=False)
-            quaternion = rotation.as_quat()  # [x, y, z, w]
+            position = np.array([x, y, z]) / 1000. # Convert to meters
+            if vicon_object_name == "haoyang_box":
+                position[1] += -0.05
+            rotation = R.from_euler('XYZ', [roll, pitch, yaw], degrees=False)
+            quaternion = rotation.as_quat()
+
+            # print("roll, pitch, yaw:", roll, pitch, yaw)
+
+            quaternion = np.roll(quaternion, 1)  # [x, y, z, w] -> [w, x, y, z]
 
             return current_time, position, quaternion
         except Exception as e:
@@ -101,19 +111,18 @@ class Vicon:
         
         while True:
             try:
-                for vicon_object_name in self.vicon_object_names:
+                for vicon_object_name, publish_name in zip(self.vicon_object_names, self.publish_names):
                     current_time, position, quaternion = self.get_vicon_data(vicon_object_name)
                     if position is None:
                         print(f"Failed to get Vicon data for {vicon_object_name}.")
                         continue
 
                     # Combine position and quaternion into a single numpy array
-                    # Format: [x, y, z, qx, qy, qz, qw]
                     pose_data = np.concatenate([position, quaternion]).astype(np.float64)
                     
                     # Send via ZMQ (same format as push_door.py)
-                    self.pose_publishers[vicon_object_name].send_multipart([
-                        vicon_object_name.encode('utf-8'),
+                    self.pose_publishers[publish_name].send_multipart([
+                        publish_name.encode('utf-8'),
                         pose_data.tobytes()
                     ])
                     
@@ -141,7 +150,9 @@ class Vicon:
             print("Exiting Vicon data acquisition.")
 
 if __name__ == "__main__":
-    publish_names = ["Wall", "Door", "pelvis"]
+    # publish_names = ["Wall", "Door", "pelvis"]
+    publish_names = ["box", "pelvis"]
+    # publish_names = ["pelvis"]
     object_names = [f"haoyang_{name}" for name in publish_names]
     vicon = Vicon(vicon_object_names=object_names, publish_names=publish_names)
 

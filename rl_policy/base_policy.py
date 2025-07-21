@@ -1,44 +1,22 @@
 import time
-import threading
-from sshkeyboard import listen_keyboard
 import numpy as np
-from termcolor import colored
-import sys
-sys.path.append(".")
 from typing import Dict, Type
 import sched
 
+from termcolor import colored
 from loguru import logger
 
-from utils.state_processor import StateProcessor
-from utils.command_sender import CommandSender
-from utils.math import quat_rotate_inverse_numpy
-from utils.strings import resolve_matching_names_values
+from unitree_sdk2py.core.channel import ChannelFactoryInitialize
 
-from unitree_sdk2py.core.channel import ChannelSubscriber, ChannelFactoryInitialize
-from unitree_sdk2py.idl.unitree_go.msg.dds_ import WirelessController_
+import sys
+sys.path.append(".")
+from utils.strings import resolve_matching_names_values
+from rl_policy.utils.state_processor import StateProcessor
+from rl_policy.utils.command_sender import CommandSender
+from rl_policy.utils.onnx_module import Timer
 
 # Import observation classes
-from rl_policy.observations import Observation
-
-class ObsGroup:
-    def __init__(
-        self,
-        name: str,
-        funcs: Dict[str, Observation],
-    ):
-        self.name = name
-        self.funcs = funcs
-
-    def compute(self) -> np.ndarray:
-        # torch.compiler.cudagraph_mark_step_begin()
-        output = self._compute()
-        return output
-    
-    def _compute(self) -> np.ndarray:
-        # update only if outdated
-        tensors = [func.compute() for func in self.funcs.values()]
-        return np.concatenate(tensors, axis=-1)
+from observations import Observation, ObsGroup
 
 
 class BasePolicy:
@@ -50,12 +28,23 @@ class BasePolicy:
         rl_rate=50,
     ):
         # initialize robot related processes
-        if robot_config.get("INTERFACE", None):
-            ChannelFactoryInitialize(robot_config["DOMAIN_ID"], robot_config["INTERFACE"])
+        robot_type = robot_config["ROBOT_TYPE"]
+        if robot_type != "g1_real":
+            if robot_config.get("INTERFACE", None):
+                ChannelFactoryInitialize(robot_config["DOMAIN_ID"], robot_config["INTERFACE"])
+            else:
+                ChannelFactoryInitialize(robot_config["DOMAIN_ID"])
         else:
-            ChannelFactoryInitialize(robot_config["DOMAIN_ID"])
+            sys.path.append("/home/elijah/haoyang_deploy/unitree_sdk2/build/lib")
+            import g1_interface
+            network_interface = robot_config.get("INTERFACE", None)
+            self.robot = g1_interface.G1Interface(network_interface)
+            try:
+                self.robot.set_control_mode(g1_interface.ControlMode.PR)
+            except Exception:
+                pass  # Ignore if firmware already in the correct mode
 
-        self.state_processor = StateProcessor(robot_config["ROBOT_TYPE"], policy_config["isaac_joint_names"])
+        self.state_processor = StateProcessor(robot_config, policy_config["isaac_joint_names"])
         self.command_sender = CommandSender(robot_config, policy_config)
         self.rl_dt = 1.0 / rl_rate
 
@@ -138,52 +127,16 @@ class BasePolicy:
         # self.joint_effort_limit = np.zeros(self.num_dofs)
         # self.joint_effort_limit[joint_indices] = joint_effort_limit
 
-        if self.policy_config.get("USE_JOYSTICK", False):
+        if robot_config.get("USE_JOYSTICK", False):
             # Yuanhang: pygame event can only run in main thread on Mac, so we need to implement it with rl inference
+            assert robot_type == "g1_real", "Joystick control is only supported for g1_real"
             print("Using joystick")
             self.use_joystick = True
             self.wc_msg = None
-
-            def wc_handler(msg: WirelessController_):
-                self.wc_msg = msg
-            self.wireless_controller_subscriber = ChannelSubscriber(
-                "rt/wirelesscontroller", WirelessController_
-            )
-            self.wireless_controller_subscriber.Init(wc_handler, 1)
-            self.wc_key_map = {
-                1: "R1",
-                2: "L1",
-                3: "L1+R1",
-                4: "start",
-                8: "select",
-                16: "R2",
-                32: "L2",
-                64: "F1",  # not used in sim2sim
-                128: "F2",  # not used in sim2sim
-                256: "A",
-                512: "B",
-                768: "A+B",
-                1024: "X",
-                1280: "A+X",
-                2048: "Y",
-                2304: "A+Y",
-                2560: "B+Y",
-                3072: "X+Y",
-                4096: "up",
-                4608: "B+up",
-                8192: "right",
-                8448: "A+right",
-                10240: "Y+right",
-                16384: "down",
-                16896: "B+down",
-                32768: "left",
-                33024: "A+left",
-                34816: "Y+left",
-            }
-            self._empty_key_states = {key: False for key in self.wc_key_map.values()}
-            self.last_key_states = self._empty_key_states.copy()
+            self.last_wc_msg = self.robot.read_wireless_controller()
             print("Wireless Controller Initialized")
         else:
+            import threading
             print("Using keyboard")
             self.use_joystick = False
             self.key_listener_thread = threading.Thread(
@@ -194,10 +147,9 @@ class BasePolicy:
         # Setup observations after state processor is initialized
         self.setup_observations()
 
-
     def setup_policy(self, model_path):
         # load onnx policy
-        from utils.onnx_module import ONNXModule
+        from rl_policy.utils.onnx_module import ONNXModule
         onnx_module = ONNXModule(model_path)
 
         def policy(input_dict):
@@ -254,35 +206,6 @@ class BasePolicy:
         self.init_count += 1
         return q_target
 
-    # def pre_compute_obs_callback(self):
-    #     pass
-
-    def _get_obs_root_angvel_b(self):
-        base_ang_vel = self.state_processor.root_ang_vel_b
-        return base_ang_vel
-
-    def _get_obs_root_ang_vel_b(self):
-        base_ang_vel = self.state_processor.root_ang_vel_b
-        return base_ang_vel
-
-    def _get_obs_projected_gravity_b(self):
-        base_quat = self.state_processor.root_quat_b
-        v = np.array([0, 0, -1])
-        projected_gravity = quat_rotate_inverse_numpy(
-            base_quat[None, :], 
-            v[None, :]
-        ).squeeze(0)
-        return projected_gravity
-
-    def _get_obs_joint_pos_multistep(self):
-        return self.joint_pos_multistep.reshape(-1)
-
-    def _get_obs_joint_vel_multistep(self):
-        return self.joint_vel_multistep.reshape(-1)
-
-    def _get_obs_prev_actions(self):
-        return self.prev_actions.reshape(-1)
-
     @property
     def command(self):
         return np.zeros(0)
@@ -298,6 +221,7 @@ class BasePolicy:
                     f"Keyboard key {keycode}. Error: {e}")
                 pass  # Handle special keys if needed
 
+        from sshkeyboard import listen_keyboard
         listener = listen_keyboard(on_press=on_press)
         listener.start()
         listener.join()  # Keep the thread alive
@@ -317,6 +241,7 @@ class BasePolicy:
         if keycode == "]":
             self.use_policy_action = True
             self.get_ready_state = False
+            self.reset()
             logger.info("Using policy actions")
             self.phase = 0.0
         elif keycode == "o":
@@ -345,63 +270,73 @@ class BasePolicy:
             )
 
     def process_joystick_input(self):
-        # Process stick
-        cur_key = self.wc_key_map.get(self.wc_msg.keys, None)
-        cur_key_states = self._empty_key_states.copy()
-        if cur_key:
-            cur_key_states[cur_key] = True
+        """Poll current wireless controller state and translate to high-level key events."""
+        try:
+            self.wc_msg = self.robot.read_wireless_controller()
+        except Exception:
+            return
 
-        for key, is_pressed in cur_key_states.items():
-            if is_pressed and not self.last_key_states[key]:
-                self.handle_joystick_button(key)
+        if self.wc_msg is None:
+            return
 
-        self.last_key_states = cur_key_states
-
+        # print(f"wc_msg.A: {self.wc_msg.A}")
+        if self.wc_msg.A and not self.last_wc_msg.A:
+            self.handle_joystick_button("A")
+        if self.wc_msg.B and not self.last_wc_msg.B:
+            self.handle_joystick_button("B")
+        if self.wc_msg.X and not self.last_wc_msg.X:
+            self.handle_joystick_button("X")
+        if self.wc_msg.Y and not self.last_wc_msg.Y:
+            self.handle_joystick_button("Y")
+        if self.wc_msg.L1 and not self.last_wc_msg.L1:
+            self.handle_joystick_button("L1")
+        if self.wc_msg.L2 and not self.last_wc_msg.L2:
+            self.handle_joystick_button("L2")
+        if self.wc_msg.R1 and not self.last_wc_msg.R1:
+            self.handle_joystick_button("R1")
+        if self.wc_msg.R2 and not self.last_wc_msg.R2:
+            self.handle_joystick_button("R2")
+        
+        self.last_wc_msg = self.wc_msg
+    
     def handle_joystick_button(self, cur_key):
-        # Handle button press
-        if cur_key == "start":
+        if cur_key == "R1":
             self.use_policy_action = True
             self.get_ready_state = False
             logger.info(colored("Using policy actions", "blue"))
-            self.phase = 0.0
-        elif cur_key == "B+Y":
+            self.phase = 0.0  # type: ignore
+        elif cur_key == "R2":
             self.use_policy_action = False
             self.get_ready_state = False
             logger.info(colored("Actions set to zero", "blue"))
-        elif cur_key == "A+X":
+        elif cur_key == "A":
             self.get_ready_state = True
             self.init_count = 0
             logger.info(colored("Setting to init state", "blue"))
-        elif cur_key == "Y+left":
-            self.command_sender.kp_level -= 0.1
-        elif cur_key == "Y+right":
-            self.command_sender.kp_level += 0.1
-        elif cur_key == "A+left":
-            self.command_sender.kp_level -= 0.01
-        elif cur_key == "A+right":
-            self.command_sender.kp_level += 0.01
-        elif cur_key == "A+Y":
-            self.command_sender.kp_level = 1.0
+        # elif cur_key == "Y+left":
+        #     self.command_sender.kp_level -= 0.1
+        # elif cur_key == "Y+right":
+        #     self.command_sender.kp_level += 0.1
+        # elif cur_key == "A+left":
+        #     self.command_sender.kp_level -= 0.01
+        # elif cur_key == "A+right":
+        #     self.command_sender.kp_level += 0.01
 
-        if cur_key in ["5", "6", "4", "7", "0"]:
-            logger.info(
-                colored(f"Debug kp level: {self.command_sender.kp_level}", "green")
-            )
+        # Debug print for kp level tuning
+        if cur_key in ["Y+left", "Y+right", "A+left", "A+right"]:
+            logger.info(colored(f"Debug kp level: {self.command_sender.kp_level}", "green"))
 
     def run(self):
         total_inference_cnt = 0
         
         # 初始化状态变量
         state_dict = {}
-        state_dict["adapt_hx"] = np.zeros((1, 128), dtype=np.float32)
+        state_dict["adapt_hx"] = np.zeros((1, 256), dtype=np.float32)
         state_dict["action"] = np.zeros(self.num_actions)
         self.state_dict = state_dict
         self.total_inference_cnt = total_inference_cnt
+        self.perf_dict = {}
 
-        self.joint_pos_multistep = np.zeros((16, self.num_dofs))
-        self.joint_vel_multistep = np.zeros((4, self.num_dofs))
-        self.prev_actions = np.zeros((self.num_actions, 3))
-        
         try:
             # 使用scheduler进行精确时间控制
             scheduler = sched.scheduler(time.perf_counter, time.sleep)
@@ -414,71 +349,99 @@ class BasePolicy:
                 
                 next_run_time += self.rl_dt
                 self.total_inference_cnt += 1
+
+                if self.total_inference_cnt % 100 == 0:
+                    print(f"total_inference_cnt: {self.total_inference_cnt}")
+                    for key, value in self.perf_dict.items():
+                        print(f"\t{key}: {value/100*1000:.3f} ms")
+                    self.perf_dict = {}
         except KeyboardInterrupt:
             pass
 
     def _rl_step_scheduled(self):
         loop_start = time.perf_counter()
-        
-        if self.use_joystick and self.wc_msg is not None:
-            self.process_joystick_input()
 
-        if not self.state_processor._prepare_low_state():
-            print("low state not ready.")
-            return
-        
+        with Timer(self.perf_dict, "prepare_low_state"):
+            if self.use_joystick and self.wc_msg is not None:
+                self.process_joystick_input()
+
+            if not self.state_processor._prepare_low_state():
+                print("low state not ready.")
+                return
+            
         try:
-            # Prepare observations
-            self.update()
-        
-            self.joint_pos_multistep = np.roll(self.joint_pos_multistep, 1, axis=0)
-            self.joint_vel_multistep = np.roll(self.joint_vel_multistep, 1, axis=0)
+            with Timer(self.perf_dict, "prepare_obs"):
+                # Prepare observations
+                self.update()
+                obs_dict = self.prepare_obs_for_rl()
+                self.state_dict.update(obs_dict)
+                self.state_dict["is_init"] = np.zeros(1, dtype=bool)
 
-            self.joint_pos_multistep[0, :] = self.state_processor.joint_pos
-            self.joint_vel_multistep[0, :] = self.state_processor.joint_vel
-
-
-            obs_dict = self.prepare_obs_for_rl()
-            self.state_dict.update(obs_dict)
-            self.state_dict["is_init"] = np.zeros(1, dtype=bool)
-
-            # Inference
-            action, self.state_dict = self.policy(self.state_dict)
-
-            # Clip policy action
-            action = action.clip(-100, 100)
-
-            self.prev_actions = np.roll(self.prev_actions, 1, axis=1)
-            self.prev_actions[:, 0] = action
-
-            self.state_dict["action"] = action
+            with Timer(self.perf_dict, "policy"):   
+                # Inference
+                action, self.state_dict = self.policy(self.state_dict)
+                # Clip policy action
+                action = action.clip(-100, 100)
+                self.state_dict["action"] = action
         except Exception as e:
             print(f"Error in policy inference: {e}")
             self.state_dict["action"] = np.zeros(self.num_actions)
             return
 
-        # rule based control flow
-        if self.get_ready_state:
-            q_target = self.get_init_target()
-        elif not self.use_policy_action:
-            q_target = self.state_processor.joint_pos
-        else:
-            policy_action = np.zeros((self.num_dofs))
-            policy_action[self.controlled_joint_indices] = self.state_dict["action"]
-            policy_action = policy_action * self.action_scale
-            q_target = policy_action + self.default_dof_angles
+        with Timer(self.perf_dict, "rule_based_control_flow"):
+            # rule based control flow
+            if self.get_ready_state:
+                q_target = self.get_init_target()
+            elif not self.use_policy_action:
+                q_target = self.state_processor.joint_pos
+            else:
+                policy_action = np.zeros((self.num_dofs))
+                policy_action[self.controlled_joint_indices] = self.state_dict["action"]
+                policy_action = policy_action * self.action_scale
+                q_target = policy_action + self.default_dof_angles
 
-        # Clip q target
-        q_target = np.clip(
-            q_target, self.joint_pos_lower_limit, self.joint_pos_upper_limit
-        )
+            # policy_action = np.zeros((self.num_dofs))
+            # policy_action[self.controlled_joint_indices] = self.state_dict["action"]
+            # policy_action = policy_action * self.action_scale
+            # q_target = policy_action + self.default_dof_angles
 
-        # Send command
-        cmd_q = q_target
-        cmd_dq = np.zeros(self.num_dofs)
-        cmd_tau = np.zeros(self.num_dofs)
-        self.command_sender.send_command(cmd_q, cmd_dq, cmd_tau)
+            # Clip q target
+            q_target = np.clip(
+                q_target, self.joint_pos_lower_limit, self.joint_pos_upper_limit
+            )
+
+            # Send command
+            cmd_q = q_target
+            cmd_dq = np.zeros(self.num_dofs)
+            cmd_tau = np.zeros(self.num_dofs)
+            self.command_sender.send_command(cmd_q, cmd_dq, cmd_tau)
 
         elapsed = time.perf_counter() - loop_start
         if elapsed > self.rl_dt:
             logger.warning(f"RL step took {elapsed:.6f} seconds, expected {self.rl_dt} seconds")
+
+if __name__ == "__main__":
+    import argparse
+    import yaml
+    parser = argparse.ArgumentParser(description="Robot")
+    parser.add_argument(
+        "--robot_config", type=str, default="config/robot/g1.yaml", help="robot config file"
+    )
+    parser.add_argument(
+        "--policy_config", type=str, help="policy config file"
+    )
+    args = parser.parse_args()
+
+    with open(args.policy_config) as file:
+        policy_config = yaml.load(file, Loader=yaml.FullLoader)
+    with open(args.robot_config) as file:
+        robot_config = yaml.load(file, Loader=yaml.FullLoader)
+    model_path = args.policy_config.replace(".yaml", ".onnx")
+
+    policy = BasePolicy(
+        robot_config=robot_config,
+        policy_config=policy_config,
+        model_path=model_path,
+        rl_rate=50,
+    )
+    policy.run()

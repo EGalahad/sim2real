@@ -9,29 +9,30 @@ from utils.strings import unitree_joint_names
 
 class CommandSender:
     def __init__(self, robot_config, policy_config):
-        self.robot_config = robot_config
-        self.policy_config = policy_config
-        if self.robot_config["ROBOT_TYPE"] == "h1" or self.robot_config["ROBOT_TYPE"] == "go2":
+        self.robot_type = robot_config["ROBOT_TYPE"]
+        if self.robot_type == "h1" or self.robot_type == "go2":
             from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowCmd_
             from unitree_sdk2py.idl.default import unitree_go_msg_dds__LowCmd_
 
             self.low_cmd = unitree_go_msg_dds__LowCmd_()
         elif (
-            self.robot_config["ROBOT_TYPE"] == "g1_29dof"
-            or self.robot_config["ROBOT_TYPE"] == "h1-2_21dof"
-            or self.robot_config["ROBOT_TYPE"] == "h1-2_27dof"
+            self.robot_type == "g1_29dof"
+            or self.robot_type == "h1-2_21dof"
+            or self.robot_type == "h1-2_27dof"
         ):
             from unitree_sdk2py.idl.default import unitree_hg_msg_dds__LowCmd_
             from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowCmd_
 
             self.low_cmd = unitree_hg_msg_dds__LowCmd_()
+        elif self.robot_type == "g1_real":
+            self.robot = robot_config["robot"]
         else:
-            raise NotImplementedError(
-                f"Robot type {self.robot_config['ROBOT_TYPE']} is not supported yet"
-            )
+            raise NotImplementedError(f"Robot type {self.robot_type} is not supported yet")
+
         # init robot and kp kd
         self._kp_level = 1.0  # 0.1
 
+        self.policy_config = policy_config
         joint_kp_dict = self.policy_config["joint_kp"]
         joint_indices, joint_names, joint_kp = resolve_matching_names_values(
             joint_kp_dict,
@@ -84,7 +85,7 @@ class CommandSender:
 
     def InitLowCmd(self):
         # h1/go2:
-        if self.robot_config["ROBOT_TYPE"] == "h1" or self.robot_config["ROBOT_TYPE"] == "go2":
+        if self.robot_type == "h1" or self.robot_type == "go2":
             self.low_cmd.head[0] = 0xFE
             self.low_cmd.head[1] = 0xEF
         else:
@@ -92,7 +93,8 @@ class CommandSender:
 
         self.low_cmd.level_flag = 0xFF
         self.low_cmd.gpio = 0
-        unitree_legged_const = self.robot_config["UNITREE_LEGGED_CONST"]
+        from utils.common import UNITREE_LEGGED_CONST
+        unitree_legged_const = UNITREE_LEGGED_CONST
         for unitree_idx in range(len(unitree_joint_names)):
             self.low_cmd.motor_cmd[unitree_idx].mode = 0x01
             # self.low_cmd.motor_cmd[unitree_motor_idx].mode = 0x0A
@@ -105,10 +107,12 @@ class CommandSender:
             )
             self.low_cmd.motor_cmd[unitree_idx].kd = 0
             self.low_cmd.motor_cmd[unitree_idx].tau = 0
+            # g1, h1-2:
             if (
-                self.robot_config["ROBOT_TYPE"] == "g1_29dof"
-                or self.robot_config["ROBOT_TYPE"] == "h1-2_21dof"
-                or self.robot_config["ROBOT_TYPE"] == "h1-2_27dof"
+                self.robot_type == "g1_29dof"
+                or self.robot_type == "g1_real"
+                or self.robot_type == "h1-2_21dof"
+                or self.robot_type == "h1-2_27dof"
             ):
                 self.low_cmd.mode_machine = unitree_legged_const["MODE_MACHINE"]
                 self.low_cmd.mode_pr = unitree_legged_const["MODE_PR"]
@@ -122,21 +126,49 @@ class CommandSender:
         self.cmd_q[:] = self.default_joint_pos_unitree
 
     def send_command(self, cmd_q, cmd_dq, cmd_tau):
-        self.cmd_q[self.joint_indices_unitree] = cmd_q
-        self.cmd_dq[self.joint_indices_unitree] = cmd_dq
-        self.cmd_tau[self.joint_indices_unitree] = cmd_tau
-        
-        for unitree_idx in range(len(unitree_joint_names)):
-            self.low_cmd.motor_cmd[unitree_idx].q = self.cmd_q[unitree_idx]
-            self.low_cmd.motor_cmd[unitree_idx].dq = self.cmd_dq[unitree_idx]
-            self.low_cmd.motor_cmd[unitree_idx].tau = self.cmd_tau[unitree_idx]
+        if self.robot_type != "g1_real":
+            self.cmd_q[self.joint_indices_unitree] = cmd_q
+            self.cmd_dq[self.joint_indices_unitree] = cmd_dq
+            self.cmd_tau[self.joint_indices_unitree] = cmd_tau
+            
+            for unitree_idx in range(len(unitree_joint_names)):
+                self.low_cmd.motor_cmd[unitree_idx].q = self.cmd_q[unitree_idx]
+                self.low_cmd.motor_cmd[unitree_idx].dq = self.cmd_dq[unitree_idx]
+                self.low_cmd.motor_cmd[unitree_idx].tau = self.cmd_tau[unitree_idx]
 
-            self.low_cmd.motor_cmd[unitree_idx].kp = self.joint_kp_unitree[
-                unitree_idx
-            ]
-            self.low_cmd.motor_cmd[unitree_idx].kd = self.joint_kd_unitree[
-                unitree_idx
-            ]
+                self.low_cmd.motor_cmd[unitree_idx].kp = self.joint_kp_unitree[
+                    unitree_idx
+                ]
+                self.low_cmd.motor_cmd[unitree_idx].kd = self.joint_kd_unitree[
+                    unitree_idx
+                ]
 
-        self.low_cmd.crc = self.crc.Crc(self.low_cmd)
-        self.lowcmd_publisher_.Write(self.low_cmd)
+            self.low_cmd.crc = self.crc.Crc(self.low_cmd)
+            self.lowcmd_publisher_.Write(self.low_cmd)
+        else:
+            cmd = self.robot.create_zero_command()
+
+            # Apply kp_level scaling (kd remains constant, consistent with original implementation)
+            kp_scaled = self.joint_kp_unitree * self._kp_level
+            kd_scaled = self.joint_kd_unitree
+
+            q_target = list(cmd.q_target)
+            dq_target = list(cmd.dq_target)
+            tau_ff = list(cmd.tau_ff)
+            kp = list(cmd.kp)
+            kd = list(cmd.kd)
+            for i_policy, idx_unitree in enumerate(self.joint_indices_unitree):
+                q_target[idx_unitree] = float(cmd_q[i_policy])
+                dq_target[idx_unitree] = float(cmd_dq[i_policy])
+                tau_ff[idx_unitree] = float(cmd_tau[i_policy])
+                kp[idx_unitree] = float(kp_scaled[idx_unitree])
+                kd[idx_unitree] = float(kd_scaled[idx_unitree])
+
+            cmd.q_target = q_target
+            cmd.dq_target = dq_target
+            cmd.tau_ff = tau_ff
+            cmd.kp = kp
+            cmd.kd = kd
+
+            self.robot.write_low_command(cmd)
+

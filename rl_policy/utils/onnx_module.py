@@ -1,6 +1,7 @@
 import json
 import numpy as np
 import onnxruntime as ort
+import time
 from typing import Dict
 
 class ONNXModule:
@@ -23,3 +24,17 @@ class ONNXModule:
         outputs = {k: v for k, v in zip(self.out_keys, outputs)}
         return outputs
 
+class Timer:
+    def __init__(self, perf_dict: Dict[str, float], name: str):
+        self.perf_dict = perf_dict
+        self.name = name
+
+    def __enter__(self):
+        self.start_time = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        elapsed_time = time.perf_counter() - self.start_time
+        if self.name not in self.perf_dict:
+            self.perf_dict[self.name] = 0
+        self.perf_dict[self.name] += elapsed_time

@@ -1,4 +1,4 @@
-ROBOT_TYPE: 'g1_29dof' # Robot name, "go2", "b2", "b2w", "h1", "go2w", "g1" 
+ROBOT_TYPE: 'g1_real' # Robot name, "go2", "b2", "b2w", "h1", "go2w", "g1" 
  ### REAL
 # # DOMAIN_ID: 0 # Domain id
 # # # Interface
@@ -7,9 +7,9 @@ ROBOT_TYPE: 'g1_29dof' # Robot name, "go2", "b2", "b2w", "h1", "go2w", "g1"
 ## SIM
 DOMAIN_ID: 0 # Domain id
 # Interface
-INTERFACE: "lo" # Yuanhang: in simulation, lo0 for mac, lo for linux
-MOCAP_IP: "localhost"
-USE_JOYSTICK: False
+INTERFACE: "eth0" # Yuanhang: in simulation, lo0 for mac, lo for linux
+MOCAP_IP: "10.42.0.1"
+USE_JOYSTICK: True
 
 
 UNITREE_LEGGED_CONST:

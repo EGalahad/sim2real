@@ -8,19 +8,16 @@ from rl_policy.base_policy import BasePolicy
 np.set_printoptions(precision=3, suppress=True, linewidth=1000)
 
 
-class DeepMimicPolicy(BasePolicy):
-    def handle_keyboard_button(self, keycode):
-        super().handle_keyboard_button(keycode)
-        if keycode == "space" or keycode == "]":
-            self.reset()
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Robot")
     parser.add_argument(
-        "--policy_config", type=str, default="config/policy/deepmimic_29dof.yaml", help="policy config file"
+        "--robot_config", type=str, default="config/robot/g1.yaml", help="robot config file"
     )
     parser.add_argument(
-        "--robot_config", type=str, default="config/robot/g1.yaml", help="robot config file"
+        "--policy_config", help="policy config file"
+    )
+    parser.add_argument(
+        "--motion_path", type=str, help="motion path"
     )
     args = parser.parse_args()
 
@@ -30,9 +27,22 @@ if __name__ == "__main__":
         robot_config = yaml.load(file, Loader=yaml.FullLoader)
     model_path = args.policy_config.replace(".yaml", ".onnx")
 
-    policy_config["observation"]["command"]["ref_motion_phase"]["motion_duration_second"] = policy_config["motion_duration_second"]
+    motion_obs_names = [
+        "ref_joint_pos_future",
+        "ref_joint_vel_future",
+        "ref_body_pos_future_local",
+        "ref_body_lin_vel_future_local",
+        "ref_body_ori_future_local",
+        "ref_body_ang_vel_future_local",
+    ]
 
-    policy = DeepMimicPolicy(
+    for motion_obs_name in motion_obs_names:
+        motion_obs_config = policy_config["observation"]["command"].get(motion_obs_name, None)
+        if motion_obs_config is None:
+            continue
+        motion_obs_config["motion_path"] = args.motion_path
+
+    policy = BasePolicy(
         robot_config=robot_config,
         policy_config=policy_config,
         model_path=model_path,

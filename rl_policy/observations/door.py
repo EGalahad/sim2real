@@ -1,30 +1,10 @@
-import time
-from typing import Any, Dict
+from .base import Observation
+
 import numpy as np
-from rl_policy.observations.base import Observation
-from utils.math import quat_rotate_inverse_numpy, yaw_from_quat, wrap_to_pi, yaw_quat
+from typing import Any, Dict
+from utils.math import quat_rotate_inverse_numpy
 from utils.common import PORTS
-
-
-class ref_motion_phase(Observation):
-    def __init__(self, motion_duration_second: float, **kwargs):
-        super().__init__(**kwargs)
-        self.ref_motion_phase = np.zeros(1)
-        self.start_time = time.time()
-        self.motion_duration_second = motion_duration_second
-    
-    def reset(self):
-        """Reset the motion phase to start from 0"""
-        self.start_time = time.time()
-        self.ref_motion_phase[:] = 0
-
-    def compute(self) -> np.ndarray:
-        t = time.time()
-        self.ref_motion_phase[:] = (t - self.start_time) / self.motion_duration_second
-        self.ref_motion_phase %= 1.0
-        print(f"ref_motion_phase: {self.ref_motion_phase}")
-        return self.ref_motion_phase
-
+import time
 
 class door_pos_b(Observation):
     def __init__(self, **kwargs):
@@ -49,7 +29,7 @@ class door_pos_b(Observation):
         door_pos_b = quat_rotate_inverse_numpy(
             root_quat_yaw_w[None, :], (door_pos_w - root_pos_w)[None, :]
         ).squeeze(0)
-        return door_pos_b
+        return door_pos_b[:2]
 
 
 class root_yaw(Observation):

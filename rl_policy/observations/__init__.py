@@ -1,4 +1,6 @@
-from .base import Observation
+from .base import Observation, ObsGroup
 
-from .basic import *
-from .hdmi import *
+from .common import *
+from .motion import *
+from .door import *
+from .box import *
