@@ -1,0 +1,29 @@
+{
+    "in_keys": [
+        "command",
+        "policy"
+    ],
+    "out_keys": [
+        "command",
+        "policy",
+        "priv_pred",
+        "_actor_inp",
+        "_actor_feature",
+        "loc",
+        "scale",
+        "action",
+        "sample_log_prob"
+    ],
+    "in_shapes": [
+        [
+            [
+                1,
+                1
+            ],
+            [
+                1,
+                307
+            ]
+        ]
+    ]
+}

@@ -1,0 +1,115 @@
+observation:
+  policy:
+    root_angvel_b:
+      noise_std: 0.05
+    projected_gravity_b:
+      noise_std: 0.01
+    joint_pos_history:
+      history_steps:
+      - 0
+      - 1
+      - 2
+      - 3
+      - 4
+      - 8
+      - 16
+      - 32
+      noise_std: 0.01
+    prev_actions:
+      steps: 3
+  command:
+    ref_motion_phase: {motion_duration_second: 12.0}
+action_scale:
+  waist_yaw_joint: 0.25
+  waist_roll_joint: 0.25
+  waist_pitch_joint: 0.25
+  .*hip.*: 0.25
+  .*knee.*: 0.25
+  .*ankle.*: 0.25
+  .*shoulder.*: 0.25
+  .*elbow_joint: 0.25
+isaac_joint_names:
+- left_hip_pitch_joint
+- right_hip_pitch_joint
+- waist_yaw_joint
+- left_hip_roll_joint
+- right_hip_roll_joint
+- waist_roll_joint
+- left_hip_yaw_joint
+- right_hip_yaw_joint
+- waist_pitch_joint
+- left_knee_joint
+- right_knee_joint
+- left_shoulder_pitch_joint
+- right_shoulder_pitch_joint
+- left_ankle_pitch_joint
+- right_ankle_pitch_joint
+- left_shoulder_roll_joint
+- right_shoulder_roll_joint
+- left_ankle_roll_joint
+- right_ankle_roll_joint
+- left_shoulder_yaw_joint
+- right_shoulder_yaw_joint
+- left_elbow_joint
+- right_elbow_joint
+- left_wrist_roll_joint
+- right_wrist_roll_joint
+- left_wrist_pitch_joint
+- right_wrist_pitch_joint
+- left_wrist_yaw_joint
+- right_wrist_yaw_joint
+joint_kp:
+  .*_hip_yaw_joint: 150.0
+  .*_hip_roll_joint: 150.0
+  .*_hip_pitch_joint: 200.0
+  .*_knee_joint: 200.0
+  waist_yaw_joint: 150.0
+  waist_roll_joint: 150.0
+  waist_pitch_joint: 150.0
+  .*ankle_pitch_joint: 20.0
+  .*ankle_roll_joint: 20.0
+  .*_shoulder_.*: 40.0
+  .*_elbow_joint: 40.0
+  .*_wrist_.*_joint: 4.0
+joint_kd:
+  waist_yaw_joint: 5.0
+  waist_roll_joint: 5.0
+  waist_pitch_joint: 5.0
+  .*_shoulder_.*: 2.0
+  .*_elbow_joint: 2.0
+  .*_hip_yaw_joint: 6.0
+  .*_hip_roll_joint: 6.0
+  .*_hip_pitch_joint: 6.0
+  .*_knee_joint: 6.0
+  .*ankle_pitch_joint: 1.0
+  .*ankle_roll_joint: 1.0
+  .*_wrist_.*_joint: 0.5
+default_joint_pos:
+  .*_hip_pitch_joint: -0.15
+  .*_knee_joint: 0.3
+  .*_ankle_pitch_joint: -0.15
+  .*_elbow_joint: 0.8
+policy_joint_names:
+- left_hip_pitch_joint
+- right_hip_pitch_joint
+- waist_yaw_joint
+- left_hip_roll_joint
+- right_hip_roll_joint
+- waist_roll_joint
+- left_hip_yaw_joint
+- right_hip_yaw_joint
+- waist_pitch_joint
+- left_knee_joint
+- right_knee_joint
+- left_shoulder_pitch_joint
+- right_shoulder_pitch_joint
+- left_ankle_pitch_joint
+- right_ankle_pitch_joint
+- left_shoulder_roll_joint
+- right_shoulder_roll_joint
+- left_ankle_roll_joint
+- right_ankle_roll_joint
+- left_shoulder_yaw_joint
+- right_shoulder_yaw_joint
+- left_elbow_joint
+- right_elbow_joint
