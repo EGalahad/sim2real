@@ -21,7 +21,7 @@ sys.path.append(".")
 
 from utils.strings import unitree_joint_names
 
-scene = "./data/robots/g1/g1_29dof_nohand-eef_L-box.xml"  # Robot scene, for Sim2Sim
+scene = "./data/robots/g1/g1_29dof_nohand.xml"  # Robot scene, for Sim2Sim
 
 temp_scene_base_name = "scene_temp.xml"
 
@@ -101,10 +101,15 @@ class MuJoCoMocapViewer:
         assert pelvis_joint_id != -1, "floating_base_joint not found in model"
         self.pelvis_joint_qpos_adr = self.model.jnt_qposadr[pelvis_joint_id]
 
+        # box_joint_id
+        box_joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, 'box_root')
+        assert box_joint_id != -1, "box_root not found in model"
+        self.box_joint_qpos_adr = self.model.jnt_qposadr[box_joint_id]
 
         # Initialize data storage
         self.joint_positions = np.zeros(len(src_joint_names))
         self.root_pose = np.zeros(7)  # [x, y, z, qw, qx, qy, qz]
+        self.box_pose = np.zeros(7)  # [x, y, z, qw, qx, qy, qz]
         self.data_lock = threading.Lock()
         
         # Initialize recording variables
@@ -121,6 +126,9 @@ class MuJoCoMocapViewer:
         
         self.root_pose_thread = threading.Thread(target=self._root_pose_subscriber_thread, daemon=True)
         self.root_pose_thread.start()
+        
+        self.box_pose_thread = threading.Thread(target=self._box_pose_subscriber_thread, daemon=True)
+        self.box_pose_thread.start()
         
         # Start MuJoCo update timer
         self.update_thread = threading.Thread(target=self._mujoco_update_loop, daemon=True)
@@ -175,6 +183,29 @@ class MuJoCoMocapViewer:
                 print(f"Error in root_pose subscriber thread: {str(e)}")
                 time.sleep(0.01)
     
+    def _box_pose_subscriber_thread(self):
+        """Thread function to continuously receive box pose data from local machine"""
+        while self.running:
+            try:
+                # Receive multipart message
+                message = self.box_pose_subscriber.recv_multipart(zmq.NOBLOCK)
+                if len(message) == 2:
+                    received_obj_name = message[0].decode('utf-8')
+                    pose_bytes = message[1]
+                    
+                    # Convert bytes back to numpy array with explicit dtype
+                    pose_data = np.frombuffer(pose_bytes, dtype=np.float64)
+                    
+                    # Store in mocap_data with thread-safe access
+                    with self.data_lock:
+                        self.box_pose[:] = pose_data
+                        
+            except zmq.Again:
+                # No message available, continue
+                time.sleep(0.001)
+            except Exception as e:
+                print(f"Error in box_pose subscriber thread: {str(e)}")
+                time.sleep(0.01)
 
     def _record_qpos(self):
         if not self.record:
@@ -246,6 +277,7 @@ class MuJoCoMocapViewer:
             # Update joint positions
             self.data.qpos[self.tgt_joint_ids] = self.joint_positions[self.src_joint_ids]
             self.data.qpos[self.pelvis_joint_qpos_adr: self.pelvis_joint_qpos_adr + 7] = self.root_pose
+            self.data.qpos[self.box_joint_qpos_adr: self.box_joint_qpos_adr + 7] = self.box_pose
         
         # Record qpos
         self._record_qpos()

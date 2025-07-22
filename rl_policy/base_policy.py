@@ -6,8 +6,6 @@ import sched
 from termcolor import colored
 from loguru import logger
 
-from unitree_sdk2py.core.channel import ChannelFactoryInitialize
-
 import sys
 sys.path.append(".")
 from utils.strings import resolve_matching_names_values
@@ -30,6 +28,7 @@ class BasePolicy:
         # initialize robot related processes
         robot_type = robot_config["ROBOT_TYPE"]
         if robot_type != "g1_real":
+            from unitree_sdk2py.core.channel import ChannelFactoryInitialize
             if robot_config.get("INTERFACE", None):
                 ChannelFactoryInitialize(robot_config["DOMAIN_ID"], robot_config["INTERFACE"])
             else:
@@ -43,6 +42,7 @@ class BasePolicy:
                 self.robot.set_control_mode(g1_interface.ControlMode.PR)
             except Exception:
                 pass  # Ignore if firmware already in the correct mode
+            robot_config["robot"] = self.robot
 
         self.state_processor = StateProcessor(robot_config, policy_config["isaac_joint_names"])
         self.command_sender = CommandSender(robot_config, policy_config)
@@ -213,16 +213,28 @@ class BasePolicy:
     def start_key_listener(self):
         """Start a key listener using pynput."""
 
+        self.key_pressed = set()
         def on_press(keycode):
             try:
-                self.handle_keyboard_button(keycode)
+                if keycode not in self.key_pressed:
+                    self.key_pressed.add(keycode)
+                    self.handle_keyboard_button(keycode)
             except AttributeError as e:
                 logger.warning(
                     f"Keyboard key {keycode}. Error: {e}")
                 pass  # Handle special keys if needed
+        
+        def on_release(keycode):
+            try:
+                if keycode in self.key_pressed:
+                    self.key_pressed.remove(keycode)
+            except AttributeError as e:
+                logger.warning(
+                    f"Keyboard key {keycode}. Error: {e}")
+                pass
 
         from sshkeyboard import listen_keyboard
-        listener = listen_keyboard(on_press=on_press)
+        listener = listen_keyboard(on_press=on_press, on_release=on_release)
         listener.start()
         listener.join()  # Keep the thread alive
 
@@ -273,6 +285,7 @@ class BasePolicy:
         """Poll current wireless controller state and translate to high-level key events."""
         try:
             self.wc_msg = self.robot.read_wireless_controller()
+            print(f"Wireless Controller State: {self.wc_msg}")
         except Exception:
             return
 
@@ -362,7 +375,7 @@ class BasePolicy:
         loop_start = time.perf_counter()
 
         with Timer(self.perf_dict, "prepare_low_state"):
-            if self.use_joystick and self.wc_msg is not None:
+            if self.use_joystick:
                 self.process_joystick_input()
 
             if not self.state_processor._prepare_low_state():

@@ -1,8 +1,6 @@
 import numpy as np
 
-from unitree_sdk2py.core.channel import ChannelPublisher
 
-from unitree_sdk2py.utils.crc import CRC
 from utils.strings import resolve_matching_names_values
 from utils.strings import unitree_joint_names
 
@@ -28,6 +26,15 @@ class CommandSender:
             self.robot = robot_config["robot"]
         else:
             raise NotImplementedError(f"Robot type {self.robot_type} is not supported yet")
+
+        # init low cmd publisher
+        if self.robot_type != "g1_real":
+            from unitree_sdk2py.core.channel import ChannelPublisher
+            self.lowcmd_publisher_ = ChannelPublisher("rt/lowcmd", LowCmd_)
+            self.lowcmd_publisher_.Init()
+            self.InitLowCmd()
+            from unitree_sdk2py.utils.crc import CRC
+            self.crc = CRC()
 
         # init robot and kp kd
         self._kp_level = 1.0  # 0.1
@@ -66,13 +73,6 @@ class CommandSender:
 
         joint_names_isaac = self.policy_config["isaac_joint_names"]
         self.joint_indices_unitree = [unitree_joint_names.index(name) for name in joint_names_isaac]
-
-        # init low cmd publisher
-        self.lowcmd_publisher_ = ChannelPublisher("rt/lowcmd", LowCmd_)
-        self.lowcmd_publisher_.Init()
-        self.InitLowCmd()
-        self.low_state = None
-        self.crc = CRC()
 
     @property
     def kp_level(self):
