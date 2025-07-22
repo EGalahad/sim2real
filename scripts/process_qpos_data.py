@@ -150,7 +150,21 @@ def process_qpos_data(qpos_data, timestamps, pos_sigma=1.0, quat_sigma=1.0, join
     else:
         smoothed_qpos[:, 0:3] = qpos_data[:, 0:3]
         print("✓ Copied pelvis position (no smoothing)")
-    
+
+    import matplotlib.pyplot as plt
+    # Plot pelvis position smoothing
+    plt.figure(figsize=(10, 6))
+    start, end = 400, 2000
+    plt.plot(timestamps[start:end], qpos_data[start:end, 0], label='Original X')
+    plt.plot(timestamps[start:end], smoothed_qpos[start:end, 0], label='Smoothed X')
+    plt.plot(timestamps[start:end], qpos_data[start:end, 1], label='Original Y')
+    plt.plot(timestamps[start:end], smoothed_qpos[start:end, 1], label='Smoothed Y')
+    plt.xlabel("Time (s)")
+    plt.ylabel("Position (m)")
+    plt.title("Pelvis Position Smoothing")
+    plt.legend()
+    plt.show()
+
     # Smooth pelvis quaternion (3:7)
     if quat_sigma > 0:
         smoothed_qpos[:, 3:7] = smooth_quaternions(qpos_data[:, 3:7], sigma=quat_sigma)
@@ -158,6 +172,23 @@ def process_qpos_data(qpos_data, timestamps, pos_sigma=1.0, quat_sigma=1.0, join
     else:
         smoothed_qpos[:, 3:7] = qpos_data[:, 3:7]
         print("✓ Copied pelvis quaternion (no smoothing)")
+    
+    # Plot quaternion smoothing
+    # first convert to euler angles for visualization
+    euler_angles = Rotation.from_quat(smoothed_qpos[:, 3:7][:, [1, 2, 3, 0]]).as_euler('xyz', degrees=True)
+    euler_angles_orig = Rotation.from_quat(qpos_data[:, 3:7][:, [1, 2, 3, 0]]).as_euler('xyz', degrees=True)
+    plt.figure(figsize=(10, 6))
+    plt.plot(timestamps[start:end], euler_angles_orig[start:end, 0], label='Original Roll', color='orange', linestyle='--')
+    plt.plot(timestamps[start:end], euler_angles[start:end, 0], label='Smoothed Roll', color='orange', linestyle='-')
+    plt.plot(timestamps[start:end], euler_angles_orig[start:end, 1], label='Original Pitch', color='green', linestyle='--')
+    plt.plot(timestamps[start:end], euler_angles[start:end, 1], label='Smoothed Pitch', color='green', linestyle='-')
+    plt.plot(timestamps[start:end], euler_angles_orig[start:end, 2] / 10, label='Original Yaw / 10', color='red', linestyle='--')
+    plt.plot(timestamps[start:end], euler_angles[start:end, 2] / 10, label='Smoothed Yaw / 10', color='red', linestyle='-')
+    plt.xlabel("Time (s)")
+    plt.ylabel("Euler Angles (degrees)")
+    plt.title("Pelvis Quaternion Smoothing")
+    plt.legend()
+    plt.show()
     
     # Smooth joint positions (7:nq)
     if nq > 7:
@@ -167,7 +198,20 @@ def process_qpos_data(qpos_data, timestamps, pos_sigma=1.0, quat_sigma=1.0, join
         else:
             smoothed_qpos[:, 7:] = qpos_data[:, 7:]
             print(f"✓ Copied {nq-7} joint angles (no smoothing)")
-    
+        
+    import matplotlib.pyplot as plt
+    # Plot joint position smoothing
+    plt.figure(figsize=(10, 6))
+    for i in range(7, nq - 17):
+        plt.plot(timestamps[start:end], qpos_data[start:end, i], label=f'Original Joint {i-6}')
+        plt.plot(timestamps[start:end], smoothed_qpos[start:end, i], label=f'Smoothed Joint {i-6}', linestyle='--')
+    plt.xlabel("Time (s)")
+    plt.ylabel("Joint Position (m)")
+    plt.title("Joint Position Smoothing")
+    plt.legend()
+    plt.show()
+    breakpoint()
+
     # Calculate qvel from smoothed qpos
     print("Calculating velocities...")
     dt = np.diff(timestamps)
@@ -214,12 +258,12 @@ def main():
     parser.add_argument("input_npz", type=str, help="Path to input npz file containing qpos data")
     parser.add_argument("--output", "-o", type=str, default=None, 
                        help="Output npz file path (default: adds '_processed' to input filename)")
-    parser.add_argument("--pos_sigma", type=float, default=0.2,
-                       help="Smoothing sigma for pelvis position (0:3) (default: 0.2)")
-    parser.add_argument("--quat_sigma", type=float, default=0.2,
-                       help="Smoothing sigma for pelvis quaternion (3:7) (default: 0.2)")
-    parser.add_argument("--joint_sigma", type=float, default=0.1,
-                       help="Smoothing sigma for joint angles (7:nq) (default: 0.1)")
+    parser.add_argument("--pos_sigma", type=float, default=0.0,
+                       help="Smoothing sigma (seconds) for pelvis position (0:3) (default: 0.0)")
+    parser.add_argument("--quat_sigma", type=float, default=0.0,
+                       help="Smoothing sigma (seconds) for pelvis quaternion (3:7) (default: 0.0)")
+    parser.add_argument("--joint_sigma", type=float, default=0.0,
+                       help="Smoothing sigma (seconds) for joint angles (7:nq) (default: 0.0)")
 
     args = parser.parse_args()
     
@@ -240,7 +284,9 @@ def main():
         input_data = np.load(args.input_npz)
         qpos_data = input_data['qpos']
         timestamps = input_data['timestamps']
-        
+        qpos_data = qpos_data[10:]
+        timestamps = timestamps[10:]
+
         # Get metadata
         frequency = float(input_data.get('frequency', 50.0))
         nq = int(input_data.get('nq', qpos_data.shape[1]))
@@ -279,7 +325,6 @@ def main():
         'quat_sigma': quat_sigma,
         'joint_sigma': joint_sigma,
         'processing_timestamp': datetime.now().strftime("%Y%m%d_%H%M%S"),
-        'original_file': os.path.basename(args.input_npz)
     }
     
     # Add joint names if available

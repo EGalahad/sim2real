@@ -113,3 +113,4 @@ policy_joint_names:
 - right_shoulder_yaw_joint
 - left_elbow_joint
 - right_elbow_joint
+motion_duration_second: 12.0

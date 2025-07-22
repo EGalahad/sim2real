@@ -84,8 +84,6 @@ class Vicon:
 
             # Position and orientation
             position = np.array([x, y, z]) / 1000. # Convert to meters
-            if vicon_object_name == "haoyang_box":
-                position[1] += -0.05
             rotation = R.from_euler('XYZ', [roll, pitch, yaw], degrees=False)
             quaternion = rotation.as_quat()
 

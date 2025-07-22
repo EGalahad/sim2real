@@ -56,7 +56,11 @@ echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
 ```
 
 # Vicon
+To start replay zmq server on laptop, run:
 
+```bash
+python scripts/publishers/vicon_pose_publisher.py
+```
 
 
 # MuJoCo Sim2Sim
@@ -68,7 +72,7 @@ echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
 python sim_env/base_sim.py --robot_config ./config/robot/g1.yaml --scene_config ./config/scene/g1_29dof_nohand.yaml
 
 # policy
-python rl_policy/deepmimic.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/exports/G1TrackWalk/policy-xob4chg3-1500.yaml
+python rl_policy/base_policy.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/exports/G1TrackWalk/policy-xob4chg3-1500.yaml
 ```
 
 ## DeepMimic Push Door (29 DoF)
@@ -78,5 +82,13 @@ python rl_policy/deepmimic.py --robot_config ./config/robot/g1.yaml --policy_con
 python sim_env/push_door.py --robot_config ./config/robot/g1.yaml --scene_config ./config/scene/g1_29dof_nohand-door.yaml
 
 # policy
-python rl_policy/deepmimic-door.py --robot_config ./config/robot/g1.yaml --policy_config ./checkpoints/exports/G1Track/policy-6s0umflf-final.yaml
+python rl_policy/local_tracking.py --robot_config ./config/robot/g1.yaml --policy_config ./checkpoints/exports/G1Track/policy-6s0umflf-final.yaml
+```
+
+## DeepMimic Push Box (29 DoF) with Mocap
+
+```bash
+python sim_env/push_box.py
+
+python rl_policy/local_tracking.py --robot_config ./config/robot/g1.yaml --motion_path data/motion/push_box/push_box-VID_20250423_220958-light-high-adjust_root_height-zero_waist_pitch-processed --policy_config checkpoints/exports/G1TrackBox/policy-dxx84vic-final.yaml
 ```

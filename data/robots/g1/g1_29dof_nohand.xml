@@ -270,12 +270,159 @@
   </actuator>
 
   <sensor>
+    <!-- pelvis sensors -->
+    <framepos name="pelvis_pos" objtype="xbody" objname="pelvis" />
+    <framequat name="pelvis_quat" objtype="xbody" objname="pelvis" />
+    <framelinvel name="pelvis_linvel" objtype="body" objname="pelvis" />
+    <frameangvel name="pelvis_angvel" objtype="body" objname="pelvis" />
+    
+    <!-- left leg sensors -->
+    <framepos name="left_hip_pitch_link_pos" objtype="xbody" objname="left_hip_pitch_link" />
+    <framequat name="left_hip_pitch_link_quat" objtype="xbody" objname="left_hip_pitch_link" />
+    <framelinvel name="left_hip_pitch_link_linvel" objtype="body" objname="left_hip_pitch_link" />
+    <frameangvel name="left_hip_pitch_link_angvel" objtype="body" objname="left_hip_pitch_link" />
+    
+    <framepos name="left_hip_roll_link_pos" objtype="xbody" objname="left_hip_roll_link" />
+    <framequat name="left_hip_roll_link_quat" objtype="xbody" objname="left_hip_roll_link" />
+    <framelinvel name="left_hip_roll_link_linvel" objtype="body" objname="left_hip_roll_link" />
+    <frameangvel name="left_hip_roll_link_angvel" objtype="body" objname="left_hip_roll_link" />
+    
+    <framepos name="left_hip_yaw_link_pos" objtype="xbody" objname="left_hip_yaw_link" />
+    <framequat name="left_hip_yaw_link_quat" objtype="xbody" objname="left_hip_yaw_link" />
+    <framelinvel name="left_hip_yaw_link_linvel" objtype="body" objname="left_hip_yaw_link" />
+    <frameangvel name="left_hip_yaw_link_angvel" objtype="body" objname="left_hip_yaw_link" />
+    
+    <framepos name="left_knee_link_pos" objtype="xbody" objname="left_knee_link" />
+    <framequat name="left_knee_link_quat" objtype="xbody" objname="left_knee_link" />
+    <framelinvel name="left_knee_link_linvel" objtype="body" objname="left_knee_link" />
+    <frameangvel name="left_knee_link_angvel" objtype="body" objname="left_knee_link" />
+    
+    <framepos name="left_ankle_pitch_link_pos" objtype="xbody" objname="left_ankle_pitch_link" />
+    <framequat name="left_ankle_pitch_link_quat" objtype="xbody" objname="left_ankle_pitch_link" />
+    <framelinvel name="left_ankle_pitch_link_linvel" objtype="body" objname="left_ankle_pitch_link" />
+    <frameangvel name="left_ankle_pitch_link_angvel" objtype="body" objname="left_ankle_pitch_link" />
+    
+    <framepos name="left_ankle_roll_link_pos" objtype="xbody" objname="left_ankle_roll_link" />
+    <framequat name="left_ankle_roll_link_quat" objtype="xbody" objname="left_ankle_roll_link" />
+    <framelinvel name="left_ankle_roll_link_linvel" objtype="body" objname="left_ankle_roll_link" />
+    <frameangvel name="left_ankle_roll_link_angvel" objtype="body" objname="left_ankle_roll_link" />
+    
+    <!-- right leg sensors -->
+    <framepos name="right_hip_pitch_link_pos" objtype="xbody" objname="right_hip_pitch_link" />
+    <framequat name="right_hip_pitch_link_quat" objtype="xbody" objname="right_hip_pitch_link" />
+    <framelinvel name="right_hip_pitch_link_linvel" objtype="body" objname="right_hip_pitch_link" />
+    <frameangvel name="right_hip_pitch_link_angvel" objtype="body" objname="right_hip_pitch_link" />
+    
+    <framepos name="right_hip_roll_link_pos" objtype="xbody" objname="right_hip_roll_link" />
+    <framequat name="right_hip_roll_link_quat" objtype="xbody" objname="right_hip_roll_link" />
+    <framelinvel name="right_hip_roll_link_linvel" objtype="body" objname="right_hip_roll_link" />
+    <frameangvel name="right_hip_roll_link_angvel" objtype="body" objname="right_hip_roll_link" />
+    
+    <framepos name="right_hip_yaw_link_pos" objtype="xbody" objname="right_hip_yaw_link" />
+    <framequat name="right_hip_yaw_link_quat" objtype="xbody" objname="right_hip_yaw_link" />
+    <framelinvel name="right_hip_yaw_link_linvel" objtype="body" objname="right_hip_yaw_link" />
+    <frameangvel name="right_hip_yaw_link_angvel" objtype="body" objname="right_hip_yaw_link" />
+    
+    <framepos name="right_knee_link_pos" objtype="xbody" objname="right_knee_link" />
+    <framequat name="right_knee_link_quat" objtype="xbody" objname="right_knee_link" />
+    <framelinvel name="right_knee_link_linvel" objtype="body" objname="right_knee_link" />
+    <frameangvel name="right_knee_link_angvel" objtype="body" objname="right_knee_link" />
+    
+    <framepos name="right_ankle_pitch_link_pos" objtype="xbody" objname="right_ankle_pitch_link" />
+    <framequat name="right_ankle_pitch_link_quat" objtype="xbody" objname="right_ankle_pitch_link" />
+    <framelinvel name="right_ankle_pitch_link_linvel" objtype="body" objname="right_ankle_pitch_link" />
+    <frameangvel name="right_ankle_pitch_link_angvel" objtype="body" objname="right_ankle_pitch_link" />
+    
+    <framepos name="right_ankle_roll_link_pos" objtype="xbody" objname="right_ankle_roll_link" />
+    <framequat name="right_ankle_roll_link_quat" objtype="xbody" objname="right_ankle_roll_link" />
+    <framelinvel name="right_ankle_roll_link_linvel" objtype="body" objname="right_ankle_roll_link" />
+    <frameangvel name="right_ankle_roll_link_angvel" objtype="body" objname="right_ankle_roll_link" />
+    
+    <!-- torso sensors -->
+    <framepos name="torso_link_pos" objtype="xbody" objname="torso_link" />
+    <framequat name="torso_link_quat" objtype="xbody" objname="torso_link" />
+    <framelinvel name="torso_link_linvel" objtype="body" objname="torso_link" />
+    <frameangvel name="torso_link_angvel" objtype="body" objname="torso_link" />
+    
+    <!-- left arm sensors -->
+    <framepos name="left_shoulder_pitch_link_pos" objtype="xbody" objname="left_shoulder_pitch_link" />
+    <framequat name="left_shoulder_pitch_link_quat" objtype="xbody" objname="left_shoulder_pitch_link" />
+    <framelinvel name="left_shoulder_pitch_link_linvel" objtype="body" objname="left_shoulder_pitch_link" />
+    <frameangvel name="left_shoulder_pitch_link_angvel" objtype="body" objname="left_shoulder_pitch_link" />
+    
+    <framepos name="left_shoulder_roll_link_pos" objtype="xbody" objname="left_shoulder_roll_link" />
+    <framequat name="left_shoulder_roll_link_quat" objtype="xbody" objname="left_shoulder_roll_link" />
+    <framelinvel name="left_shoulder_roll_link_linvel" objtype="body" objname="left_shoulder_roll_link" />
+    <frameangvel name="left_shoulder_roll_link_angvel" objtype="body" objname="left_shoulder_roll_link" />
+    
+    <framepos name="left_shoulder_yaw_link_pos" objtype="xbody" objname="left_shoulder_yaw_link" />
+    <framequat name="left_shoulder_yaw_link_quat" objtype="xbody" objname="left_shoulder_yaw_link" />
+    <framelinvel name="left_shoulder_yaw_link_linvel" objtype="body" objname="left_shoulder_yaw_link" />
+    <frameangvel name="left_shoulder_yaw_link_angvel" objtype="body" objname="left_shoulder_yaw_link" />
+    
+    <framepos name="left_elbow_link_pos" objtype="xbody" objname="left_elbow_link" />
+    <framequat name="left_elbow_link_quat" objtype="xbody" objname="left_elbow_link" />
+    <framelinvel name="left_elbow_link_linvel" objtype="body" objname="left_elbow_link" />
+    <frameangvel name="left_elbow_link_angvel" objtype="body" objname="left_elbow_link" />
+    
+    <framepos name="left_wrist_roll_link_pos" objtype="xbody" objname="left_wrist_roll_link" />
+    <framequat name="left_wrist_roll_link_quat" objtype="xbody" objname="left_wrist_roll_link" />
+    <framelinvel name="left_wrist_roll_link_linvel" objtype="body" objname="left_wrist_roll_link" />
+    <frameangvel name="left_wrist_roll_link_angvel" objtype="body" objname="left_wrist_roll_link" />
+    
+    <framepos name="left_wrist_pitch_link_pos" objtype="xbody" objname="left_wrist_pitch_link" />
+    <framequat name="left_wrist_pitch_link_quat" objtype="xbody" objname="left_wrist_pitch_link" />
+    <framelinvel name="left_wrist_pitch_link_linvel" objtype="body" objname="left_wrist_pitch_link" />
+    <frameangvel name="left_wrist_pitch_link_angvel" objtype="body" objname="left_wrist_pitch_link" />
+    
+    <framepos name="left_wrist_yaw_link_pos" objtype="xbody" objname="left_wrist_yaw_link" />
+    <framequat name="left_wrist_yaw_link_quat" objtype="xbody" objname="left_wrist_yaw_link" />
+    <framelinvel name="left_wrist_yaw_link_linvel" objtype="body" objname="left_wrist_yaw_link" />
+    <frameangvel name="left_wrist_yaw_link_angvel" objtype="body" objname="left_wrist_yaw_link" />
+    
+    <!-- right arm sensors -->
+    <framepos name="right_shoulder_pitch_link_pos" objtype="xbody" objname="right_shoulder_pitch_link" />
+    <framequat name="right_shoulder_pitch_link_quat" objtype="xbody" objname="right_shoulder_pitch_link" />
+    <framelinvel name="right_shoulder_pitch_link_linvel" objtype="body" objname="right_shoulder_pitch_link" />
+    <frameangvel name="right_shoulder_pitch_link_angvel" objtype="body" objname="right_shoulder_pitch_link" />
+    
+    <framepos name="right_shoulder_roll_link_pos" objtype="xbody" objname="right_shoulder_roll_link" />
+    <framequat name="right_shoulder_roll_link_quat" objtype="xbody" objname="right_shoulder_roll_link" />
+    <framelinvel name="right_shoulder_roll_link_linvel" objtype="body" objname="right_shoulder_roll_link" />
+    <frameangvel name="right_shoulder_roll_link_angvel" objtype="body" objname="right_shoulder_roll_link" />
+    
+    <framepos name="right_shoulder_yaw_link_pos" objtype="xbody" objname="right_shoulder_yaw_link" />
+    <framequat name="right_shoulder_yaw_link_quat" objtype="xbody" objname="right_shoulder_yaw_link" />
+    <framelinvel name="right_shoulder_yaw_link_linvel" objtype="body" objname="right_shoulder_yaw_link" />
+    <frameangvel name="right_shoulder_yaw_link_angvel" objtype="body" objname="right_shoulder_yaw_link" />
+    
+    <framepos name="right_elbow_link_pos" objtype="xbody" objname="right_elbow_link" />
+    <framequat name="right_elbow_link_quat" objtype="xbody" objname="right_elbow_link" />
+    <framelinvel name="right_elbow_link_linvel" objtype="body" objname="right_elbow_link" />
+    <frameangvel name="right_elbow_link_angvel" objtype="body" objname="right_elbow_link" />
+    
+    <framepos name="right_wrist_roll_link_pos" objtype="xbody" objname="right_wrist_roll_link" />
+    <framequat name="right_wrist_roll_link_quat" objtype="xbody" objname="right_wrist_roll_link" />
+    <framelinvel name="right_wrist_roll_link_linvel" objtype="body" objname="right_wrist_roll_link" />
+    <frameangvel name="right_wrist_roll_link_angvel" objtype="body" objname="right_wrist_roll_link" />
+    
+    <framepos name="right_wrist_pitch_link_pos" objtype="xbody" objname="right_wrist_pitch_link" />
+    <framequat name="right_wrist_pitch_link_quat" objtype="xbody" objname="right_wrist_pitch_link" />
+    <framelinvel name="right_wrist_pitch_link_linvel" objtype="body" objname="right_wrist_pitch_link" />
+    <frameangvel name="right_wrist_pitch_link_angvel" objtype="body" objname="right_wrist_pitch_link" />
+    
+    <framepos name="right_wrist_yaw_link_pos" objtype="xbody" objname="right_wrist_yaw_link" />
+    <framequat name="right_wrist_yaw_link_quat" objtype="xbody" objname="right_wrist_yaw_link" />
+    <framelinvel name="right_wrist_yaw_link_linvel" objtype="body" objname="right_wrist_yaw_link" />
+    <frameangvel name="right_wrist_yaw_link_angvel" objtype="body" objname="right_wrist_yaw_link" />
+  </sensor>
+
+  <sensor>
     <gyro name="imu-torso-angular-velocity" site="imu_in_torso" noise="5e-4" cutoff="34.9"/>
     <accelerometer name="imu-torso-linear-acceleration" site="imu_in_torso" noise="1e-2" cutoff="157"/>
     <gyro name="imu-pelvis-angular-velocity" site="imu_in_pelvis" noise="5e-4" cutoff="34.9"/>
     <accelerometer name="imu-pelvis-linear-acceleration" site="imu_in_pelvis" noise="1e-2" cutoff="157"/>
   </sensor>
-
 
   <!-- setup scene -->
   <statistic center="1.0 0.7 1.0" extent="0.8"/>

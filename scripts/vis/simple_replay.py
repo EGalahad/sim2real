@@ -335,9 +335,6 @@ def main():
     parser.add_argument("npz_file", type=str, help="Path to recorded npz file")
     parser.add_argument("--model", type=str, default=scene, help="Path to MuJoCo model file")
     parser.add_argument("--output", type=str, help="Output directory to save motion data (optional)")
-    parser.add_argument("--joint-sigma", type=float, default=3.0, help="Smoothing sigma for joint positions (default: 3.0)")
-    parser.add_argument("--pos-sigma", type=float, default=3.0, help="Smoothing sigma for base position (default: 3.0)")
-    parser.add_argument("--quat-sigma", type=float, default=3.0, help="Smoothing sigma for base quaternion (default: 3.0)")
     
     args = parser.parse_args()
     

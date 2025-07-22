@@ -3,7 +3,6 @@ import zmq
 import threading
 import time
 
-from unitree_sdk2py.core.channel import ChannelSubscriber
 
 from utils.strings import unitree_joint_names
 from loguru import logger
@@ -16,6 +15,8 @@ class StateProcessor:
         self.robot_type = robot_config["ROBOT_TYPE"]
         self.mocap_ip = robot_config.get("MOCAP_IP", "localhost")
         # Initialize channel subscriber
+        if self.robot_type != "g1_real":
+            from unitree_sdk2py.core.channel import ChannelSubscriber
         if self.robot_type == "h1" or self.robot_type == "go2":
             from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowState_ as LowState_go
             self.robot_low_state = None
