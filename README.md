@@ -48,8 +48,11 @@ sudo nmcli connection modify $SSID wifi-sec.psk $PASSWORD
 sudo nmcli connection up $SSID
 
 # configue ip route
-sudo ip route del default via 10.42.0.1 dev wlan0
-sudo ip route add default via 10.42.0.1 dev wlan0 metric 100
+export GATEWAY_IP=172.26.0.1
+# export GATEWAY_IP=10.42.0.1
+
+sudo ip route del default via $GATEWAY_IP dev wlan0
+sudo ip route add default via $GATEWAY_IP dev wlan0 metric 100
 
 # set dns
 echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
@@ -90,5 +93,5 @@ python rl_policy/local_tracking.py --robot_config ./config/robot/g1.yaml --polic
 ```bash
 python sim_env/push_box.py
 
-python rl_policy/local_tracking.py --robot_config ./config/robot/g1.yaml --motion_path data/motion/push_box/push_box-VID_20250423_220958-light-high-adjust_root_height-zero_waist_pitch-processed --policy_config checkpoints/exports/G1TrackBox/policy-dxx84vic-final.yaml
+python rl_policy/local_tracking.py --robot_config ./config/robot/g1.yaml --motion_path data/motion/push_box/push_box-VID_20250423_220958-light-high-adjust_root_height-zero_waist_pitch-processed --policy_config checkpoints/exports/G1TrackBox/policy-jeykf961-final.yaml
 ```

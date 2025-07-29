@@ -38,7 +38,7 @@ class BaseSimulator:
             if os.name == 'posix':
                 import ctypes
                 libc = ctypes.CDLL("libc.so.6")
-                # 设置实时调度策略
+                # set real-time scheduling policy
                 SCHED_FIFO = 1
                 class sched_param(ctypes.Structure):
                     _fields_ = [("sched_priority", ctypes.c_int)]
@@ -148,8 +148,10 @@ class BaseSimulator:
             show_left_ui=False,
             show_right_ui=False,
         )
+        # get pelvis body id
+        self.pelvis_body_id = self.mj_model.body("pelvis").id
         self.viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
-        self.viewer.cam.trackbodyid = 1
+        self.viewer.cam.trackbodyid = self.pelvis_body_id
 
     def init_unitree_bridge(self):
         self.unitree_bridge = UnitreeSdk2Bridge(
@@ -160,13 +162,15 @@ class BaseSimulator:
         self.unitree_bridge.PublishLowState()
         if self.scene_config["ENABLE_ELASTIC_BAND"]:
             if self.elastic_band.enable:
+                pos = self.mj_data.xpos[self.band_attached_link]
+                lin_vel = self.mj_data.cvel[self.band_attached_link, 3:6]
                 self.mj_data.xfrc_applied[self.band_attached_link, :3] = (
-                    self.elastic_band.Advance(
-                        self.mj_data.qpos[:3], self.mj_data.qvel[:3]
-                    )
+                    self.elastic_band.Advance(pos, lin_vel)
                 )
         self.unitree_bridge.compute_torques()
         self.mj_data.ctrl[:] = self.unitree_bridge.torques
+        # self.mj_data.xfrc_applied[1, 3:] = 0
+        # print(self.mj_data.xfrc_applied[1])
         mujoco.mj_step(self.mj_model, self.mj_data)
 
     def SimulationThread(self):

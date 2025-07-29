@@ -33,7 +33,7 @@ class JointStatePublisher:
         if robot_type == "h1" or robot_type == "go2":
             self.robot_lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_go)
             self.robot_lowstate_subscriber.Init(self.LowStateHandler_go, 1)
-        elif robot_type == "g1_29dof" or robot_type == "h1-2_27dof" or robot_type == "h1-2_21dof":
+        elif robot_type == "g1_29dof" or robot_type == "h1-2_27dof" or robot_type == "h1-2_21dof" or robot_type == "g1_real":
             self.robot_lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_hg)
             self.robot_lowstate_subscriber.Init(self.LowStateHandler_hg, 1)
         else:
@@ -131,7 +131,7 @@ class JointStatePublisher:
 
 def main():
     parser = argparse.ArgumentParser(description="Joint State ZMQ Publisher")
-    parser.add_argument("--robot_config", type=str, default="config/robot/g1.yaml", help="Robot config file")
+    parser.add_argument("--robot_config", type=str, default="config/robot/g1-real.yaml", help="Robot config file")
     parser.add_argument("--port", type=int, default=5555, help="ZMQ port")
     parser.add_argument("--freq", type=int, default=50, help="Publishing frequency")
     
