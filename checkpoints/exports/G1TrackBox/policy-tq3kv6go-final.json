@@ -1,0 +1,27 @@
+{
+    "in_keys": [
+        "command",
+        "policy"
+    ],
+    "out_keys": [
+        "command",
+        "policy",
+        "sample_log_prob",
+        "action",
+        "loc",
+        "scale",
+        "priv_pred"
+    ],
+    "in_shapes": [
+        [
+            [
+                1,
+                241
+            ],
+            [
+                1,
+                255
+            ]
+        ]
+    ]
+}
