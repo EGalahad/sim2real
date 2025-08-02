@@ -1,16 +1,17 @@
 """This script listens to the Vicon data and publishes the object poses via ZMQ"""
 
+from pyvicon_datastream import tools
+
 import time
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-
-from typing import List
-
-# Import Vicon DataStream SDK
-from pyvicon_datastream import tools
-
-import zmq
+from typing import List, Dict
 from threading import Thread
+
+# Import common ZMQ classes
+import sys
+sys.path.append(".")
+from utils.common import ZMQPublisher, PORTS
 
 class Vicon:
     def __init__(
@@ -43,24 +44,14 @@ class Vicon:
         self.freq_counter = 0
         
     def init_publisher(self):
-        # Initialize ZMQ context and publishers with fixed ports
-        self.zmq_context = zmq.Context()
-        self.pose_publishers = {}
-        
-        # Use fixed ports for each object
-        import sys
-        sys.path.append(".")
-        from utils.common import PORTS
-        
-        # Define port mapping for vicon objects
-        vicon_ports = {name: PORTS[name] for name in self.publish_names}
-        
-        for vicon_obj, publish_name in zip(self.vicon_object_names, self.publish_names):
-            port = vicon_ports[publish_name]  # Default port if not found
-            socket = self.zmq_context.socket(zmq.PUB)
-            socket.bind(f"tcp://*:{port}")
-            self.pose_publishers[publish_name] = socket
-            print(f"Publishing {publish_name} (vicon: {vicon_obj}) poses on port {port}")
+        # Initialize ZMQ publishers using common.py
+        self.pose_publishers: Dict[str, ZMQPublisher] = {}
+
+        for vicon_obj_name, publish_obj_name in zip(self.vicon_object_names, self.publish_names):
+            port = PORTS[f"{publish_obj_name}_pose"]
+            publisher = ZMQPublisher(port)
+            self.pose_publishers[publish_obj_name] = publisher
+            print(f"Publishing {publish_obj_name} (vicon: {vicon_obj_name}) poses on port {port}")
 
         # Give time for sockets to bind
         time.sleep(1)
@@ -115,14 +106,8 @@ class Vicon:
                         print(f"Failed to get Vicon data for {vicon_object_name}.")
                         continue
 
-                    # Combine position and quaternion into a single numpy array
-                    pose_data = np.concatenate([position, quaternion]).astype(np.float64)
-                    
-                    # Send via ZMQ (same format as push_door.py)
-                    self.pose_publishers[publish_name].send_multipart([
-                        publish_name.encode('utf-8'),
-                        pose_data.tobytes()
-                    ])
+                    # Publish using common.py PoseMessage format
+                    self.pose_publishers[publish_name].publish_pose(position, quaternion)
                     
                 # Increment frequency counter
                 self.freq_counter += 1

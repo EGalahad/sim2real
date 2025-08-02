@@ -7,10 +7,11 @@
     </asset>
 
     <worldbody>
-        <body name="box" pos="0.4 0 0" quat="0 0 0 1">
+
+        <body name="box" pos="0.6 0 0" quat="0 0 0 1">
             <freejoint name="box_root"/>
             <site name="box_frame" size="0.01" pos="0 0 0"/>
-            <geom type="box" size="0.8 0.4 0.4" pos="-0.8 0 0.4" material="white" mass="3" priority="1" friction="0.5"/>
+            <geom type="box" size="0.8 0.4 0.4" pos="-0.8 0 0.4" material="white" mass="8" priority="1" friction="0.5"/>
 
             <!-- <geom type="sphere" size="0.02" pos="0.0 -0.15 0.75" material="red" mass="0"/>
             <site name="box_contact_1" pos="0.0 -0.15 0.75" size="0.02" group="1"/> -->

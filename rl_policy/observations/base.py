@@ -1,9 +1,8 @@
 import inspect
 import numpy as np
-from typing import TYPE_CHECKING, Any, Dict, Type
+from typing import TYPE_CHECKING, Any, Dict
 
 if TYPE_CHECKING:
-    from utils.state_processor import StateProcessor
     from rl_policy.base_policy import BasePolicy
 
 class _RegistryMixin:

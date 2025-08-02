@@ -7,11 +7,13 @@ import os
 import numpy as np
 import zmq
 from unitree_sdk2py.core.channel import ChannelFactoryInitialize
+from typing import Dict
 
 import sys
 sys.path.append(".")
 from sim_env.utils.unitree_sdk2py_bridge import UnitreeSdk2Bridge, ElasticBand
 
+from utils.common import ZMQPublisher, PORTS
 
 class BaseSimulator:
     def __init__(self, robot_config, scene_config):
@@ -77,16 +79,12 @@ class BaseSimulator:
 
         # Initialize ZMQ context and publishers with fixed ports
         self.zmq_context = zmq.Context()
-        self.pose_publishers = {}
-        
-        # Use fixed ports to avoid conflicts
-        from utils.common import PORTS
-        object_ports = {obj_name: PORTS[obj_name] for obj_name in self.object_names}
-        
-        for obj_name, port in object_ports.items():
-            socket = self.zmq_context.socket(zmq.PUB)
-            socket.bind(f"tcp://*:{port}")
-            self.pose_publishers[obj_name] = socket
+        self.pose_publishers: Dict[str, ZMQPublisher] = {}
+
+        for obj_name in self.object_names:
+            port = PORTS[f"{obj_name}_pose"]
+            publisher = ZMQPublisher(port)
+            self.pose_publishers[obj_name] = publisher
             print(f"Publishing {obj_name} poses on port {port}")
 
         # Give time for sockets to bind
@@ -109,15 +107,7 @@ class BaseSimulator:
                     quat = self.mj_data.sensordata[
                         self.quat_sensor_adrs[obj_name] : self.quat_sensor_adrs[obj_name] + 4
                     ]
-                    
-                    # Combine position and quaternion into a single numpy array
-                    pose_data = np.concatenate([pos, quat]).astype(np.float64)  # Ensure consistent dtype
-                    
-                    # Send via ZMQ
-                    self.pose_publishers[obj_name].send_multipart([
-                        obj_name.encode('utf-8'),
-                        pose_data.tobytes()
-                    ])
+                    self.pose_publishers[obj_name].publish_pose(pos, quat)
                     
                 time.sleep(1.0 / self.publish_rate)
             except Exception as e:

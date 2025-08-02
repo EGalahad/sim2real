@@ -6,6 +6,8 @@ import time
 
 from utils.strings import unitree_joint_names
 from loguru import logger
+from typing import Dict
+from utils.common import ZMQSubscriber, PORTS
 
 class StateProcessor:
     """Listens to the unitree sdk channels and converts observation into isaac compatible order.
@@ -55,37 +57,35 @@ class StateProcessor:
 
         # Initialize ZMQ context and mocap data management
         self.zmq_context = zmq.Context()
-        self.mocap_subscribers = {}  # Dictionary to store ZMQ subscribers
+        self.mocap_subscribers: Dict[str, ZMQSubscriber] = {}  # Dictionary to store ZMQ subscribers
         self.mocap_threads = {}      # Dictionary to store subscriber threads
         self.mocap_data = {}         # Dictionary to store received mocap data
         self.mocap_data_lock = threading.Lock()  # Lock for thread-safe access
 
-    def register_subscriber(self, object_name: str, port: int):
+    def register_subscriber(self, object_name: str, port: int | None = None):
         if object_name in self.mocap_subscribers:
             return
-        socket = self.zmq_context.socket(zmq.SUB)
-        socket.connect(f"tcp://{self.mocap_ip}:{port}")
-        socket.setsockopt(zmq.SUBSCRIBE, object_name.encode())
-        socket.setsockopt(zmq.RCVTIMEO, 100)  # 100ms
-        self.mocap_subscribers[object_name] = socket
+
+        # init ZMQ subscriber
+        port = PORTS.get(f"{object_name}_pose", port)
+        subscriber = ZMQSubscriber(port)
+        self.mocap_subscribers[object_name] = subscriber
 
         def _sub_thread(obj_name: str):
             while True:
                 try:
-                    msg = socket.recv_multipart(zmq.NOBLOCK)
-                    if len(msg) == 2:
-                        name = msg[0].decode()
-                        data = np.frombuffer(msg[1], dtype=np.float64)
-                        if len(data) == 7:
-                            pos, quat = data[:3].copy(), data[3:].copy()
-                            with self.mocap_data_lock:
-                                self.mocap_data[f"{name}_pos"] = pos
-                                self.mocap_data[f"{name}_quat"] = quat
+                    pose_msg = self.mocap_subscribers[obj_name].receive_pose()
+                    if pose_msg:
+                        with self.mocap_data_lock:
+                            self.mocap_data[f"{obj_name}_pos"] = pose_msg.position
+                            self.mocap_data[f"{obj_name}_quat"] = pose_msg.quaternion
                 except zmq.Again:
                     time.sleep(0.001)
                 except Exception as e:
                     logger.warning(f"{obj_name} subscriber error: {e}")
                     time.sleep(0.01)
+
+        # start subscriber thread
         th = threading.Thread(target=_sub_thread, args=(object_name,), daemon=True)
         th.start()
         self.mocap_threads[object_name] = th
