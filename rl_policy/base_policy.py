@@ -285,7 +285,6 @@ class BasePolicy:
         """Poll current wireless controller state and translate to high-level key events."""
         try:
             self.wc_msg = self.robot.read_wireless_controller()
-            print(f"Wireless Controller State: {self.wc_msg}")
         except Exception:
             return
 
@@ -316,6 +315,7 @@ class BasePolicy:
         if cur_key == "R1":
             self.use_policy_action = True
             self.get_ready_state = False
+            self.reset()
             logger.info(colored("Using policy actions", "blue"))
             self.phase = 0.0  # type: ignore
         elif cur_key == "R2":

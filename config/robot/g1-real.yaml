@@ -8,7 +8,8 @@ ROBOT_TYPE: 'g1_real' # Robot name, "go2", "b2", "b2w", "h1", "go2w", "g1"
 DOMAIN_ID: 0 # Domain id
 # Interface
 INTERFACE: "eth0" # Yuanhang: in simulation, lo0 for mac, lo for linux
-MOCAP_IP: "10.42.0.1"
+# MOCAP_IP: "10.42.0.1"
+MOCAP_IP: "localhost"
 USE_JOYSTICK: True
 
 

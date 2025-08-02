@@ -2,7 +2,6 @@
 
 import numpy as np
 import yaml
-import zmq
 import time
 import threading
 import argparse
@@ -16,12 +15,13 @@ import sys
 sys.path.append(".")
 
 from utils.strings import unitree_joint_names
+from utils.common import ZMQPublisher, PORTS
 
 class JointStatePublisher:
     """
     Receives joint state from Unitree SDK and publishes via ZMQ as numpy array
     """
-    def __init__(self, robot_config, dest_joint_names, zmq_port=5555, publish_freq=50):
+    def __init__(self, robot_config, dest_joint_names, publish_freq=50):
         # initialize robot related processes
         if robot_config.get("INTERFACE", None):
             ChannelFactoryInitialize(robot_config["DOMAIN_ID"], robot_config["INTERFACE"])
@@ -50,10 +50,9 @@ class JointStatePublisher:
         # Initialize robot state
         self.robot_low_state = None
         
-        # Initialize ZMQ publisher
-        self.zmq_context = zmq.Context()
-        self.publisher = self.zmq_context.socket(zmq.PUB)
-        self.publisher.bind(f"tcp://*:{zmq_port}")
+        # Initialize ZMQ publisher using common.py
+        zmq_port = PORTS['joint_pos']
+        self.publisher = ZMQPublisher(zmq_port)
         print(f"ZMQ publisher bound to port {zmq_port}")
         
         # Publishing frequency
@@ -69,13 +68,12 @@ class JointStatePublisher:
         publish_cnt = 0
         start_time = time.time()
         
-        # 使用scheduler进行精确时间控制
+        # use scheduler for precise timing
         scheduler = sched.scheduler(time.perf_counter, time.sleep)
         next_run_time = time.perf_counter()
         
         while True:
             try:
-                # 调度下一次执行
                 scheduler.enterabs(next_run_time, 1, self._publish_step_scheduled, ())
                 scheduler.run()
                 
@@ -109,12 +107,7 @@ class JointStatePublisher:
             self.joint_pos[dst_idx] = source_joint_state[src_idx].q
             self.joint_vel[dst_idx] = source_joint_state[src_idx].dq
         
-        # Publish joint positions
-        self.publisher.send_multipart([
-            b"joint_pos",
-            self.joint_pos.astype(np.float64).tobytes()
-        ])
-        # print(self.joint_pos)
+        self.publisher.publish_joint_state(self.joint_pos, self.joint_vel)
         
         # Measure execution time
         elapsed = time.perf_counter() - loop_start
@@ -122,17 +115,14 @@ class JointStatePublisher:
             print(f"Publish step took {elapsed:.6f} seconds, expected {self.publish_interval:.6f}")
 
     def LowStateHandler_go(self, msg: LowState_go):
-        print("received low state")
         self.robot_low_state = msg
     
     def LowStateHandler_hg(self, msg: LowState_hg):
-        print("received low state")
         self.robot_low_state = msg
 
 def main():
     parser = argparse.ArgumentParser(description="Joint State ZMQ Publisher")
     parser.add_argument("--robot_config", type=str, default="config/robot/g1-real.yaml", help="Robot config file")
-    parser.add_argument("--port", type=int, default=5555, help="ZMQ port")
     parser.add_argument("--freq", type=int, default=50, help="Publishing frequency")
     
     args = parser.parse_args()
@@ -143,11 +133,9 @@ def main():
     publisher = JointStatePublisher(
         robot_config=robot_config,
         dest_joint_names=dest_joint_names,
-        zmq_port=args.port,
         publish_freq=args.freq
     )
-    
-    print(f"Publishing joint state for {robot_config['ROBOT_TYPE']} on port {args.port} at {args.freq} Hz")
+
     print("Press Ctrl+C to stop...")
     
     try:
@@ -155,7 +143,7 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         print("Shutting down...")
-        publisher.zmq_context.term()
+        publisher.publisher.close()
 
 if __name__ == "__main__":
     main() 
