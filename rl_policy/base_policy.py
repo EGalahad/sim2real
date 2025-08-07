@@ -66,24 +66,24 @@ class BasePolicy:
         self.default_dof_angles = np.zeros(len(self.isaac_joint_names))
         self.default_dof_angles[joint_indices] = default_joint_pos
 
-        action_scale_cfg = policy_config["action_scale"]
-        self.action_scale = np.ones((self.num_dofs))
-        if isinstance(action_scale_cfg, float):
-            self.action_scale *= action_scale_cfg
-        elif isinstance(action_scale_cfg, dict):
-            joint_ids, joint_names, action_scales = resolve_matching_names_values(
-                action_scale_cfg, self.isaac_joint_names, preserve_order=True
-            )
-            self.action_scale[joint_ids] = action_scales
-        else:
-            raise ValueError(f"Invalid action scale type: {type(action_scale_cfg)}")
-
         self.policy_joint_names = policy_config["policy_joint_names"]
         self.num_actions = len(self.policy_joint_names)
         self.controlled_joint_indices = [
             self.isaac_joint_names.index(name)
             for name in self.policy_joint_names
         ]
+
+        action_scale_cfg = policy_config["action_scale"]
+        self.action_scale = np.ones((self.num_actions))
+        if isinstance(action_scale_cfg, float):
+            self.action_scale *= action_scale_cfg
+        elif isinstance(action_scale_cfg, dict):
+            joint_ids, joint_names, action_scales = resolve_matching_names_values(
+                action_scale_cfg, self.policy_joint_names, preserve_order=True
+            )
+            self.action_scale[joint_ids] = action_scales
+        else:
+            raise ValueError(f"Invalid action scale type: {type(action_scale_cfg)}")
 
         # Keypress control state
         self.use_policy_action = False
@@ -152,11 +152,33 @@ class BasePolicy:
         from rl_policy.utils.onnx_module import ONNXModule
         onnx_module = ONNXModule(model_path)
 
-        def policy(input_dict):
-            output_dict = onnx_module(input_dict)
-            action = output_dict["action"].squeeze(0)
-            carry = {k[1]: v for k, v in output_dict.items() if k[0] == "next"}
-            return action, carry
+        use_residual_action = self.policy_config.get("use_residual_action", False)
+        if use_residual_action:
+            def policy(input_dict):
+                output_dict = onnx_module(input_dict)
+                action = output_dict["action"].squeeze(0)
+                next_state_dict = {k[1]: v for k, v in output_dict.items() if k[0] == "next"}
+                input_dict.update(next_state_dict)
+
+                ref_joint_pos = input_dict["_ref_joint_pos"].squeeze(0)
+                q_target = self.default_dof_angles.copy()
+                q_target[self.controlled_joint_indices] += \
+                    ref_joint_pos - self.default_dof_angles[self.controlled_joint_indices] + \
+                    action * self.action_scale
+
+                return action, q_target, input_dict
+        else:
+            def policy(input_dict):
+                output_dict = onnx_module(input_dict)
+                action = output_dict["action"].squeeze(0)
+                next_state_dict = {k[1]: v for k, v in output_dict.items() if k[0] == "next"}
+                input_dict.update(next_state_dict)
+
+                q_target = self.default_dof_angles.copy()
+                q_target[self.controlled_joint_indices] += \
+                    action * self.action_scale
+
+                return action, q_target, input_dict
 
         self.policy = policy
 
@@ -392,10 +414,11 @@ class BasePolicy:
 
             with Timer(self.perf_dict, "policy"):   
                 # Inference
-                action, self.state_dict = self.policy(self.state_dict)
+                action, q_target, self.state_dict = self.policy(self.state_dict)
                 # Clip policy action
                 action = action.clip(-100, 100)
                 self.state_dict["action"] = action
+                self.state_dict["q_target"] = q_target
         except Exception as e:
             print(f"Error in policy inference: {e}")
             self.state_dict["action"] = np.zeros(self.num_actions)
@@ -408,20 +431,12 @@ class BasePolicy:
             elif not self.use_policy_action:
                 q_target = self.state_processor.joint_pos
             else:
-                policy_action = np.zeros((self.num_dofs))
-                policy_action[self.controlled_joint_indices] = self.state_dict["action"]
-                policy_action = policy_action * self.action_scale
-                q_target = policy_action + self.default_dof_angles
+                q_target = self.state_dict["q_target"]
 
-            # policy_action = np.zeros((self.num_dofs))
-            # policy_action[self.controlled_joint_indices] = self.state_dict["action"]
-            # policy_action = policy_action * self.action_scale
-            # q_target = policy_action + self.default_dof_angles
-
-            # Clip q target
-            q_target = np.clip(
-                q_target, self.joint_pos_lower_limit, self.joint_pos_upper_limit
-            )
+            # # Clip q target
+            # q_target = np.clip(
+            #     q_target, self.joint_pos_lower_limit, self.joint_pos_upper_limit
+            # )
 
             # Send command
             cmd_q = q_target

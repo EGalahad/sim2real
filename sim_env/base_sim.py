@@ -4,16 +4,11 @@ import time
 from threading import Thread
 import sched
 import os
-import numpy as np
-import zmq
 from unitree_sdk2py.core.channel import ChannelFactoryInitialize
-from typing import Dict
 
 import sys
 sys.path.append(".")
 from sim_env.utils.unitree_sdk2py_bridge import UnitreeSdk2Bridge, ElasticBand
-
-from utils.common import ZMQPublisher, PORTS
 
 class BaseSimulator:
     def __init__(self, robot_config, scene_config):
@@ -59,62 +54,8 @@ class BaseSimulator:
         pass
 
     def init_publisher(self):
-        self.object_names = self.scene_config["publish_object_names"]
-        if len(self.object_names) == 0:
-            return
-        
-        def find_sensor_id(name):
-            return mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_SENSOR, name)
-
-        # Get sensor indices
-        self.pos_sensor_adrs = {}
-        self.quat_sensor_adrs = {}
-        for obj_name in self.object_names:
-            pos_sensor_id = find_sensor_id(f"{obj_name}_pos")
-            quat_sensor_id = find_sensor_id(f"{obj_name}_quat")
-            assert pos_sensor_id != -1, f"Sensor {obj_name}_pos not found"
-            assert quat_sensor_id != -1, f"Sensor {obj_name}_quat not found"
-            self.pos_sensor_adrs[obj_name] = self.mj_model.sensor_adr[pos_sensor_id]
-            self.quat_sensor_adrs[obj_name] = self.mj_model.sensor_adr[quat_sensor_id]
-
-        # Initialize ZMQ context and publishers with fixed ports
-        self.zmq_context = zmq.Context()
-        self.pose_publishers: Dict[str, ZMQPublisher] = {}
-
-        for obj_name in self.object_names:
-            port = PORTS[f"{obj_name}_pose"]
-            publisher = ZMQPublisher(port)
-            self.pose_publishers[obj_name] = publisher
-            print(f"Publishing {obj_name} poses on port {port}")
-
-        # Give time for sockets to bind
-        time.sleep(1)
-
-        # Start state publishing thread
-        self.publish_rate = 100  # Hz
-        self.state_thread = Thread(target=self.state_publisher_thread, daemon=True)
-        self.state_thread.start()
-
-    def state_publisher_thread(self):
-        print("Starting state publisher thread")
-        
-        while True:
-            try:
-                for obj_name in self.object_names:
-                    pos = self.mj_data.sensordata[
-                        self.pos_sensor_adrs[obj_name] : self.pos_sensor_adrs[obj_name] + 3
-                    ]
-                    quat = self.mj_data.sensordata[
-                        self.quat_sensor_adrs[obj_name] : self.quat_sensor_adrs[obj_name] + 4
-                    ]
-                    self.pose_publishers[obj_name].publish_pose(pos, quat)
-                    
-                time.sleep(1.0 / self.publish_rate)
-            except Exception as e:
-                print(f"Error in state publisher thread: {str(e)}")
-                time.sleep(0.1)
-
-
+        pass
+    
     def init_scene(self):
         robot_scene = self.scene_config["ROBOT_SCENE"]
         self.mj_model = mujoco.MjModel.from_xml_path(robot_scene)
@@ -127,7 +68,7 @@ class BaseSimulator:
                 self.band_attached_link = self.mj_model.body("torso_link").id
             else:
                 self.band_attached_link = self.mj_model.body("base_link").id
-            key_callback = self.elastic_band.MujuocoKeyCallback
+            key_callback = self.elastic_band.MujocoKeyCallback
         else:
             key_callback = None
 
@@ -159,8 +100,6 @@ class BaseSimulator:
                 )
         self.unitree_bridge.compute_torques()
         self.mj_data.ctrl[:] = self.unitree_bridge.torques
-        # self.mj_data.xfrc_applied[1, 3:] = 0
-        # print(self.mj_data.xfrc_applied[1])
         mujoco.mj_step(self.mj_model, self.mj_data)
 
     def SimulationThread(self):
@@ -199,6 +138,7 @@ class BaseSimulator:
 if __name__ == "__main__":
     import argparse
     import yaml
+
     parser = argparse.ArgumentParser(description="Robot")
     parser.add_argument(
         "--robot_config", type=str, default="config/robot/g1.yaml", help="robot config file"

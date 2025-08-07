@@ -228,7 +228,7 @@ class ElasticBand:
         f = (self.stiffness * (distance - self.length) - self.damping * v) * direction
         return f
 
-    def MujuocoKeyCallback(self, key):
+    def MujocoKeyCallback(self, key):
         if key == glfw.KEY_7:
             self.length -= 0.1
         if key == glfw.KEY_8:
