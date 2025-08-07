@@ -24,7 +24,6 @@ class ref_motion_phase(Observation):
         t = time.time()
         self.ref_motion_phase[:] = (t - self.start_time) / self.motion_duration_second
         self.ref_motion_phase %= 1.0
-        print(f"ref_motion_phase: {self.ref_motion_phase}")
         return self.ref_motion_phase
 
 class ref_motion_phase_noise(Observation):
@@ -54,6 +53,9 @@ class _motion_obs(Observation):
         self.t[:] = 0
     
     def update(self, data: Dict[str, Any]) -> None:
+        if data.get("paused", False):
+            return
+        
         self.t += 1
         if self.t[0] == self.motion_length:
             self.t[:] = 0

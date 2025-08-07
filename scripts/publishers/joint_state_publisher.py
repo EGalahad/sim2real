@@ -55,6 +55,9 @@ class JointStatePublisher:
         self.publisher = ZMQPublisher(zmq_port)
         print(f"ZMQ publisher bound to port {zmq_port}")
         
+        self.joint_names = unitree_joint_names
+        self.joint_names_publisher = ZMQPublisher(PORTS['joint_names'])
+
         # Publishing frequency
         self.publish_freq = publish_freq
         self.publish_interval = 1.0 / publish_freq
@@ -100,7 +103,9 @@ class JointStatePublisher:
             return
             
         loop_start = time.perf_counter()
-        
+
+        self.joint_names_publisher.publish_names(self.joint_names)
+
         # Extract joint data from robot state
         source_joint_state = self.robot_low_state.motor_state
         for dst_idx, src_idx in enumerate(self.joint_indices_in_source):
