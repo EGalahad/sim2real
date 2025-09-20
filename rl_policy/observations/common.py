@@ -1,8 +1,9 @@
 from .base import Observation
 
 import numpy as np
-from typing import Any, Dict
+from typing import Any, Dict, List
 from utils.math import quat_rotate_inverse_numpy
+from utils.strings import resolve_matching_names
 
 
 class root_angvel_b(Observation):
@@ -76,15 +77,19 @@ class joint_pos_multistep(Observation):
         return self.joint_pos_multistep.reshape(-1)
 
 class joint_pos_history(Observation):
-    def __init__(self, history_steps: int, **kwargs):
+    def __init__(self, history_steps: int, joint_names: str | List[str] = ".*", **kwargs):
         super().__init__(**kwargs)
         self.history_steps = history_steps
         buffer_size = max(history_steps) + 1
-        self.joint_pos_multistep = np.zeros((buffer_size, self.state_processor.num_dof))
+
+        self.joint_ids, self.joint_names = resolve_matching_names(
+            joint_names, self.state_processor.joint_names
+        )
+        self.joint_pos_multistep = np.zeros((buffer_size, len(self.joint_ids)))
     
     def update(self, data: Dict[str, Any]) -> None:
         self.joint_pos_multistep = np.roll(self.joint_pos_multistep, 1, axis=0)
-        self.joint_pos_multistep[0, :] = self.state_processor.joint_pos
+        self.joint_pos_multistep[0, :] = self.state_processor.joint_pos[self.joint_ids]
 
     def compute(self) -> np.ndarray:
         return self.joint_pos_multistep[self.history_steps].reshape(-1)

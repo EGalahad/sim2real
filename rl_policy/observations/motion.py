@@ -3,32 +3,9 @@ from .base import Observation
 import time
 from typing import Any, Dict, List
 import numpy as np
-from utils.math import quat_rotate_inverse_numpy, yaw_quat, quat_multiply_numpy, quat_conjugate_numpy, matrix_from_quat
+from utils.math import quat_rotate_inverse_numpy, yaw_quat, quat_mul, quat_conjugate, matrix_from_quat
 from rl_policy.utils.motion import MotionDataset, MotionData
 
-
-
-class ref_motion_phase(Observation):
-    def __init__(self, motion_duration_second: float, **kwargs):
-        super().__init__(**kwargs)
-        self.ref_motion_phase = np.zeros(1)
-        self.start_time = time.time()
-        self.motion_duration_second = motion_duration_second
-    
-    def reset(self):
-        """Reset the motion phase to start from 0"""
-        self.start_time = time.time()
-        self.ref_motion_phase[:] = 0
-
-    def compute(self) -> np.ndarray:
-        t = time.time()
-        self.ref_motion_phase[:] = (t - self.start_time) / self.motion_duration_second
-        self.ref_motion_phase %= 1.0
-        return self.ref_motion_phase
-
-class ref_motion_phase_noise(Observation):
-    def compute(self) -> np.ndarray:
-        return np.random.normal(0, 1, 1)
 
 
 class _motion_obs(Observation):
@@ -68,6 +45,16 @@ class _motion_obs(Observation):
         self.ref_body_ang_vel_future_w = motion_data.body_ang_vel_w[:, :, self.body_indices]
         self.ref_root_pos_w = motion_data.body_pos_w[:, [0], [self.root_body_idx], :]
         self.ref_root_quat_w = motion_data.body_quat_w[:, [0], [self.root_body_idx], :]
+
+class ref_motion_phase(_motion_obs):
+    def __init__(self, motion_duration_second: float, **kwargs):
+        super().__init__(**kwargs)
+        self.motion_steps = int(motion_duration_second * 50)
+    
+    def compute(self) -> np.ndarray:
+        ref_motion_phase = (self.t % self.motion_steps) / self.motion_steps
+        return ref_motion_phase.reshape(-1)
+        
 
 
 class ref_joint_pos_future(_motion_obs):
@@ -112,8 +99,8 @@ class ref_body_ori_future_local(_motion_obs):
         
         ref_root_quat_w = yaw_quat(ref_root_quat_w)
 
-        ref_body_quat_future_local = quat_multiply_numpy(
-            quat_conjugate_numpy(ref_root_quat_w),
+        ref_body_quat_future_local = quat_mul(
+            quat_conjugate(ref_root_quat_w),
             ref_body_quat_future_w
         )
         self.ref_body_ori_future_local = matrix_from_quat(ref_body_quat_future_local)

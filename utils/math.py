@@ -77,31 +77,6 @@ def quat_rotate_numpy(q: np.ndarray, v: np.ndarray) -> np.ndarray:
 def wrap_to_pi(angle):
     return np.mod(angle + np.pi, 2 * np.pi) - np.pi
 
-def quat_multiply_numpy(q1, q2):
-    shape = q1.shape
-    assert q1.shape[:-1] == q2.shape[:-1], "q1 and q2 must have the same batch size"
-    q1 = q1.reshape(-1, 4)
-    q2 = q2.reshape(-1, 4)
-    w1, x1, y1, z1 = q1[:, 0], q1[:, 1], q1[:, 2], q1[:, 3]
-    w2, x2, y2, z2 = q2[:, 0], q2[:, 1], q2[:, 2], q2[:, 3]
-    return np.concatenate([
-        (w1*w2 - x1*x2 - y1*y2 - z1*z2)[:, None],
-        (w1*x2 + x1*w2 + y1*z2 - z1*y2)[:, None],
-        (w1*y2 - x1*z2 + y1*w2 + z1*x2)[:, None],
-        (w1*z2 + x1*y2 - y1*x2 + z1*w2)[:, None]
-    ], axis=1).reshape(shape)
-
-def quat_conjugate_numpy(q):
-    shape = q.shape
-    q = q.reshape(-1, 4)
-    w, x, y, z = q[:, 0], q[:, 1], q[:, 2], q[:, 3]
-    return np.concatenate([
-        w[:, None],
-        -x[:, None],
-        -y[:, None],
-        -z[:, None]
-    ], axis=1).reshape(shape)
-
 def matrix_from_quat(quaternions: np.ndarray) -> np.ndarray:
     """Convert rotations given as quaternions to rotation matrices.
 

@@ -41,6 +41,7 @@ class StateProcessor:
         # Initialize joint mapping
         self.num_dof = len(dest_joint_names)
         self.joint_indices_in_source = [unitree_joint_names.index(name) for name in dest_joint_names]
+        self.joint_names = dest_joint_names
 
         self.qpos = np.zeros(3 + 4 + self.num_dof)
         self.qvel = np.zeros(3 + 3 + self.num_dof)

@@ -1,4 +1,4 @@
-ROBOT_SCENE: "data/robots/g1/g1_29dof_nohand-door.xml" # Robot scene, for Sim2Sim
+ROBOT_SCENE: "data/robots/g1/g1_29dof_rubberhand-ball.xml" # Robot scene, for Sim2Sim
 
 ENABLE_ELASTIC_BAND: True # Virtual spring band, used for lifting h1
 
@@ -7,10 +7,4 @@ VIEWER_DT: 0.02  # Viewer update time
 
 USE_JOYSTICK: 0 # Simulate Unitree WirelessController using a gamepad (0: disable, 1: enable)
 
-
-object_joint_name: "door_joint" # Joint name of the door in the robot scene
-publish_object_names: ["Wall", "Door", "pelvis"]
-
-door_friction: 10.0
-door_damping: 5.0
-door_stiffness: 0.0
+publish_object_names: ["ball", "pelvis"]

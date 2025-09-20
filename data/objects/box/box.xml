@@ -8,7 +8,7 @@
 
     <worldbody>
 
-        <body name="box" pos="0.6 0 0" quat="0 0 0 1">
+        <body name="box" pos="0.55 0 0" quat="0 0 0 1">
             <freejoint name="box_root"/>
             <site name="box_frame" size="0.01" pos="0 0 0"/>
             <geom type="box" size="0.8 0.4 0.4" pos="-0.8 0 0.4" material="white" mass="8" priority="1" friction="0.5"/>

@@ -1,0 +1,10 @@
+ROBOT_SCENE: "data/robots/g1/g1_29dof_rubberhand-suitcase.xml" # Robot scene, for Sim2Sim
+
+ENABLE_ELASTIC_BAND: True # Virtual spring band, used for lifting h1
+
+SIMULATE_DT: 0.005  # Need to be larger than the runtime of viewer.sync()
+VIEWER_DT: 0.02  # Viewer update time
+
+USE_JOYSTICK: 0 # Simulate Unitree WirelessController using a gamepad (0: disable, 1: enable)
+
+publish_object_names: ["suitcase", "pelvis"]

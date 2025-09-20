@@ -1,0 +1,42 @@
+<mujoco model="door_scene">
+    <option gravity="0 0 -9.81" />
+    <compiler angle="radian" />
+
+    <worldbody>
+
+        <body name="door" pos="1.5 0.4 0.0" quat="0 0 0 1">
+            <freejoint name="door_root" />
+            <geom name="wall_geom_right" type="box" size="0.05 0.5 1.025" pos="0 -1.1 1.025"
+                rgba="0.6 0.6 0.6 1"
+                contype="2" conaffinity="1"/>
+            <geom name="wall_geom_left" type="box" size="0.05 0.5 1.025" pos="0 1.1 1.025"
+                rgba="0.6 0.6 0.6 1"
+                contype="2" conaffinity="1"/>
+            <!-- <geom name="wall_geom_bottom" type="box" size="0.05 0.5 0.025" pos="0 0 0.025"
+                rgba="0.6 0.6 0.6 1"
+                contype="2" conaffinity="1" mass="10" /> -->
+        </body>
+
+        <body name="door_panel" pos="0 0.5 0">
+            <freejoint name="door_panel_root" />
+            <geom name="door_geom" type="box" size="0.02 0.5 0.975" pos="0 -0.5 1"
+                rgba="0.4 0.3 0.1 1.0"
+                contype="2" conaffinity="1" mass="20.0" />
+        </body>
+    </worldbody>
+
+    <sensor>
+    <!-- door sensors -->
+    <framepos name="door_pos" objtype="xbody" objname="door" />
+    <framequat name="door_quat" objtype="xbody" objname="door" />
+    <framelinvel name="door_linvel" objtype="xbody" objname="door" />
+    <frameangvel name="door_angvel" objtype="xbody" objname="door" />
+
+    <!-- door panel sensors -->
+    <framepos name="door_panel_pos" objtype="xbody" objname="door_panel"/>
+    <framequat name="door_panel_quat" objtype="xbody" objname="door_panel"/>
+    <framelinvel name="door_panel_linvel" objtype="xbody" objname="door_panel"/>
+    <frameangvel name="door_panel_angvel" objtype="xbody" objname="door_panel"/>
+    </sensor>
+
+</mujoco>

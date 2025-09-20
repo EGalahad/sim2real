@@ -34,7 +34,7 @@ class BasePolicy:
             else:
                 ChannelFactoryInitialize(robot_config["DOMAIN_ID"])
         else:
-            sys.path.append("/home/elijah/haoyang_deploy/unitree_sdk2/build/lib")
+            sys.path.append("/home/elijah/Documents/projects/hdmi/unitree_sdk2/build/lib")
             import g1_interface
             network_interface = robot_config.get("INTERFACE", None)
             self.robot = g1_interface.G1Interface(network_interface)
@@ -193,15 +193,17 @@ class BasePolicy:
             print(f"obs_group: {obs_group}")
             obs_funcs = {}
             for obs_name, obs_config in obs_items.items():
+                print(f"\t{obs_name}: {obs_config}")
                 obs_class: Type[Observation] = Observation.registry[obs_name]
                 obs_func = obs_class(env=self, **obs_config)
                 obs_funcs[obs_name] = obs_func
                 self.reset_callbacks.append(obs_func.reset)
                 self.update_callbacks.append(obs_func.update)
-                print(f"\t{obs_name}: {obs_config}")
             self.observations[obs_group] = ObsGroup(obs_group, obs_funcs)
 
     def reset(self):
+        self.state_dict["adapt_hx"][:] = 0.0
+        self.state_dict["paused"] = False
         for reset_callback in self.reset_callbacks:
             reset_callback()
 
@@ -273,9 +275,9 @@ class BasePolicy:
         0: Reset kp
         """
         if keycode == "]":
+            self.reset()
             self.use_policy_action = True
             self.get_ready_state = False
-            self.reset()
             logger.info("Using policy actions")
             self.phase = 0.0
         elif keycode == "o":
@@ -414,7 +416,11 @@ class BasePolicy:
 
             with Timer(self.perf_dict, "policy"):   
                 # Inference
+                # print(self.state_dict.keys())
                 action, q_target, self.state_dict = self.policy(self.state_dict)
+                for key, value in self.state_dict.items():
+                    if key.endswith("_ood_ratio"):
+                        print(key, value)
                 # Clip policy action
                 action = action.clip(-100, 100)
                 self.state_dict["action"] = action

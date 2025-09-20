@@ -26,6 +26,8 @@ joint_pos_lower_limit:
   left_hip_pitch_joint: -2.5307
   right_hip_pitch_joint: -2.5307  
   waist_yaw_joint: -2.6180
+  waist_pitch_joint: -0.52
+  waist_roll_joint: -0.52
   left_hip_roll_joint: -0.5236
   right_hip_roll_joint: -2.9671
   left_hip_yaw_joint: -2.7576
@@ -55,6 +57,8 @@ joint_pos_upper_limit:
   left_hip_pitch_joint: 2.8798
   right_hip_pitch_joint: 2.8798
   waist_yaw_joint: 2.6180
+  waist_pitch_joint: 0.52
+  waist_roll_joint: 0.52
   left_hip_roll_joint: 2.9671
   right_hip_roll_joint: 0.5236
   left_hip_yaw_joint: 2.7576

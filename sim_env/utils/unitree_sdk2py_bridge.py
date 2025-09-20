@@ -86,8 +86,12 @@ class UnitreeSdk2Bridge:
             self.qvel_adrs.append(self.mj_model.jnt_dofadr[joint_idx])
             self.act_adrs.append(actuator_names_mujoco.index(name))
         
-        root_joint_name = "floating_base_joint"
-        root_joint_idx = joint_names_mujoco.index(root_joint_name)
+        if "floating_base_joint" in joint_names_mujoco:
+            root_joint_idx = joint_names_mujoco.index("floating_base_joint")
+        elif "pelvis_root" in joint_names_mujoco:
+            root_joint_idx = joint_names_mujoco.index("pelvis_root")
+        else:
+            raise ValueError("No root joint found in the MuJoCo model.")
         self.root_qpos_adr = self.mj_model.jnt_qposadr[root_joint_idx]
         self.root_qvel_adr = self.mj_model.jnt_dofadr[root_joint_idx]
 
