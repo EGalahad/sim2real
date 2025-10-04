@@ -6,7 +6,7 @@
     </default>
 
     <asset>
-        <texture name="ball_texture" type="2d" file="/home/elijah/Documents/projects/hdmi/active-adaptation/active_adaptation/assets_mjcf/objects/ball/texture.png" />
+        <texture name="ball_texture" type="2d" file="/home/elijah/Documents/projects/hdmi/sim2real/data/objects/ball/texture.png" />
         <material name="ball_mat" texture="ball_texture" />
         <material name="red_mat" rgba="1 0 0 1"/>
     </asset>

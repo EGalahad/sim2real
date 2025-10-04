@@ -27,13 +27,7 @@ class BasePolicy:
     ):
         # initialize robot related processes
         robot_type = robot_config["ROBOT_TYPE"]
-        if robot_type != "g1_real":
-            from unitree_sdk2py.core.channel import ChannelFactoryInitialize
-            if robot_config.get("INTERFACE", None):
-                ChannelFactoryInitialize(robot_config["DOMAIN_ID"], robot_config["INTERFACE"])
-            else:
-                ChannelFactoryInitialize(robot_config["DOMAIN_ID"])
-        else:
+        if robot_type == "g1_real":
             sys.path.append("/home/elijah/Documents/projects/hdmi/unitree_sdk2/build/lib")
             import g1_interface
             network_interface = robot_config.get("INTERFACE", None)

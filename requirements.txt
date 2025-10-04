@@ -10,5 +10,6 @@ termcolor
 sshkeyboard
 pygame
 zmq
+tqdm
 
 pyvicon-datastream

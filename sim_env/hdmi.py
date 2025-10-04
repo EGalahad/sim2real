@@ -17,19 +17,18 @@ class HDMI(BaseSimulator):
     def __init__(self, robot_config, scene_config):
         super().__init__(robot_config, scene_config)
 
-        object_joint_name = scene_config.get("object_joint_name", None)
-        if object_joint_name is not None:
-            self.door_friction = scene_config["door_friction"]
-            self.door_damping = scene_config["door_damping"]
-            self.door_stiffness = scene_config["door_stiffness"]
+        if object_joint_name := scene_config.get("object_joint_name", None):
+            self.joint_friction = scene_config["joint_friction"]
+            self.joint_damping = scene_config["joint_damping"]
+            self.joint_stiffness = scene_config["joint_stiffness"]
 
-            door_joint_id = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_JOINT, "door_joint")
-            self.door_joint_qposadr = self.mj_model.jnt_qposadr[door_joint_id]
-            self.door_joint_qveladr = self.mj_model.jnt_dofadr[door_joint_id]
-            self.door_ctrl_id = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_ACTUATOR, "door_joint")
-            assert self.door_ctrl_id != -1, "Door joint actuator not found"
+            joint_id = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_JOINT, object_joint_name)
+            self.object_joint_qposadr = self.mj_model.jnt_qposadr[joint_id]
+            self.object_joint_qveladr = self.mj_model.jnt_dofadr[joint_id]
+            self.object_ctrl_id = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_ACTUATOR, object_joint_name)
+            assert self.object_ctrl_id != -1, "object joint actuator not found"
         else:
-            self.door_ctrl_id = -1
+            self.object_ctrl_id = -1
     
     def init_publisher(self):
         super().init_publisher()
@@ -92,7 +91,7 @@ class HDMI(BaseSimulator):
         self.state_thread.start()
 
     def sim_step(self):
-        self.unitree_bridge.PublishLowState()
+        self.sim_bridge.publish_low_state()
         if self.scene_config["ENABLE_ELASTIC_BAND"]:
             if self.elastic_band.enable:
                 pos = self.mj_data.xpos[self.band_attached_link]
@@ -100,19 +99,19 @@ class HDMI(BaseSimulator):
                 self.mj_data.xfrc_applied[self.band_attached_link, :3] = (
                     self.elastic_band.Advance(pos, lin_vel)
                 )
-        self.unitree_bridge.compute_torques()
-        self.mj_data.ctrl[:] = self.unitree_bridge.torques
+        self.sim_bridge.compute_torques()
+        self.mj_data.ctrl[:] = self.sim_bridge.torques
 
-        if self.door_ctrl_id != -1:
+        if self.object_ctrl_id != -1:
             # door joint resistance
-            door_joint_qvel = self.mj_data.qvel[self.door_joint_qveladr]
-            door_joint_qpos = self.mj_data.qpos[self.door_joint_qposadr]
+            door_joint_qvel = self.mj_data.qvel[self.object_joint_qveladr]
+            door_joint_qpos = self.mj_data.qpos[self.object_joint_qposadr]
             door_ctrl = (
-                - self.door_friction * np.sign(door_joint_qvel) * (np.abs(door_joint_qvel) > 0.01)
-                + self.door_stiffness * (0.0 - door_joint_qpos)
-                + self.door_damping * (0.0 - door_joint_qvel)
+                - self.joint_friction * np.sign(door_joint_qvel) * (np.abs(door_joint_qvel) > 0.01)
+                + self.joint_stiffness * (0.0 - door_joint_qpos)
+                + self.joint_damping * (0.0 - door_joint_qvel)
             )
-            self.mj_data.ctrl[self.door_ctrl_id] = door_ctrl
+            self.mj_data.ctrl[self.object_ctrl_id] = door_ctrl
             # print(f"door_torque: {door_ctrl}")
 
         mujoco.mj_step(self.mj_model, self.mj_data)

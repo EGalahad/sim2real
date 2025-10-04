@@ -7,7 +7,7 @@ import time
 from utils.strings import unitree_joint_names
 from loguru import logger
 from typing import Dict
-from utils.common import ZMQSubscriber, PORTS
+from utils.common import ZMQSubscriber, PORTS, LowStateMessage
 
 class StateProcessor:
     """Listens to the unitree sdk channels and converts observation into isaac compatible order.
@@ -16,27 +16,35 @@ class StateProcessor:
     def __init__(self, robot_config, dest_joint_names):
         self.robot_type = robot_config["ROBOT_TYPE"]
         self.mocap_ip = robot_config.get("MOCAP_IP", "localhost")
-        # Initialize channel subscriber
-        if self.robot_type != "g1_real":
-            from unitree_sdk2py.core.channel import ChannelSubscriber
-        if self.robot_type == "h1" or self.robot_type == "go2":
-            from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowState_ as LowState_go
-            self.robot_low_state = None
-            def LowStateHandler_go(msg: LowState_go):
-                self.robot_low_state = msg
-            self.robot_lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_go)
-            self.robot_lowstate_subscriber.Init(LowStateHandler_go, 1)
-        elif self.robot_type == "g1_29dof" or self.robot_type == "h1-2_27dof" or self.robot_type == "h1-2_21dof":
-            from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowState_ as LowState_hg
-            self.robot_low_state = None
-            def LowStateHandler_hg(msg: LowState_hg):
-                self.robot_low_state = msg
-            self.robot_lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_hg)
-            self.robot_lowstate_subscriber.Init(LowStateHandler_hg, 1)
-        elif self.robot_type == "g1_real":
+        # Initialize state source
+        if self.robot_type == "g1_real":
             self.robot = robot_config["robot"]
-        else: 
-            raise NotImplementedError(f"Robot type {self.robot_type} is not supported")
+        else:
+            supported_types = {
+                "h1",
+                "go2",
+                "g1_29dof",
+                "h1-2_27dof",
+                "h1-2_21dof",
+            }
+            if self.robot_type not in supported_types:
+                raise NotImplementedError(
+                    f"Robot type {self.robot_type} is not supported"
+                )
+
+            self.low_state_port = robot_config.get(
+                "LOW_STATE_PORT", PORTS.get("low_state", 55900)
+            )
+            state_host = robot_config.get("LOW_STATE_HOST", "127.0.0.1")
+            state_endpoint = f"tcp://{state_host}:{self.low_state_port}"
+
+            self.zmq_context = zmq.Context.instance()
+            self.low_state_socket: zmq.Socket = self.zmq_context.socket(zmq.SUB)
+            self.low_state_socket.setsockopt(zmq.SUBSCRIBE, b"")
+            self.low_state_socket.setsockopt(zmq.CONFLATE, 1)
+            self.low_state_socket.setsockopt(zmq.RCVTIMEO, 10)
+            self.low_state_socket.connect(state_endpoint)
+            self.latest_low_state: LowStateMessage | None = None
 
         # Initialize joint mapping
         self.num_dof = len(dest_joint_names)
@@ -56,8 +64,6 @@ class StateProcessor:
         self.joint_pos = self.qpos[7:]
         self.joint_vel = self.qvel[6:]
 
-        # Initialize ZMQ context and mocap data management
-        self.zmq_context = zmq.Context()
         self.mocap_subscribers: Dict[str, ZMQSubscriber] = {}  # Dictionary to store ZMQ subscribers
         self.mocap_threads = {}      # Dictionary to store subscriber threads
         self.mocap_data = {}         # Dictionary to store received mocap data
@@ -98,21 +104,21 @@ class StateProcessor:
             return self.mocap_data.get(key, None)
 
     def _prepare_low_state(self):
-        if hasattr(self, "robot_low_state"):
-            if not self.robot_low_state:
+        if hasattr(self, "low_state_socket"):
+            self._receive_low_state()
+            if not self.latest_low_state:
                 return False
 
-            # imu sensor
-            imu_state = self.robot_low_state.imu_state
-            self.root_quat_b[:] = imu_state.quaternion # w, x, y, z
-            self.root_ang_vel_b[:] = imu_state.gyroscope
+            low_state = self.latest_low_state
+            self.root_quat_b[:] = low_state.quaternion
+            self.root_ang_vel_b[:] = low_state.gyroscope
 
-            # joint encoder
-            source_joint_state = self.robot_low_state.motor_state
+            source_joint_pos = low_state.joint_positions
+            source_joint_vel = low_state.joint_velocities
             for dst_idx, src_idx in enumerate(self.joint_indices_in_source):
-                self.joint_pos[dst_idx] = source_joint_state[src_idx].q
-                self.joint_vel[dst_idx] = source_joint_state[src_idx].dq
-            
+                self.joint_pos[dst_idx] = source_joint_pos[src_idx]
+                self.joint_vel[dst_idx] = source_joint_vel[src_idx]
+
             return True
         elif hasattr(self, "robot"):
             try:
@@ -133,3 +139,18 @@ class StateProcessor:
                 self.joint_pos[dst_idx] = state.motor.q[src_idx]
                 self.joint_vel[dst_idx] = state.motor.dq[src_idx]
             return True
+
+    def _receive_low_state(self):
+        """Fetch the most recent low state message from the ZMQ socket."""
+        if not hasattr(self, "low_state_socket"):
+            return
+
+        while True:
+            try:
+                data = self.low_state_socket.recv(flags=zmq.DONTWAIT)
+            except zmq.Again:
+                break
+            try:
+                self.latest_low_state = LowStateMessage.from_bytes(data)
+            except Exception as exc:
+                logger.warning(f"Failed to decode low state message: {exc}")

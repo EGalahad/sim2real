@@ -134,8 +134,13 @@ class Vicon:
 
 if __name__ == "__main__":
     # publish_names = ["Wall", "Door", "pelvis"]
-    publish_names = ["box", "pelvis"]
-    # publish_names = ["pelvis"]
+    publish_names = ["suitcase", "pelvis"]
+    # publish_names = ["door", "door_panel", "pelvis"]
+    # publish_names = ["stool", "pelvis"]
+    # publish_names = ["stool_low", "pelvis"]
+    # publish_names = ["foam", "pelvis"]
+    # publish_names = ["bread_box", "pelvis"]
+    # publish_names = ["stair", "pelvis"]
     object_names = [f"haoyang_{name}" for name in publish_names]
     vicon = Vicon(vicon_object_names=object_names, publish_names=publish_names)
 

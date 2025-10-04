@@ -1,97 +1,74 @@
-# Network Connection
+# HDMI: Learning Interactive Humanoid Whole-Body Control from Human Videos
 
-## Hotspot
+<div align="center">
+<a href="https://hdmi-humanoid.github.io/">
+  <img alt="Website" src="https://img.shields.io/badge/Website-Visit-blue?style=flat&logo=google-chrome"/>
+</a>
 
-Open hotspot on laptop via usb adapter.
+<a href="https://www.youtube.com/watch?v=GvIBzM7ieaA&list=PL0WMh2z6WXob0roqIb-AG6w7nQpCHyR0Z&index=12">
+  <img alt="Video" src="https://img.shields.io/badge/Video-YouTube-red?style=flat&logo=youtube"/>
+</a>
 
-```bash
-## configure hotspot
-export SSID=MyHotspot
-export PASSWORD=YourDesiredPassword
-export USB_IF_NAME=wlxfc221c100233
+<a href="https://arxiv.org/pdf/2509.16757">
+  <img alt="Arxiv" src="https://img.shields.io/badge/Paper-Arxiv-b31b1b?style=flat&logo=arxiv"/>
+</a>
 
-nmcli device wifi hotspot ifname $USB_IF_NAME con-name $SSID ssid $SSID password $PASSWORD
-nmcli connection modify $SSID ipv4.method shared
+<a href="https://github.com/EGalahad/sim2real/stargazers">
+    <img alt="GitHub stars" src="https://img.shields.io/github/stars/EGalahad/sim2real?style=social"/>
+</a>
+</div>
 
-## start hotspot
-nmcli connection up $SSID
+HDMI is a novel framework that enables humanoid robots to acquire diverse whole-body interaction skills directly from monocular RGB videos of human demonstrations.
 
-# enable ip forwarding
-sudo sysctl -w net.ipv4.ip_forward=1
+This repository contains the official sim2sim and sim2real code of **HDMI: Learning Interactive Humanoid Whole-Body Control from Human Videos**.
 
-export WIFI_NAME=wlp0s20f3
-export USB_IF_NAME=wlxfc221c100233
+## TODO
+- [x] Release pretrained models
+- [x] Release sim2real code
+- [x] Release sim2sim instructions
+- [ ] Release sim2real instructions
 
-sudo iptables -F
-sudo iptables -t nat -F
-
-sudo iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o $WIFI_NAME -j MASQUERADE
-
-## allow forwarding from USB to Wi-Fi
-sudo iptables -A FORWARD -i $USB_IF_NAME -o $WIFI_NAME -j ACCEPT
-
-## allow forwarding from Wi-Fi to USB
-sudo iptables -A FORWARD -i $WIFI_NAME -o $USB_IF_NAME -m state --state RELATED,ESTABLISHED -j ACCEPT
-```
-
-Connect to hotspot on orin.
+## 🚀 Quickstart
 
 ```bash
-# connect to hotspot
-export SSID=MyHotspot
-export PASSWORD=YourDesiredPassword
-
-sudo nmcli connection add type wifi ifname wlan0 con-name $SSID ssid $SSID
-sudo nmcli connection modify $SSID wifi-sec.key-mgmt wpa-psk
-sudo nmcli connection modify $SSID wifi-sec.psk $PASSWORD
-
-sudo nmcli connection up $SSID
-
-# configue ip route
-export GATEWAY_IP=172.26.0.1
-# export GATEWAY_IP=10.42.0.1
-
-sudo ip route del default via $GATEWAY_IP dev wlan0
-sudo ip route add default via $GATEWAY_IP dev wlan0 metric 100
-
-# set dns
-echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+conda create -n sim2real python=3.12
+conda activate sim2real
+pip install -r requirements.txt
 ```
 
-# Vicon
-To start replay zmq server on laptop, run:
+## Sim2Sim Testing
+
+The sim2sim environment consists of a MuJoCo simulation environment and a reinforcement learning policy, which is two python process that communicate through ZMQ.
+After starting both processes, press ']' in the terminal running the policy to start the policy.
+After the policy starts, press '9' in the mujoco viewer to disable a virtual gantry.
+
+Test move suitcase.
 
 ```bash
-python scripts/publishers/vicon_pose_publisher.py
+# start mujoco
+python sim_env/hdmi.py --robot_config config/robot/g1.yaml --scene_config config/scene/g1_29dof_rubberhand-suitcase.yaml
+# start policy
+python rl_policy/tracking.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/G1TrackSuitcase/policy-v55m8a23-final.yaml
 ```
 
-
-# MuJoCo Sim2Sim
-
-## DeepMimic Walk (29 DoF)
+Test open door.
 
 ```bash
-# sim
-python sim_env/base_sim.py --robot_config ./config/robot/g1.yaml --scene_config ./config/scene/g1_29dof_nohand.yaml
-
-# policy
-python rl_policy/base_policy.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/exports/G1TrackWalk/policy-xob4chg3-1500.yaml
+python sim_env/hdmi.py --robot_config config/robot/g1.yaml --scene_config config/scene/g1_29dof_rubberhand-door.yaml
+python rl_policy/tracking.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/G1PushDoorHand/policy-xg6644nr-final.yaml
 ```
 
-## DeepMimic Push Door (29 DoF)
-
+Test roll ball.
 ```bash
-# sim
-python sim_env/push_door.py --robot_config ./config/robot/g1.yaml --scene_config ./config/scene/g1_29dof_nohand-door.yaml
-
-# policy
-python rl_policy/local_tracking.py --robot_config ./config/robot/g1.yaml --policy_config ./checkpoints/exports/G1Track/policy-6s0umflf-final.yaml
+python sim_env/hdmi.py --robot_config config/robot/g1.yaml --scene_config config/scene/g1_29dof_rubberhand-ball.yaml
+python rl_policy/tracking.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/G1RollBall/policy-yte3rr8b-final.yaml 
 ```
 
-## DeepMimic Push Box (29 DoF) with Mocap
+## Sim2Real
 
+### ONNX Inference Testing
 ```bash
-python sim_env/push_box.py
-
-python rl_policy/local_tracking.py --robot_config ./config/robot/g1.yaml --motion_path data/motion/push_box/push_box-VID_20250423_220958-light-high-adjust_root_height-zero_waist_pitch-processed --policy_config checkpoints/exports/G1TrackBox/policy-jeykf961-final.yaml
+python scripts/test_onnx_inference.py --policy_config checkpoints/G1TrackSuitcase/policy-v55m8a23-final.yaml
 ```
+
+TODO...

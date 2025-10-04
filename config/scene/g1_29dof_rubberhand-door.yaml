@@ -11,6 +11,6 @@ USE_JOYSTICK: 0 # Simulate Unitree WirelessController using a gamepad (0: disabl
 object_joint_name: "door_joint" # Joint name of the door in the robot scene
 publish_object_names: ["door", "door_panel", "pelvis"]
 
-door_friction: 0.0
-door_damping: 0.0
-door_stiffness: 0.0
+joint_friction: 2.0
+joint_damping: 4.0
+joint_stiffness: 0.0

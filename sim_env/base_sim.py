@@ -4,26 +4,23 @@ import time
 from threading import Thread
 import sched
 import os
-from unitree_sdk2py.core.channel import ChannelFactoryInitialize
 
 import sys
 sys.path.append(".")
-from sim_env.utils.unitree_sdk2py_bridge import UnitreeSdk2Bridge, ElasticBand
+from sim_env.utils.bridge import SimulationBridge
+from sim_env.utils.elastic_band import ElasticBand
 
 class BaseSimulator:
     def __init__(self, robot_config, scene_config):
-        if robot_config.get("INTERFACE", None):
-            ChannelFactoryInitialize(robot_config["DOMAIN_ID"], robot_config["INTERFACE"])
-        else:
-            ChannelFactoryInitialize(robot_config["DOMAIN_ID"])
-
         self.robot_config = robot_config
         self.scene_config = scene_config
         self.sim_dt = self.scene_config["SIMULATE_DT"]
         self.viewer_dt = self.scene_config["VIEWER_DT"]
 
         self.init_scene()
-        self.init_unitree_bridge()
+        self.sim_bridge = SimulationBridge(
+            self.mj_model, self.mj_data, self.robot_config, self.scene_config
+        )
 
         # for more scenes
         self.init_subscriber()
@@ -84,13 +81,8 @@ class BaseSimulator:
         self.viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
         self.viewer.cam.trackbodyid = self.pelvis_body_id
 
-    def init_unitree_bridge(self):
-        self.unitree_bridge = UnitreeSdk2Bridge(
-            self.mj_model, self.mj_data, self.robot_config, self.scene_config
-        )
-
     def sim_step(self):
-        self.unitree_bridge.PublishLowState()
+        self.sim_bridge.publish_low_state()
         if self.scene_config["ENABLE_ELASTIC_BAND"]:
             if self.elastic_band.enable:
                 pos = self.mj_data.xpos[self.band_attached_link]
@@ -98,20 +90,18 @@ class BaseSimulator:
                 self.mj_data.xfrc_applied[self.band_attached_link, :3] = (
                     self.elastic_band.Advance(pos, lin_vel)
                 )
-        self.unitree_bridge.compute_torques()
-        self.mj_data.ctrl[:] = self.unitree_bridge.torques
+        self.sim_bridge.compute_torques()
+        self.mj_data.ctrl[:] = self.sim_bridge.torques
         mujoco.mj_step(self.mj_model, self.mj_data)
 
     def SimulationThread(self):
         sim_cnt = 0
         start_time = time.time()
         
-        # 使用scheduler进行精确时间控制
         scheduler = sched.scheduler(time.perf_counter, time.sleep)
         next_run_time = time.perf_counter()
         
         while self.viewer.is_running():
-            # 调度下一次执行
             scheduler.enterabs(next_run_time, 1, self._sim_step_scheduled, ())
             scheduler.run()
             
