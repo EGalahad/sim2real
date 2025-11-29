@@ -83,3 +83,7 @@ python scripts/test_onnx_inference.py --policy_config checkpoints/G1TrackSuitcas
 ### Running on the Real Robot
 - Use the real-robot config: `config/robot/g1-real.yaml`.
 - Launch the policy with the desired checkpoint (same commands as sim2sim, swapping the robot config). Ensure the mocap relay and joint publishers are running so the controller receives ZMQ topics for joint position and body pose.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=EGalahad/sim2real&type=date&legend=top-left)](https://www.star-history.com/#EGalahad/sim2real&type=date&legend=top-left)
