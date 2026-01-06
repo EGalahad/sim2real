@@ -14,37 +14,19 @@ class StateProcessor:
     Assumes the message in the channel follows the joint order of unitree_joint_names.
     """
     def __init__(self, robot_config, dest_joint_names):
-        self.robot_type = robot_config["ROBOT_TYPE"]
         self.mocap_ip = robot_config.get("MOCAP_IP", "localhost")
-        # Initialize state source
-        if self.robot_type == "g1_real":
-            self.robot = robot_config["robot"]
-        else:
-            supported_types = {
-                "h1",
-                "go2",
-                "g1_29dof",
-                "h1-2_27dof",
-                "h1-2_21dof",
-            }
-            if self.robot_type not in supported_types:
-                raise NotImplementedError(
-                    f"Robot type {self.robot_type} is not supported"
-                )
 
-            self.low_state_port = robot_config.get(
-                "LOW_STATE_PORT", PORTS.get("low_state", 55900)
-            )
-            state_host = robot_config.get("LOW_STATE_HOST", "127.0.0.1")
-            state_endpoint = f"tcp://{state_host}:{self.low_state_port}"
+        self.low_state_port = PORTS["low_state"]
+        state_host = robot_config.get("LOW_STATE_HOST", "127.0.0.1")
+        state_endpoint = f"tcp://{state_host}:{self.low_state_port}"
 
-            self.zmq_context = zmq.Context.instance()
-            self.low_state_socket: zmq.Socket = self.zmq_context.socket(zmq.SUB)
-            self.low_state_socket.setsockopt(zmq.SUBSCRIBE, b"")
-            self.low_state_socket.setsockopt(zmq.CONFLATE, 1)
-            self.low_state_socket.setsockopt(zmq.RCVTIMEO, 10)
-            self.low_state_socket.connect(state_endpoint)
-            self.latest_low_state: LowStateMessage | None = None
+        self.zmq_context = zmq.Context.instance()
+        self.low_state_socket: zmq.Socket = self.zmq_context.socket(zmq.SUB)
+        self.low_state_socket.setsockopt(zmq.SUBSCRIBE, b"")
+        self.low_state_socket.setsockopt(zmq.CONFLATE, 1)
+        self.low_state_socket.setsockopt(zmq.RCVTIMEO, 10)
+        self.low_state_socket.connect(state_endpoint)
+        self.latest_low_state: LowStateMessage | None = None
 
         # Initialize joint mapping
         self.num_dof = len(dest_joint_names)

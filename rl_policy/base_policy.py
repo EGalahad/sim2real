@@ -2,6 +2,7 @@ import time
 import numpy as np
 from typing import Dict, Type
 import sched
+from types import SimpleNamespace
 
 from termcolor import colored
 from loguru import logger
@@ -27,17 +28,6 @@ class BasePolicy:
     ):
         # initialize robot related processes
         robot_type = robot_config["ROBOT_TYPE"]
-        if robot_type == "g1_real":
-            sys.path.append("/home/elijah/Documents/projects/hdmi/unitree_sdk2/build/lib")
-            import g1_interface
-            network_interface = robot_config.get("INTERFACE", None)
-            self.robot = g1_interface.G1Interface(network_interface)
-            try:
-                self.robot.set_control_mode(g1_interface.ControlMode.PR)
-            except Exception:
-                pass  # Ignore if firmware already in the correct mode
-            robot_config["robot"] = self.robot
-
         self.state_processor = StateProcessor(robot_config, policy_config["isaac_joint_names"])
         self.command_sender = CommandSender(robot_config, policy_config)
         self.rl_dt = 1.0 / rl_rate
@@ -122,12 +112,28 @@ class BasePolicy:
         # self.joint_effort_limit[joint_indices] = joint_effort_limit
 
         if robot_config.get("USE_JOYSTICK", False):
-            # Yuanhang: pygame event can only run in main thread on Mac, so we need to implement it with rl inference
-            assert robot_type == "g1_real", "Joystick control is only supported for g1_real"
             print("Using joystick")
             self.use_joystick = True
             self.wc_msg = None
-            self.last_wc_msg = self.robot.read_wireless_controller()
+            if robot_type == "g1_real":
+                self.last_wc_msg = self.robot.read_wireless_controller()
+            else:
+                from unitree_sdk2py.core.channel import ChannelSubscriber, ChannelFactoryInitialize
+                from unitree_sdk2py.idl.unitree_go.msg.dds_ import WirelessController_
+
+                if robot_config.get("INTERFACE", None):
+                    ChannelFactoryInitialize(robot_config["DOMAIN_ID"], robot_config["INTERFACE"])
+                else:
+                    ChannelFactoryInitialize(robot_config["DOMAIN_ID"])
+
+                self.wireless_controller_sub = ChannelSubscriber(
+                    "rt/wirelesscontroller", WirelessController_
+                )
+                self.wireless_controller_sub.Init(None, 0)
+                self.last_wc_msg = SimpleNamespace(
+                    A=False, B=False, X=False, Y=False,
+                    L1=False, L2=False, R1=False, R2=False,
+                )
             print("Wireless Controller Initialized")
         else:
             import threading
@@ -146,33 +152,17 @@ class BasePolicy:
         from rl_policy.utils.onnx_module import ONNXModule
         onnx_module = ONNXModule(model_path)
 
-        use_residual_action = self.policy_config.get("use_residual_action", False)
-        if use_residual_action:
-            def policy(input_dict):
-                output_dict = onnx_module(input_dict)
-                action = output_dict["action"].squeeze(0)
-                next_state_dict = {k[1]: v for k, v in output_dict.items() if k[0] == "next"}
-                input_dict.update(next_state_dict)
+        def policy(input_dict):
+            output_dict = onnx_module(input_dict)
+            action = output_dict["action"].squeeze(0)
+            next_state_dict = {k[1]: v for k, v in output_dict.items() if k[0] == "next"}
+            input_dict.update(next_state_dict)
 
-                ref_joint_pos = input_dict["_ref_joint_pos"].squeeze(0)
-                q_target = self.default_dof_angles.copy()
-                q_target[self.controlled_joint_indices] += \
-                    ref_joint_pos - self.default_dof_angles[self.controlled_joint_indices] + \
-                    action * self.action_scale
+            q_target = self.default_dof_angles.copy()
+            q_target[self.controlled_joint_indices] += \
+                action * self.action_scale
 
-                return action, q_target, input_dict
-        else:
-            def policy(input_dict):
-                output_dict = onnx_module(input_dict)
-                action = output_dict["action"].squeeze(0)
-                next_state_dict = {k[1]: v for k, v in output_dict.items() if k[0] == "next"}
-                input_dict.update(next_state_dict)
-
-                q_target = self.default_dof_angles.copy()
-                q_target[self.controlled_joint_indices] += \
-                    action * self.action_scale
-
-                return action, q_target, input_dict
+            return action, q_target, input_dict
 
         self.policy = policy
 
@@ -196,7 +186,6 @@ class BasePolicy:
             self.observations[obs_group] = ObsGroup(obs_group, obs_funcs)
 
     def reset(self):
-        self.state_dict["adapt_hx"][:] = 0.0
         self.state_dict["paused"] = False
         for reset_callback in self.reset_callbacks:
             reset_callback()
@@ -302,9 +291,12 @@ class BasePolicy:
     def process_joystick_input(self):
         """Poll current wireless controller state and translate to high-level key events."""
         try:
-            self.wc_msg = self.robot.read_wireless_controller()
+            raw_msg = self.wireless_controller_sub.Read()
         except Exception:
             return
+        if raw_msg is None:
+            return
+        self.wc_msg = self._decode_wireless_controller(raw_msg)
 
         if self.wc_msg is None:
             return
@@ -328,6 +320,29 @@ class BasePolicy:
             self.handle_joystick_button("R2")
         
         self.last_wc_msg = self.wc_msg
+    
+    def _decode_wireless_controller(self, msg):
+        key_bits = {
+            "R1": 0,
+            "L1": 1,
+            "R2": 4,
+            "L2": 5,
+            "A": 8,
+            "B": 9,
+            "X": 10,
+            "Y": 11,
+        }
+        keys = getattr(msg, "keys", 0)
+        return SimpleNamespace(
+            A=bool(keys & (1 << key_bits["A"])),
+            B=bool(keys & (1 << key_bits["B"])),
+            X=bool(keys & (1 << key_bits["X"])),
+            Y=bool(keys & (1 << key_bits["Y"])),
+            L1=bool(keys & (1 << key_bits["L1"])),
+            L2=bool(keys & (1 << key_bits["L2"])),
+            R1=bool(keys & (1 << key_bits["R1"])),
+            R2=bool(keys & (1 << key_bits["R2"])),
+        )
     
     def handle_joystick_button(self, cur_key):
         if cur_key == "R1":
@@ -360,21 +375,17 @@ class BasePolicy:
     def run(self):
         total_inference_cnt = 0
         
-        # 初始化状态变量
         state_dict = {}
-        state_dict["adapt_hx"] = np.zeros((1, 256), dtype=np.float32)
         state_dict["action"] = np.zeros(self.num_actions)
         self.state_dict = state_dict
         self.total_inference_cnt = total_inference_cnt
         self.perf_dict = {}
 
         try:
-            # 使用scheduler进行精确时间控制
             scheduler = sched.scheduler(time.perf_counter, time.sleep)
             next_run_time = time.perf_counter()
             
             while True:
-                # 调度下一次执行
                 scheduler.enterabs(next_run_time, 1, self._rl_step_scheduled, ())
                 scheduler.run()
                 
@@ -412,9 +423,9 @@ class BasePolicy:
                 # Inference
                 # print(self.state_dict.keys())
                 action, q_target, self.state_dict = self.policy(self.state_dict)
-                for key, value in self.state_dict.items():
-                    if key.endswith("_ood_ratio"):
-                        print(key, value)
+                # for key, value in self.state_dict.items():
+                #     if key.endswith("_ood_ratio"):
+                #         print(key, value)
                 # Clip policy action
                 action = action.clip(-100, 100)
                 self.state_dict["action"] = action

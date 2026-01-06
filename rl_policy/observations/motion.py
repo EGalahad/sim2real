@@ -59,7 +59,7 @@ class ref_motion_phase(_motion_obs):
 
 class ref_joint_pos_future(_motion_obs):
     def compute(self) -> np.ndarray:
-        print(f"t: {self.t.item()}")
+        # print(f"t: {self.t.item()}")
         return self.ref_joint_pos_future.reshape(-1)
     
 class ref_joint_vel_future(_motion_obs):

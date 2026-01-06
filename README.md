@@ -24,26 +24,59 @@ HDMI is a framework that enables humanoid robots to acquire diverse whole-body i
 
 ```bash
 uv sync
+source .venv/bin/activate
 ```
 
-If you prefer conda, create a Python 3.12 environment and `pip install -r requirements.txt`.
+If you prefer conda
+```bash
+conda create -n hdmi python=3.12
+conda activate hdmi
+pip install -e .
+```
+
+### FAQ
+
+For unitree_sdk_python installation, if missing CYCLONEDDS, refer to https://github.com/unitreerobotics/unitree_sdk2_python?tab=readme-ov-file#faq
+
+```bash
+Could not locate cyclonedds. Try to set CYCLONEDDS_HOME or CMAKE_PREFIX_PATH
+```
+
+This error mentions that the cyclonedds path could not be found. First compile and install cyclonedds:
+```bash
+cd ~
+git clone https://github.com/eclipse-cyclonedds/cyclonedds -b releases/0.10.x 
+cd cyclonedds && mkdir build install && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=../install
+cmake --build . --target install
+export CYCLONEDDS_HOME="~/cyclonedds/install"
+```
+Then run the above setup command (uv or conda) again.
+
 
 ## Sim2Sim
-The sim2sim setup runs a MuJoCo environment and a reinforcement-learning policy as two Python processes that communicate over ZMQ. After both processes are up, press `]` in the policy terminal to start, then press `9` in the MuJoCo viewer to disable the virtual gantry.
+The sim2sim setup runs a MuJoCo environment and a reinforcement-learning policy as two Python processes that communicate over ZMQ. After both processes are up, press `]` in the policy terminal to start, then press `9` in the MuJoCo viewer to disable the virtual gantry immediately.
 
-### Example Scenarios
+**Lafan Dance**
+```bash
+# terminal 1: start MuJoCo
+uv run sim_env/hdmi.py --robot_config config/robot/g1.yaml --scene_config config/scene/g1_29dof_rubberhand-lafan-dance.yaml
+# terminal 2: start policy
+uv run rl_policy/tracking.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/G1Dance1Subject2/policy-1781wsjf-final.yaml
+```
+
 **Move suitcase**
 ```bash
 # terminal 1: start MuJoCo
-python sim_env/hdmi.py --robot_config config/robot/g1.yaml --scene_config config/scene/g1_29dof_rubberhand-suitcase.yaml
+uv run sim_env/hdmi.py --robot_config config/robot/g1.yaml --scene_config config/scene/g1_29dof_rubberhand-suitcase.yaml
 # terminal 2: start policy
-python rl_policy/tracking.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/G1TrackSuitcase/policy-v55m8a23-final.yaml
+uv run rl_policy/tracking.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/G1TrackSuitcase/policy-v55m8a23-final.yaml
 ```
 
 **Open door**
 ```bash
-python sim_env/hdmi.py --robot_config config/robot/g1.yaml --scene_config config/scene/g1_29dof_rubberhand-door.yaml
-python rl_policy/tracking.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/G1PushDoorHand/policy-xg6644nr-final.yaml
+uv run sim_env/hdmi.py --robot_config config/robot/g1.yaml --scene_config config/scene/g1_29dof_rubberhand-door.yaml
+uv run rl_policy/tracking.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/G1PushDoorHand/policy-xg6644nr-final.yaml
 ```
 
 **Roll ball**
@@ -62,9 +95,18 @@ The sim2real pipeline uses ZMQ to relay motion capture and robot state to the co
 python scripts/test_onnx_inference.py --policy_config checkpoints/G1TrackSuitcase/policy-v55m8a23-final.yaml
 ```
 
-### Required Setup
-- Target platform: onboard Orin Jetson of the Unitree G1 (ssh into the robot and copy this codebase).
-- Install the Unitree C++ SDK Python binding from https://github.com/EGalahad/unitree_sdk2 to enable 50 Hz control. Update the import path in `rl_policy/base_policy.py` after building the binding.
+### Run Sim2Real Policy
+
+Replace the simulation process with the unitree SDK bridge:
+
+```bash
+# terminal 1: start Unitree SDK bridge
+uv run scripts/real_bridge.py
+# terminal 2: start policy
+uv run python rl_policy/tracking.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/G1Dance1Subject2/policy-1781wsjf-final.yaml
+```
+
+Then in the simulation terminal, press `i` to set robot to init pose, press `]` to start the controller.
 
 ### Mocap Data Relay and Visualization
 1. Relay pelvis/object poses from the mocap server:
@@ -79,10 +121,6 @@ python scripts/test_onnx_inference.py --policy_config checkpoints/G1TrackSuitcas
    ```bash
    python scripts/vis/mujoco_mocap_viewer.py
    ```
-
-### Running on the Real Robot
-- Use the real-robot config: `config/robot/g1-real.yaml`.
-- Launch the policy with the desired checkpoint (same commands as sim2sim, swapping the robot config). Ensure the mocap relay and joint publishers are running so the controller receives ZMQ topics for joint position and body pose.
 
 ## Star History
 

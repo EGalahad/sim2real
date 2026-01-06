@@ -20,6 +20,7 @@ dependencies = [
     "zmq",
     "tqdm",
     "pyvicon-datastream",
+    "unitree-sdk2py",
 ]
 
 [project.urls]
@@ -27,4 +28,10 @@ Homepage = "https://hdmi-humanoid.github.io/"
 Repository = "https://github.com/EGalahad/sim2real"
 
 [tool.uv]
-package = "hdmi-sim2real"
+package = true
+
+[tool.uv.sources]
+unitree-sdk2py = { git = "https://github.com/EGalahad/unitree_sdk2_python.git" }
+
+[tool.setuptools]
+packages = ["utils"]
