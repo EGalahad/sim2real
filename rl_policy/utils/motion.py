@@ -1,7 +1,7 @@
 import numpy as np
 import json
 from pathlib import Path
-from typing import List, Dict, Union
+from typing import List, Dict
 from scipy.spatial.transform import Rotation as sRot, Slerp
 from tqdm import tqdm
 from utils.strings import resolve_matching_names
@@ -39,11 +39,8 @@ def interpolate(motion: Dict[str, np.ndarray], source_fps: int, target_fps: int)
             raise NotImplementedError(f"interpolation is not fully implemented for some keys")
         
         T = motion["joint_pos"].shape[0]
-        end_t = T / source_fps
-        ts_source = np.arange(0, end_t, 1 / source_fps)
-        ts_target = np.arange(0, end_t, 1 / target_fps)
-        if ts_target[-1] > ts_source[-1]:
-            ts_target = ts_target[:-1]
+        ts_source = np.linspace(0, T, T)
+        ts_target = np.linspace(0, T, int(T / source_fps * target_fps))
             
         motion["body_pos_w"] = lerp(ts_target, ts_source, motion["body_pos_w"].reshape(T, -1)).reshape(len(ts_target), -1, 3)
         motion["body_lin_vel_w"] = lerp(ts_target, ts_source, motion["body_lin_vel_w"].reshape(T, -1)).reshape(len(ts_target), -1, 3)
@@ -199,10 +196,8 @@ class MotionDataset:
     def num_steps(self):
         return len(self.data.step)
 
-    def get_slice(self, motion_ids: np.ndarray, starts: np.ndarray, steps: Union[int, np.ndarray] = 1) -> MotionData:
+    def get_slice(self, motion_ids: np.ndarray, starts: np.ndarray, steps: np.ndarray) -> MotionData:
         """Get a slice of motion data"""
-        if isinstance(steps, int):
-            steps = np.arange(steps)
         idx = (self.starts[motion_ids] + starts).reshape(-1, 1) + steps.reshape(1, -1)
         idx = np.clip(idx, None, self.ends[motion_ids].reshape(-1, 1) - 1)
         return self.data[idx]  # shape: [len(motion_ids), len(steps), ...]

@@ -1,4 +1,5 @@
-ROBOT_SCENE: "data/robots/g1/g1_29dof_rubberhand.xml" # Robot scene, for Sim2Sim
+# ROBOT_SCENE: "data/robots/g1/g1_29dof_rubberhand.xml" # Robot scene, for Sim2Sim
+ROBOT_SCENE: "data/robots/g1/g1-mjlab.xml" # Robot scene, for Sim2Sim
 
 ENABLE_ELASTIC_BAND: True # Virtual spring band, used for lifting h1
 

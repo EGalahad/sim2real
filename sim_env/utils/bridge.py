@@ -202,13 +202,11 @@ class SimulationBridge:
 
         # quaternion: w, x, y, z
         root_quat_w = self.mj_data.qpos[self.root_qpos_adr + 3:self.root_qpos_adr+7]
-        root_quat_yaw_w = yaw_quat(root_quat_w)
-        root_quat_b = quat_mul(quat_conjugate(root_quat_yaw_w), root_quat_w)
 
         # angular velocity: x, y, z
         root_ang_vel_b = self.mj_data.qvel[self.root_qvel_adr + 3:self.root_qvel_adr+6]
         low_state_msg = LowStateMessage(
-            quaternion=root_quat_b,
+            quaternion=root_quat_w,
             gyroscope=root_ang_vel_b,
             joint_positions=joint_pos_full,
             joint_velocities=joint_vel_full,

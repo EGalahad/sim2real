@@ -44,8 +44,8 @@ class CommandSender:
         self.default_joint_pos_unitree = np.zeros(len(unitree_joint_names))
         self.default_joint_pos_unitree[joint_indices] = default_joint_pos
 
-        joint_names_isaac = self.policy_config["isaac_joint_names"]
-        self.joint_indices_unitree = [unitree_joint_names.index(name) for name in joint_names_isaac]
+        asset_joint_names = self.policy_config["asset_joint_names"]
+        self.joint_indices_unitree = [unitree_joint_names.index(name) for name in asset_joint_names]
 
         # init low cmd publisher
         self.zmq_context = zmq.Context.instance()
@@ -90,6 +90,7 @@ class CommandSender:
             kp=self.joint_kp_unitree,
             kd=self.joint_kd_unitree,
         )
+        # print(self.joint_kp_unitree)
         try:
             self.lowcmd_socket.send(message.to_bytes(), flags=zmq.DONTWAIT)
         except zmq.Again:

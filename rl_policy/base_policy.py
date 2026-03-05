@@ -3,6 +3,9 @@ import numpy as np
 from typing import Dict, Type
 import sched
 from types import SimpleNamespace
+import subprocess
+import threading
+from copy import deepcopy
 
 from termcolor import colored
 from loguru import logger
@@ -27,8 +30,7 @@ class BasePolicy:
         rl_rate=50,
     ):
         # initialize robot related processes
-        robot_type = robot_config["ROBOT_TYPE"]
-        self.state_processor = StateProcessor(robot_config, policy_config["isaac_joint_names"])
+        self.state_processor = StateProcessor(robot_config, policy_config["asset_joint_names"])
         self.command_sender = CommandSender(robot_config, policy_config)
         self.rl_dt = 1.0 / rl_rate
 
@@ -37,23 +39,23 @@ class BasePolicy:
         self.setup_policy(model_path)
         self.obs_cfg = policy_config["observation"]
 
-        self.isaac_joint_names = policy_config["isaac_joint_names"]
-        self.num_dofs = len(self.isaac_joint_names)
+        self.asset_joint_names = policy_config["asset_joint_names"]
+        self.num_dofs = len(self.asset_joint_names)
 
         default_joint_pos_dict = policy_config["default_joint_pos"]
         joint_indices, joint_names, default_joint_pos = resolve_matching_names_values(
             default_joint_pos_dict,
-            self.isaac_joint_names,
+            self.asset_joint_names,
             preserve_order=True,
             strict=False,
         )
-        self.default_dof_angles = np.zeros(len(self.isaac_joint_names))
+        self.default_dof_angles = np.zeros(len(self.asset_joint_names))
         self.default_dof_angles[joint_indices] = default_joint_pos
 
         self.policy_joint_names = policy_config["policy_joint_names"]
         self.num_actions = len(self.policy_joint_names)
         self.controlled_joint_indices = [
-            self.isaac_joint_names.index(name)
+            self.asset_joint_names.index(name)
             for name in self.policy_joint_names
         ]
 
@@ -66,6 +68,12 @@ class BasePolicy:
                 action_scale_cfg, self.policy_joint_names, preserve_order=True
             )
             self.action_scale[joint_ids] = action_scales
+        elif isinstance(action_scale_cfg, list):
+            if len(action_scale_cfg) != self.num_actions:
+                raise ValueError(
+                    f"Action scale list length {len(action_scale_cfg)} does not match num actions {self.num_actions}"
+                )
+            self.action_scale[:] = np.array(action_scale_cfg)
         else:
             raise ValueError(f"Invalid action scale type: {type(action_scale_cfg)}")
 
@@ -75,12 +83,14 @@ class BasePolicy:
         self.first_time_init = True
         self.init_count = 0
         self.get_ready_state = False
+        # Perf metrics dict is reused; initialize early so background threads can record.
+        self.perf_dict: Dict[str, float] = {}
 
         # Joint limits
         joint_indices, joint_names, joint_pos_lower_limit = (
             resolve_matching_names_values(
                 robot_config["joint_pos_lower_limit"],
-                self.isaac_joint_names,
+                self.asset_joint_names,
                 preserve_order=True,
                 strict=False,
             )
@@ -91,7 +101,7 @@ class BasePolicy:
         joint_indices, joint_names, joint_pos_upper_limit = (
             resolve_matching_names_values(
                 robot_config["joint_pos_upper_limit"],
-                self.isaac_joint_names,
+                self.asset_joint_names,
                 preserve_order=True,
                 strict=False,
             )
@@ -99,44 +109,35 @@ class BasePolicy:
         self.joint_pos_upper_limit = np.zeros(self.num_dofs)
         self.joint_pos_upper_limit[joint_indices] = joint_pos_upper_limit
 
-        # joint_indices, joint_names, joint_vel_limit = resolve_matching_names_values(
-        #     self.config["joint_vel_limit"], self.robot.isaac_joint_names, preserve_order=True, strict=False
-        # )
-        # self.joint_vel_limit = np.zeros(self.num_dofs)
-        # self.joint_vel_limit[joint_indices] = joint_vel_limit
-
-        # joint_indices, joint_names, joint_effort_limit = resolve_matching_names_values(
-        #     self.config["joint_effort_limit"], self.robot.isaac_joint_names, preserve_order=True, strict=False
-        # )
-        # self.joint_effort_limit = np.zeros(self.num_dofs)
-        # self.joint_effort_limit[joint_indices] = joint_effort_limit
-
         if robot_config.get("USE_JOYSTICK", False):
             print("Using joystick")
             self.use_joystick = True
             self.wc_msg = None
-            if robot_type == "g1_real":
-                self.last_wc_msg = self.robot.read_wireless_controller()
+            from unitree_sdk2py.core.channel import ChannelSubscriber, ChannelFactoryInitialize
+            from unitree_sdk2py.idl.unitree_go.msg.dds_ import WirelessController_
+
+            if robot_config.get("INTERFACE", None):
+                ChannelFactoryInitialize(robot_config["DOMAIN_ID"], robot_config["INTERFACE"])
             else:
-                from unitree_sdk2py.core.channel import ChannelSubscriber, ChannelFactoryInitialize
-                from unitree_sdk2py.idl.unitree_go.msg.dds_ import WirelessController_
+                ChannelFactoryInitialize(robot_config["DOMAIN_ID"])
 
-                if robot_config.get("INTERFACE", None):
-                    ChannelFactoryInitialize(robot_config["DOMAIN_ID"], robot_config["INTERFACE"])
-                else:
-                    ChannelFactoryInitialize(robot_config["DOMAIN_ID"])
-
-                self.wireless_controller_sub = ChannelSubscriber(
-                    "rt/wirelesscontroller", WirelessController_
-                )
-                self.wireless_controller_sub.Init(None, 0)
-                self.last_wc_msg = SimpleNamespace(
-                    A=False, B=False, X=False, Y=False,
-                    L1=False, L2=False, R1=False, R2=False,
-                )
+            self.wireless_controller_sub = ChannelSubscriber(
+                "rt/wirelesscontroller", WirelessController_
+            )
+            self.wireless_controller_sub.Init(None, 0)
+            self._wc_lock = threading.Lock()
+            self.last_wc_msg = SimpleNamespace(
+                A=False, B=False, X=False, Y=False,
+                L1=False, L2=False, R1=False, R2=False,
+                left_stick=(0.0, 0.0), right_stick=(0.0, 0.0)
+            )
+            self._joystick_thread_stop = threading.Event()
+            self.joystick_thread = threading.Thread(
+                target=self._poll_wireless_controller, daemon=True
+            )
+            self.joystick_thread.start()
             print("Wireless Controller Initialized")
         else:
-            import threading
             print("Using keyboard")
             self.use_joystick = False
             self.key_listener_thread = threading.Thread(
@@ -171,7 +172,10 @@ class BasePolicy:
         self.observations: Dict[str, ObsGroup] = {}
         self.reset_callbacks = []
         self.update_callbacks = []
-        
+
+        self.reset_callbacks.append(self.state_processor.reset)
+        self.update_callbacks.append(self.state_processor.update)
+
         # Create observation instances based on config
         for obs_group, obs_items in self.obs_cfg.items():
             print(f"obs_group: {obs_group}")
@@ -186,7 +190,7 @@ class BasePolicy:
             self.observations[obs_group] = ObsGroup(obs_group, obs_funcs)
 
     def reset(self):
-        self.state_dict["paused"] = False
+        self.state_dict["paused"] = True
         for reset_callback in self.reset_callbacks:
             reset_callback()
 
@@ -218,7 +222,7 @@ class BasePolicy:
         return np.zeros(0)
 
     def start_key_listener(self):
-        """Start a key listener using pynput."""
+        """Start a key listener using sshkeyboard."""
 
         self.key_pressed = set()
         def on_press(keycode):
@@ -241,9 +245,40 @@ class BasePolicy:
                 pass
 
         from sshkeyboard import listen_keyboard
-        listener = listen_keyboard(on_press=on_press, on_release=on_release)
-        listener.start()
-        listener.join()  # Keep the thread alive
+
+        try:
+            # listen_keyboard sets the TTY to raw/no-echo; wrapping in try/finally
+            # and calling stop_listening in run() ensures the terminal gets restored
+            # even if the main loop exits via KeyboardInterrupt.
+            listen_keyboard(on_press=on_press, on_release=on_release)
+        except Exception as e:
+            logger.warning(f"Keyboard listener stopped unexpectedly: {e}")
+
+    def stop_keyboard_listener(self):
+        if self.use_joystick:
+            return
+
+        try:
+            from sshkeyboard import stop_listening
+            stop_listening()  # restores terminal settings
+        except Exception as e:
+            logger.debug(f"Failed to stop keyboard listener cleanly: {e}")
+        finally:
+            # Ensure TTY echo/canonical mode is restored even if listener cleanup failed
+            try:
+                subprocess.run(["stty", "sane"], check=False)
+            except Exception as e:
+                logger.debug(f"Failed to run stty sane: {e}")
+
+    def stop_joystick_listener(self):
+        if not self.use_joystick:
+            return
+        try:
+            self._joystick_thread_stop.set()
+            if hasattr(self, "joystick_thread") and self.joystick_thread.is_alive():
+                self.joystick_thread.join(timeout=1.0)
+        except Exception as e:
+            logger.debug(f"Failed to stop joystick listener cleanly: {e}")
 
     def handle_keyboard_button(self, keycode):
         """
@@ -289,37 +324,31 @@ class BasePolicy:
             )
 
     def process_joystick_input(self):
-        """Poll current wireless controller state and translate to high-level key events."""
-        try:
-            raw_msg = self.wireless_controller_sub.Read()
-        except Exception:
-            return
-        if raw_msg is None:
-            return
-        self.wc_msg = self._decode_wireless_controller(raw_msg)
+        """Translate latest wireless controller state into high-level key events."""
+        with self._wc_lock:
+            wc_local = deepcopy(self.wc_msg)
 
-        if self.wc_msg is None:
+        if wc_local is None:
             return
 
-        # print(f"wc_msg.A: {self.wc_msg.A}")
-        if self.wc_msg.A and not self.last_wc_msg.A:
+        if wc_local.A and not self.last_wc_msg.A:
             self.handle_joystick_button("A")
-        if self.wc_msg.B and not self.last_wc_msg.B:
+        if wc_local.B and not self.last_wc_msg.B:
             self.handle_joystick_button("B")
-        if self.wc_msg.X and not self.last_wc_msg.X:
+        if wc_local.X and not self.last_wc_msg.X:
             self.handle_joystick_button("X")
-        if self.wc_msg.Y and not self.last_wc_msg.Y:
+        if wc_local.Y and not self.last_wc_msg.Y:
             self.handle_joystick_button("Y")
-        if self.wc_msg.L1 and not self.last_wc_msg.L1:
+        if wc_local.L1 and not self.last_wc_msg.L1:
             self.handle_joystick_button("L1")
-        if self.wc_msg.L2 and not self.last_wc_msg.L2:
+        if wc_local.L2 and not self.last_wc_msg.L2:
             self.handle_joystick_button("L2")
-        if self.wc_msg.R1 and not self.last_wc_msg.R1:
+        if wc_local.R1 and not self.last_wc_msg.R1:
             self.handle_joystick_button("R1")
-        if self.wc_msg.R2 and not self.last_wc_msg.R2:
+        if wc_local.R2 and not self.last_wc_msg.R2:
             self.handle_joystick_button("R2")
-        
-        self.last_wc_msg = self.wc_msg
+
+        self.last_wc_msg = wc_local
     
     def _decode_wireless_controller(self, msg):
         key_bits = {
@@ -342,7 +371,26 @@ class BasePolicy:
             L2=bool(keys & (1 << key_bits["L2"])),
             R1=bool(keys & (1 << key_bits["R1"])),
             R2=bool(keys & (1 << key_bits["R2"])),
+            left_stick=(getattr(msg, "lx", 0.0), getattr(msg, "ly", 0.0)),
+            right_stick=(getattr(msg, "rx", 0.0), getattr(msg, "ry", 0.0)),
         )
+
+    def _poll_wireless_controller(self):
+        """Background poller to read wireless controller at ~5 Hz to keep RL loop light."""
+        poll_interval = 0.2  # 5 Hz
+        while not self._joystick_thread_stop.is_set():
+            try:
+                with Timer(self.perf_dict, "read_wireless_controller"):
+                    raw_msg = self.wireless_controller_sub.Read()
+                if raw_msg is not None:
+                    with Timer(self.perf_dict, "decode_wireless_controller"):
+                        decoded = self._decode_wireless_controller(raw_msg)
+                    with self._wc_lock:
+                        self.wc_msg = decoded
+            except Exception as e:
+                logger.debug(f"Joystick poll error: {e}")
+            finally:
+                time.sleep(poll_interval)
     
     def handle_joystick_button(self, cur_key):
         if cur_key == "R1":
@@ -399,17 +447,24 @@ class BasePolicy:
                     self.perf_dict = {}
         except KeyboardInterrupt:
             pass
+        finally:
+            if self.use_joystick:
+                self.stop_joystick_listener()
+            else:
+                self.stop_keyboard_listener()
 
     def _rl_step_scheduled(self):
         loop_start = time.perf_counter()
 
         with Timer(self.perf_dict, "prepare_low_state"):
             if self.use_joystick:
-                self.process_joystick_input()
+                with Timer(self.perf_dict, "process_joystick_input"):
+                    self.process_joystick_input()
 
-            if not self.state_processor._prepare_low_state():
-                print("low state not ready.")
-                return
+            with Timer(self.perf_dict, "get_low_state"):
+                if not self.state_processor._prepare_low_state():
+                    print("low state not ready.")
+                    return
             
         try:
             with Timer(self.perf_dict, "prepare_obs"):
@@ -423,9 +478,9 @@ class BasePolicy:
                 # Inference
                 # print(self.state_dict.keys())
                 action, q_target, self.state_dict = self.policy(self.state_dict)
-                # for key, value in self.state_dict.items():
-                #     if key.endswith("_ood_ratio"):
-                #         print(key, value)
+                for key, value in self.state_dict.items():
+                    if key.endswith("_ood_ratio"):
+                        print(key, value)
                 # Clip policy action
                 action = action.clip(-100, 100)
                 self.state_dict["action"] = action

@@ -12,27 +12,27 @@ from rl_policy.utils.onnx_module import ONNXModule
 
 
 class ONNXInferenceTest:
-    def __init__(self, model_path: str):
+    def __init__(self, model_path: str, provider: str):
         self.model_path = model_path
-        self.setup_policy(model_path)
+        self.setup_policy(model_path, provider)
         self.setup_mock_data()
         
-    def setup_policy(self, model_path: str):
+    def setup_policy(self, model_path: str, provider: str):
         print(f"Loading ONNX model from: {model_path}")
         
         if not Path(model_path).exists():
             raise FileNotFoundError(f"ONNX model not found: {model_path}")
-        
-        json_path = model_path.replace(".onnx", ".json")
-        if not Path(json_path).exists():
-            raise FileNotFoundError(f"JSON metadata not found: {json_path}")
-        
-        self.onnx_module = ONNXModule(model_path)
+
+        self.onnx_module = ONNXModule(model_path, providers=provider)
         
         def policy(input_dict):
             output_dict = self.onnx_module(input_dict)
             action = output_dict["action"].squeeze(0)
-            carry = {k[1]: v for k, v in output_dict.items() if k[0] == "next"}
+            carry = {
+                k[1]: v
+                for k, v in output_dict.items()
+                if isinstance(k, tuple) and len(k) == 2 and k[0] == "next"
+            }
             return action, carry
         
         self.policy = policy
@@ -166,12 +166,18 @@ def main():
         action="store_true",
         help="Run single inference test only"
     )
+    parser.add_argument(
+        "--provider",
+        type=str,
+        default="cpu",
+        help="ONNX Runtime provider: cpu or cuda"
+    )
     
     args = parser.parse_args()
     
     try:
         model_path = args.policy_config.replace(".yaml", ".onnx")
-        tester = ONNXInferenceTest(model_path)
+        tester = ONNXInferenceTest(model_path, provider=args.provider)
         
         if args.single:
             print("Running single inference test...")

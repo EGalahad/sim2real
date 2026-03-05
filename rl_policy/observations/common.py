@@ -36,7 +36,7 @@ class projected_gravity_b(Observation):
         self.v = np.array([0, 0, -1])
 
     def compute(self) -> np.ndarray:
-        base_quat = self.state_processor.root_quat_b
+        base_quat = self.state_processor.root_quat_w
         projected_gravity = quat_rotate_inverse_numpy(
             base_quat[None, :], 
             self.v[None, :]
@@ -52,7 +52,7 @@ class projected_gravity_history(Observation):
         self.v = np.array([0, 0, -1])
     
     def update(self, data: Dict[str, Any]) -> None:
-        base_quat = self.state_processor.root_quat_b
+        base_quat = self.state_processor.root_quat_w
         projected_gravity = quat_rotate_inverse_numpy(
             base_quat[None, :], 
             self.v[None, :]
@@ -82,8 +82,16 @@ class joint_pos_history(Observation):
         self.history_steps = history_steps
         buffer_size = max(history_steps) + 1
 
+        if (
+            isinstance(joint_names, str)
+            and joint_names == ".*"
+            and isinstance(getattr(self.env, "policy_config", None), dict)
+            and "policy_joint_names" in self.env.policy_config
+        ):
+            joint_names = self.env.policy_config["policy_joint_names"]
+
         self.joint_ids, self.joint_names = resolve_matching_names(
-            joint_names, self.state_processor.joint_names
+            joint_names, self.state_processor.joint_names, preserve_order=True
         )
         self.joint_pos_multistep = np.zeros((buffer_size, len(self.joint_ids)))
     
@@ -118,4 +126,5 @@ class prev_actions(Observation):
         self.prev_actions[:, 0] = data["action"]
 
     def compute(self) -> np.ndarray:
-        return self.prev_actions.reshape(-1)
+        # Match training flatten order from [steps, action_dim].
+        return self.prev_actions.T.reshape(-1)

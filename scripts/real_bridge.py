@@ -168,7 +168,7 @@ class RealBridge:
 
         try:
             self.low_state_zmq_pub.send(low_state_msg.to_bytes(), flags=zmq.DONTWAIT)
-            print(f"published low state msg tick={low_state_msg.tick}")
+            # print(f"published low state msg tick={low_state_msg.tick}")
         except zmq.Again:
             pass
 
@@ -205,9 +205,9 @@ class RealBridge:
 
             self.low_cmd.crc = self.crc.Crc(self.low_cmd)
             self.low_cmd_unitree_pub.Write(self.low_cmd)
-            print(f"command q_: {low_cmd.q_target}")
-            print(f"command kp: {low_cmd.kp}")
-            print(f"sent low cmd msg")
+            # print(f"command q_: {low_cmd.q_target}")
+            # print(f"command kp: {low_cmd.kp}")
+            # print(f"sent low cmd msg")
 
             updated = True
 

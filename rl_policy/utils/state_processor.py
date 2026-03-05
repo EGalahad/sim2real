@@ -6,8 +6,9 @@ import time
 
 from utils.strings import unitree_joint_names
 from loguru import logger
-from typing import Dict
+from typing import Dict, Iterable, List, Optional
 from utils.common import ZMQSubscriber, PORTS, LowStateMessage
+from rl_policy.utils.motion import MotionDataset, MotionData
 
 class StateProcessor:
     """Listens to the unitree sdk channels and converts observation into isaac compatible order.
@@ -40,7 +41,7 @@ class StateProcessor:
         self.root_pos_w = self.qpos[0:3]
         self.root_lin_vel_w = self.qvel[0:3]
 
-        self.root_quat_b = self.qpos[3:7]
+        self.root_quat_w = self.qpos[3:7]
         self.root_ang_vel_b = self.qvel[3:6]
 
         self.joint_pos = self.qpos[7:]
@@ -50,6 +51,75 @@ class StateProcessor:
         self.mocap_threads = {}      # Dictionary to store subscriber threads
         self.mocap_data = {}         # Dictionary to store received mocap data
         self.mocap_data_lock = threading.Lock()  # Lock for thread-safe access
+
+        # Motion data management
+        self.motion_dataset: Optional[MotionDataset] = None
+        self.motion_requests: Dict[str, Dict] = {}
+        self.motion_cache: Dict[str, Dict] = {}
+        self.motion_ids = np.array([0], dtype=int)
+        self.motion_t = np.array([0], dtype=int)
+        self.motion_length = 0
+    
+    def reset(self):
+        # Reset motion playback to the first frame (standing pose)
+        self.motion_t[:] = 0
+        self._update_motion_cache(paused=False)
+
+    def update(self, data: Optional[Dict] = None):
+        data = data or {}
+        paused = data.get("paused", False)
+        if self.motion_dataset is not None and not paused:
+            self.motion_t += 1
+            if self.motion_t[0] >= self.motion_length:
+                self.motion_t[:] = 0
+                data["paused"] = True
+        self._update_motion_cache(paused=paused)
+
+    # ---- Motion utilities ----
+    def register_motion_request(
+        self,
+        name: str,
+        motion_path: str,
+        future_steps: Iterable[int],
+        joint_names: List[str],
+        body_names: List[str],
+        root_body_name: str = "pelvis",
+        anchor_body_name: str = "torso_link",
+    ):
+        """Register a motion slice request. Loading happens once here."""
+        if self.motion_dataset is None:
+            self.motion_dataset = MotionDataset.create_from_path(motion_path)
+            assert self.motion_dataset.num_motions == 1, "Only one motion is supported"
+            self.motion_length = self.motion_dataset.num_steps
+
+        future_steps = np.array(list(future_steps), dtype=int)
+        joint_indices = [self.motion_dataset.joint_names.index(name) for name in joint_names]
+        body_indices = [self.motion_dataset.body_names.index(name) for name in body_names]
+        root_body_idx = self.motion_dataset.body_names.index(root_body_name)
+        anchor_body_idx = self.motion_dataset.body_names.index(anchor_body_name)
+
+        self.motion_requests[name] = dict(
+            future_steps=future_steps,
+            joint_indices=joint_indices,
+            body_indices=body_indices,
+            root_body_idx=root_body_idx,
+            anchor_body_idx=anchor_body_idx,
+        )
+        # ensure cache initialized
+        self._update_motion_cache(paused=False)
+
+    def _update_motion_cache(self, paused: bool):
+        if self.motion_dataset is None:
+            return
+        for name, req in self.motion_requests.items():
+            motion_data: MotionData = self.motion_dataset.get_slice(
+                self.motion_ids, self.motion_t, req["future_steps"]
+            )
+            self.motion_cache[name] = {"data": motion_data, "req": req, "paused": paused}
+
+    def get_motion_packet(self, name: str) -> Dict:
+        """Return cached motion data and request metadata."""
+        return self.motion_cache[name]
 
     def register_subscriber(self, object_name: str, port: int | None = None):
         if object_name in self.mocap_subscribers:
@@ -92,7 +162,7 @@ class StateProcessor:
                 return False
 
             low_state = self.latest_low_state
-            self.root_quat_b[:] = low_state.quaternion
+            self.root_quat_w[:] = low_state.quaternion
             self.root_ang_vel_b[:] = low_state.gyroscope
 
             source_joint_pos = low_state.joint_positions
@@ -113,7 +183,7 @@ class StateProcessor:
                 return False
 
             # IMU
-            self.root_quat_b[:] = state.imu.quat  # [w, x, y, z]
+            self.root_quat_w[:] = state.imu.quat  # [w, x, y, z]
             self.root_ang_vel_b[:] = state.imu.omega
 
             # Joints

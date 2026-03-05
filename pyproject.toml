@@ -12,14 +12,11 @@ dependencies = [
     "scipy",
     "torch",
     "onnxruntime",
-    "pynput",
-    "ipdb",
     "termcolor",
     "sshkeyboard",
-    "pygame",
     "zmq",
     "tqdm",
-    "pyvicon-datastream",
+    # "pyvicon-datastream",
     "unitree-sdk2py",
 ]
 
