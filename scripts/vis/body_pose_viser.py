@@ -3,16 +3,13 @@ This script subscribes to ZMQ pose data published by the Vicon script
 and visualizes the object frames in real-time using Viser.
 """
 
-import sys
 import time
 import numpy as np
 import viser
 import threading
 from typing import List, Dict
 
-# Add the project root to the Python path to find the 'utils' module
-sys.path.append(".")
-from utils.common import ZMQSubscriber, PORTS
+from sim2real.utils.common import ZMQSubscriber, PORTS
 
 JOINT_STATE_PUBLISHER_IP = "172.26.52.156"
 BODY_POSE_PUBLISHER_IP = "172.26.52.156"

@@ -4,20 +4,23 @@ version = "0.1.0"
 description = "Sim-to-sim and sim-to-real code for HDMI humanoid control"
 readme = "README.md"
 authors = [{ name = "HDMI Contributors" }]
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.10,<3.13"
 dependencies = [
+    "huggingface-hub",
     "mujoco",
     "loguru",
     "pyyaml",
     "scipy",
     "torch",
-    "onnxruntime",
+    "onnxruntime-gpu",
+    "onnx==1.17.0",
     "termcolor",
     "sshkeyboard",
     "zmq",
     "tqdm",
     # "pyvicon-datastream",
     "unitree-sdk2py",
+    "viser>=1.0.24",
 ]
 
 [project.urls]
@@ -30,5 +33,5 @@ package = true
 [tool.uv.sources]
 unitree-sdk2py = { git = "https://github.com/EGalahad/unitree_sdk2_python.git" }
 
-[tool.setuptools]
-packages = ["utils"]
+[tool.setuptools.packages.find]
+include = ["sim2real*"]

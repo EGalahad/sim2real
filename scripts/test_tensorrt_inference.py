@@ -13,14 +13,12 @@ uses metadata json to map input/output keys, mirroring scripts/test_onnx_inferen
 
 import argparse
 import statistics
-import sys
 import time
 from pathlib import Path
 
 import numpy as np
 
-sys.path.append(".")
-from rl_policy.utils.tensorrt_module import TensorRTModule
+from sim2real.rl_policy.utils.tensorrt_module import TensorRTModule
 
 
 class TensorRTInferenceTest:
@@ -197,4 +195,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

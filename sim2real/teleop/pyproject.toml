@@ -1,0 +1,18 @@
+[project]
+name = "sim2real-teleop-viewer"
+version = "0.1.0"
+description = "Minimal live PICO to G1 pose viewer"
+requires-python = "==3.10.*"
+dependencies = [
+  "hdmi-sim2real",
+  "numpy",
+  "loop-rate-limiters",
+  "pyzmq",
+  "general_motion_retargeting @ git+https://github.com/EGalahad/GMR.git@codex/add-pyproject-toml",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+hdmi-sim2real = { path = "../.." }

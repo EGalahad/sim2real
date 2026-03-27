@@ -60,9 +60,9 @@ The sim2sim setup runs a MuJoCo environment and a reinforcement-learning policy 
 
 ```bash
 # 1) Start sim
-uv run sim_env/base_sim.py --robot_config config/robot/g1.yaml --scene_config config/scene/g1_29dof_rubberhand.yaml
+uv run sim2real/sim_env/base_sim.py --robot_config config/robot/g1.yaml --scene_config config/scene/g1_29dof_rubberhand.yaml
 # 2) Start policy
-uv run rl_policy/tracking.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/lafan-aa/policy-kl5hrst6-final.yaml
+uv run sim2real/rl_policy/tracking.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/lafan-aa/policy-kl5hrst6-final.yaml
 ```
 
 To deploy the sim2sim policy on the real robot, replace the sim script with 

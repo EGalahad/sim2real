@@ -20,9 +20,6 @@ from scipy.spatial.transform import Rotation as R
 import mujoco
 import mujoco.viewer
 
-import sys
-sys.path.append(".")
-
 # Default scene path
 scene = "./data/robots/g1/g1_29dof_rev_1_0.xml"
 

@@ -3,7 +3,7 @@ import numpy as np
 from typing import TYPE_CHECKING, Any, Dict
 
 if TYPE_CHECKING:
-    from rl_policy.base_policy import BasePolicy
+    from sim2real.rl_policy.base_policy import BasePolicy
 
 class _RegistryMixin:
     
@@ -59,4 +59,3 @@ class ObsGroup:
         # for func, tensor in zip(self.funcs.values(), tensors):
         #     print(func.__class__.__name__, tensor.shape)
         return np.concatenate(tensors, axis=-1)
-

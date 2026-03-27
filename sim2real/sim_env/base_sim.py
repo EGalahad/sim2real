@@ -5,10 +5,8 @@ from threading import Thread
 import sched
 import os
 
-import sys
-sys.path.append(".")
-from sim_env.utils.bridge import SimulationBridge
-from sim_env.utils.elastic_band import ElasticBand
+from sim2real.sim_env.utils.bridge import SimulationBridge
+from sim2real.sim_env.utils.elastic_band import ElasticBand
 
 class BaseSimulator:
     def __init__(self, robot_config, scene_config):
@@ -18,10 +16,6 @@ class BaseSimulator:
         self.viewer_dt = self.scene_config["VIEWER_DT"]
 
         self.init_scene()
-        self.sim_bridge = SimulationBridge(
-            self.mj_model, self.mj_data, self.robot_config, self.scene_config
-        )
-
         # for more scenes
         self.init_subscriber()
         self.init_publisher()
@@ -80,6 +74,10 @@ class BaseSimulator:
         self.pelvis_body_id = self.mj_model.body("pelvis").id
         self.viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
         self.viewer.cam.trackbodyid = self.pelvis_body_id
+
+        self.sim_bridge = SimulationBridge(
+            self.mj_model, self.mj_data, self.robot_config, self.scene_config
+        )
 
     def sim_step(self):
         self.sim_bridge.publish_low_state()

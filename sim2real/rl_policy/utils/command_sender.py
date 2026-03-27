@@ -2,9 +2,9 @@ import time
 import numpy as np
 import zmq
 
-from utils.strings import resolve_matching_names_values
-from utils.strings import unitree_joint_names
-from utils.common import LowCmdMessage, PORTS
+from sim2real.utils.robot_defs import G1_JOINT_NAMES
+from sim2real.utils.common import LowCmdMessage, PORTS
+from sim2real.utils.strings import resolve_matching_names_values
 
 
 class CommandSender:
@@ -16,36 +16,40 @@ class CommandSender:
         joint_kp_dict = self.policy_config["joint_kp"]
         joint_indices, joint_names, joint_kp = resolve_matching_names_values(
             joint_kp_dict,
-            unitree_joint_names,
+            G1_JOINT_NAMES,
             preserve_order=True,
             strict=False,
         )
-        self.joint_kp_unitree_default = np.zeros(len(unitree_joint_names))
+        self.joint_kp_unitree_default = np.zeros(len(G1_JOINT_NAMES))
         self.joint_kp_unitree_default[joint_indices] = joint_kp
         self.joint_kp_unitree = self.joint_kp_unitree_default.copy()
 
         joint_kd_dict = self.policy_config["joint_kd"]
         joint_indices, joint_names, joint_kd = resolve_matching_names_values(
             joint_kd_dict,
-            unitree_joint_names,
+            G1_JOINT_NAMES,
             preserve_order=True,
             strict=False,
         )
-        self.joint_kd_unitree = np.zeros(len(unitree_joint_names))
+        self.joint_kd_unitree = np.zeros(len(G1_JOINT_NAMES))
         self.joint_kd_unitree[joint_indices] = joint_kd
 
         default_joint_pos_dict = self.policy_config["default_joint_pos"]
         joint_indices, joint_names, default_joint_pos = resolve_matching_names_values(
             default_joint_pos_dict,
-            unitree_joint_names,
+            G1_JOINT_NAMES,
             preserve_order=True,
             strict=False,
         )
-        self.default_joint_pos_unitree = np.zeros(len(unitree_joint_names))
+        self.default_joint_pos_unitree = np.zeros(len(G1_JOINT_NAMES))
         self.default_joint_pos_unitree[joint_indices] = default_joint_pos
 
-        asset_joint_names = self.policy_config["asset_joint_names"]
-        self.joint_indices_unitree = [unitree_joint_names.index(name) for name in asset_joint_names]
+        self.joint_names = list(G1_JOINT_NAMES)
+        # joint_names_simulation = self.policy_config["joint_names_simulation"]
+        # # Policy q targets are expressed in simulation observation order.
+        # self.joint_indices_unitree = [
+        #     unitree_joint_names.index(name) for name in joint_names_simulation
+        # ]
 
         # init low cmd publisher
         self.zmq_context = zmq.Context.instance()
@@ -72,16 +76,16 @@ class CommandSender:
         self.joint_kp_unitree[:] = self.joint_kp_unitree_default * self._kp_level
 
     def InitLowCmd(self):
-        self.cmd_q = np.zeros(len(unitree_joint_names))
-        self.cmd_dq = np.zeros(len(unitree_joint_names))
-        self.cmd_tau = np.zeros(len(unitree_joint_names))
+        self.cmd_q = np.zeros(len(G1_JOINT_NAMES))
+        self.cmd_dq = np.zeros(len(G1_JOINT_NAMES))
+        self.cmd_tau = np.zeros(len(G1_JOINT_NAMES))
 
         self.cmd_q[:] = self.default_joint_pos_unitree
 
     def send_command(self, cmd_q, cmd_dq, cmd_tau):
-        self.cmd_q[self.joint_indices_unitree] = cmd_q
-        self.cmd_dq[self.joint_indices_unitree] = cmd_dq
-        self.cmd_tau[self.joint_indices_unitree] = cmd_tau
+        self.cmd_q[:] = cmd_q
+        self.cmd_dq[:] = cmd_dq
+        self.cmd_tau[:] = cmd_tau
         
         message = LowCmdMessage(
             q_target=self.cmd_q,

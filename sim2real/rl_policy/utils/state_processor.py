@@ -4,17 +4,18 @@ import threading
 import time
 
 
-from utils.strings import unitree_joint_names
 from loguru import logger
-from typing import Dict, Iterable, List, Optional
-from utils.common import ZMQSubscriber, PORTS, LowStateMessage
-from rl_policy.utils.motion import MotionDataset, MotionData
+from typing import Any, Dict, Optional
+from sim2real.rl_policy.utils.motion import MotionDataset, MotionData
+from sim2real.rl_policy.utils.motion_buffer import RealtimeMotionBuffer
+from sim2real.utils.robot_defs import G1_JOINT_NAMES
+from sim2real.utils.common import ZMQSubscriber, PORTS, LowStateMessage
 
 class StateProcessor:
     """Listens to the unitree sdk channels and converts observation into isaac compatible order.
-    Assumes the message in the channel follows the joint order of unitree_joint_names.
+    Assumes the message in the channel follows the joint order of G1_JOINT_NAMES.
     """
-    def __init__(self, robot_config, dest_joint_names):
+    def __init__(self, robot_config, policy_config):
         self.mocap_ip = robot_config.get("MOCAP_IP", "localhost")
 
         self.low_state_port = PORTS["low_state"]
@@ -30,9 +31,8 @@ class StateProcessor:
         self.latest_low_state: LowStateMessage | None = None
 
         # Initialize joint mapping
-        self.num_dof = len(dest_joint_names)
-        self.joint_indices_in_source = [unitree_joint_names.index(name) for name in dest_joint_names]
-        self.joint_names = dest_joint_names
+        self.joint_names = list(G1_JOINT_NAMES)
+        self.num_dof = len(self.joint_names)
 
         self.qpos = np.zeros(3 + 4 + self.num_dof)
         self.qvel = np.zeros(3 + 3 + self.num_dof)
@@ -53,73 +53,76 @@ class StateProcessor:
         self.mocap_data_lock = threading.Lock()  # Lock for thread-safe access
 
         # Motion data management
-        self.motion_dataset: Optional[MotionDataset] = None
-        self.motion_requests: Dict[str, Dict] = {}
-        self.motion_cache: Dict[str, Dict] = {}
-        self.motion_ids = np.array([0], dtype=int)
-        self.motion_t = np.array([0], dtype=int)
-        self.motion_length = 0
+        self.motion_config: Dict[str, Any] = dict(policy_config.get("motion", {}))
+        self.motion_data: Optional[MotionData] = None
+        self._init_motion_backend()
     
     def reset(self):
         # Reset motion playback to the first frame (standing pose)
-        self.motion_t[:] = 0
-        self._update_motion_cache(paused=False)
+        if self.motion_backend == "npz":
+            self.motion_t[:] = 0
+        self._update_motion_data()
 
     def update(self, data: Optional[Dict] = None):
         data = data or {}
         paused = data.get("paused", False)
-        if self.motion_dataset is not None and not paused:
+        if not paused and self.motion_backend == "npz":
             self.motion_t += 1
-            if self.motion_t[0] >= self.motion_length:
-                self.motion_t[:] = 0
-                data["paused"] = True
-        self._update_motion_cache(paused=paused)
+            if self.motion_backend == "npz" and self.motion_dataset is not None and self.motion_length > 0:
+                if self.motion_t[0] >= self.motion_length:
+                    self.motion_t[:] = 0
+                    data["paused"] = True
+        self._update_motion_data()
 
-    # ---- Motion utilities ----
-    def register_motion_request(
-        self,
-        name: str,
-        motion_path: str,
-        future_steps: Iterable[int],
-        joint_names: List[str],
-        body_names: List[str],
-        root_body_name: str = "pelvis",
-        anchor_body_name: str = "torso_link",
-    ):
-        """Register a motion slice request. Loading happens once here."""
-        if self.motion_dataset is None:
+    def _init_motion_backend(self) -> None:
+        self.motion_future_steps = np.array(
+            self.motion_config.get("future_steps", []),
+            dtype=int,
+        )
+        if self.motion_future_steps.ndim != 1:
+            raise ValueError(
+                f"motion.future_steps must be 1D, got shape={self.motion_future_steps.shape}"
+            )
+
+        motion_backend = str(self.motion_config.get("motion_backend", "npz")).lower().strip()
+        self.motion_config["motion_backend"] = self.motion_backend = motion_backend
+
+        if motion_backend == "npz":
+            motion_path = self.motion_config.get("motion_path")
+            if motion_path is None:
+                raise ValueError("motion_path is required for npz motion backend")
             self.motion_dataset = MotionDataset.create_from_path(motion_path)
             assert self.motion_dataset.num_motions == 1, "Only one motion is supported"
+            self.motion_ids = np.array([0], dtype=int)
+            self.motion_t = np.array([0], dtype=int)
             self.motion_length = self.motion_dataset.num_steps
 
-        future_steps = np.array(list(future_steps), dtype=int)
-        joint_indices = [self.motion_dataset.joint_names.index(name) for name in joint_names]
-        body_indices = [self.motion_dataset.body_names.index(name) for name in body_names]
-        root_body_idx = self.motion_dataset.body_names.index(root_body_name)
-        anchor_body_idx = self.motion_dataset.body_names.index(anchor_body_name)
-
-        self.motion_requests[name] = dict(
-            future_steps=future_steps,
-            joint_indices=joint_indices,
-            body_indices=body_indices,
-            root_body_idx=root_body_idx,
-            anchor_body_idx=anchor_body_idx,
-        )
-        # ensure cache initialized
-        self._update_motion_cache(paused=False)
-
-    def _update_motion_cache(self, paused: bool):
-        if self.motion_dataset is None:
-            return
-        for name, req in self.motion_requests.items():
-            motion_data: MotionData = self.motion_dataset.get_slice(
-                self.motion_ids, self.motion_t, req["future_steps"]
+            self.motion_joint_names = list(self.motion_dataset.joint_names)
+            self.motion_body_names = list(self.motion_dataset.body_names)
+        elif self.motion_backend == "zmq":
+            self.motion_buffer = RealtimeMotionBuffer(
+                future_steps=self.motion_future_steps,
+                motion_zmq_connect=self.motion_config.get("motion_zmq_connect", "tcp://127.0.0.1:28701"),
+                motion_zmq_topic=self.motion_config.get("motion_zmq_topic", ""),
+                motion_zmq_hwm=int(self.motion_config.get("motion_zmq_hwm", 1)),
+                dt_s=float(self.motion_config.get("motion_dt_s", 0.02)),
+                tolerance_s=float(self.motion_config.get("motion_tolerance_s", 0.04)),
             )
-            self.motion_cache[name] = {"data": motion_data, "req": req, "paused": paused}
 
-    def get_motion_packet(self, name: str) -> Dict:
-        """Return cached motion data and request metadata."""
-        return self.motion_cache[name]
+            self.motion_joint_names = list(self.motion_buffer.joint_names)
+            self.motion_body_names = list(self.motion_buffer.body_names)
+        else:
+            raise ValueError(f"Unsupported motion_backend: {motion_backend}")
+
+    def _update_motion_data(self):
+        if self.motion_backend == "npz":
+            self.motion_data = self.motion_dataset.get_slice(
+                self.motion_ids,
+                self.motion_t,
+                self.motion_future_steps,
+            )
+        elif self.motion_backend == "zmq":
+            self.motion_data = self.motion_buffer.get_obs()
 
     def register_subscriber(self, object_name: str, port: int | None = None):
         if object_name in self.mocap_subscribers:
@@ -165,31 +168,9 @@ class StateProcessor:
             self.root_quat_w[:] = low_state.quaternion
             self.root_ang_vel_b[:] = low_state.gyroscope
 
-            source_joint_pos = low_state.joint_positions
-            source_joint_vel = low_state.joint_velocities
-            for dst_idx, src_idx in enumerate(self.joint_indices_in_source):
-                self.joint_pos[dst_idx] = source_joint_pos[src_idx]
-                self.joint_vel[dst_idx] = source_joint_vel[src_idx]
+            self.joint_pos[:] = low_state.joint_positions
+            self.joint_vel[:] = low_state.joint_velocities
 
-            return True
-        elif hasattr(self, "robot"):
-            try:
-                state = self.robot.read_low_state()
-            except Exception as e:
-                logger.warning(f"Failed to read G1 low state: {e}")
-                return False
-
-            if state is None:
-                return False
-
-            # IMU
-            self.root_quat_w[:] = state.imu.quat  # [w, x, y, z]
-            self.root_ang_vel_b[:] = state.imu.omega
-
-            # Joints
-            for dst_idx, src_idx in enumerate(self.joint_indices_in_source):
-                self.joint_pos[dst_idx] = state.motor.q[src_idx]
-                self.joint_vel[dst_idx] = state.motor.dq[src_idx]
             return True
 
     def _receive_low_state(self):

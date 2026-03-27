@@ -5,11 +5,9 @@ import zmq
 
 from loguru import logger
 
-import sys
-sys.path.append(".")
-from utils.strings import resolve_matching_names_values, unitree_joint_names
-from utils.math import quat_mul, quat_conjugate, yaw_quat
-from utils.common import LowStateMessage, LowCmdMessage, PORTS
+from sim2real.utils.robot_defs import G1_JOINT_NAMES
+from sim2real.utils.common import LowStateMessage, LowCmdMessage, PORTS
+from sim2real.utils.strings import resolve_matching_names_values
 
 
 class SimulationBridge:
@@ -23,18 +21,6 @@ class SimulationBridge:
     ):
         self.robot_config = robot_config
         self.scene_config = scene_config
-        robot_type = robot_config["ROBOT_TYPE"]
-        supported_types = {
-            "g1_29dof",
-            "h1",
-            "go2",
-            "h1-2_21dof",
-            "h1-2_27dof",
-        }
-        if robot_type not in supported_types:
-            raise ValueError(
-                f"Invalid robot type '{robot_type}'. Expected one of {supported_types}."
-            )
         self.mj_model = mj_model
         self.mj_data = mj_data
 
@@ -65,7 +51,7 @@ class SimulationBridge:
         self.low_cmd_sub.setsockopt(zmq.LINGER, 0)
         self.low_cmd_sub.connect(low_cmd_endpoint)
 
-        total_joints = len(unitree_joint_names)
+        total_joints = len(G1_JOINT_NAMES)
         self.cmd_q = np.zeros(total_joints, dtype=np.float32)
         self.cmd_dq = np.zeros(total_joints, dtype=np.float32)
         self.cmd_tau = np.zeros(total_joints, dtype=np.float32)
@@ -87,10 +73,10 @@ class SimulationBridge:
         self.qvel_adrs = []
         self.act_adrs = []
 
-        shared_joint_names = set(joint_names_mujoco) & set(unitree_joint_names)
+        shared_joint_names = set(joint_names_mujoco) & set(G1_JOINT_NAMES)
         for name in shared_joint_names:
             print(f"shared_joint_names: {name}")
-            self.joint_indices_unitree.append(unitree_joint_names.index(name))
+            self.joint_indices_unitree.append(G1_JOINT_NAMES.index(name))
 
             joint_idx = joint_names_mujoco.index(name)
             self.qpos_adrs.append(self.mj_model.jnt_qposadr[joint_idx])
@@ -167,7 +153,7 @@ class SimulationBridge:
                 logger.warning(f"Failed to decode low command message: {exc}")
                 continue
 
-            if low_cmd.q_target.size != len(unitree_joint_names):
+            if low_cmd.q_target.size != len(G1_JOINT_NAMES):
                 logger.warning(
                     "Received low command with unexpected size {}",
                     low_cmd.q_target.size,
@@ -192,9 +178,9 @@ class SimulationBridge:
         joint_vel_partial = self.mj_data.qvel[self.qvel_adrs]
         joint_torque_partial = self.mj_data.actuator_force[self.act_adrs]
 
-        joint_pos_full = np.zeros(len(unitree_joint_names), dtype=np.float32)
-        joint_vel_full = np.zeros(len(unitree_joint_names), dtype=np.float32)
-        joint_tau_full = np.zeros(len(unitree_joint_names), dtype=np.float32)
+        joint_pos_full = np.zeros(len(G1_JOINT_NAMES), dtype=np.float32)
+        joint_vel_full = np.zeros(len(G1_JOINT_NAMES), dtype=np.float32)
+        joint_tau_full = np.zeros(len(G1_JOINT_NAMES), dtype=np.float32)
         for mjc_idx, unitree_idx in enumerate(self.joint_indices_unitree):
             joint_pos_full[unitree_idx] = joint_pos_partial[mjc_idx]
             joint_vel_full[unitree_idx] = joint_vel_partial[mjc_idx]

@@ -11,11 +11,8 @@ from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowState_ as LowState_go
 from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowState_ as LowState_hg
 from unitree_sdk2py.core.channel import ChannelSubscriber, ChannelFactoryInitialize
 
-import sys
-sys.path.append(".")
-
-from utils.strings import unitree_joint_names
-from utils.common import ZMQPublisher, PORTS
+from sim2real.utils.robot_defs import G1_JOINT_NAMES
+from sim2real.utils.common import ZMQPublisher, PORTS
 
 class JointStatePublisher:
     """
@@ -41,7 +38,7 @@ class JointStatePublisher:
 
         # Initialize joint mapping
         self.num_dof = len(dest_joint_names)
-        self.joint_indices_in_source = [unitree_joint_names.index(name) for name in dest_joint_names]
+        self.joint_indices_in_source = [G1_JOINT_NAMES.index(name) for name in dest_joint_names]
         
         # Initialize joint state arrays
         self.joint_pos = np.zeros(self.num_dof)
@@ -55,7 +52,7 @@ class JointStatePublisher:
         self.publisher = ZMQPublisher(zmq_port)
         print(f"ZMQ publisher bound to port {zmq_port}")
         
-        self.joint_names = unitree_joint_names
+        self.joint_names = list(G1_JOINT_NAMES)
         self.joint_names_publisher = ZMQPublisher(PORTS['joint_names'])
 
         # Publishing frequency
@@ -133,7 +130,7 @@ def main():
     args = parser.parse_args()
     with open(args.robot_config) as file:
         robot_config = yaml.load(file, Loader=yaml.FullLoader)
-    dest_joint_names = unitree_joint_names
+    dest_joint_names = list(G1_JOINT_NAMES)
     
     publisher = JointStatePublisher(
         robot_config=robot_config,

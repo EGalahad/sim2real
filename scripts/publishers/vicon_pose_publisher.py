@@ -8,10 +8,7 @@ from scipy.spatial.transform import Rotation as R
 from typing import List, Dict
 from threading import Thread
 
-# Import common ZMQ classes
-import sys
-sys.path.append(".")
-from utils.common import ZMQPublisher, PORTS
+from sim2real.utils.common import ZMQPublisher, PORTS
 
 class Vicon:
     def __init__(
@@ -148,4 +145,3 @@ if __name__ == "__main__":
         vicon.main_loop()
     except KeyboardInterrupt:
         pass
-

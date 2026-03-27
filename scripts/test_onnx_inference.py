@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-import sys
 import time
 import argparse
 from pathlib import Path
 import numpy as np
 import statistics
 
-# 添加项目路径
-sys.path.append(".")
-from rl_policy.utils.onnx_module import ONNXModule
+from sim2real.rl_policy.utils.onnx_module import ONNXModule
 
 
 class ONNXInferenceTest:

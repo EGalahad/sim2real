@@ -5,9 +5,7 @@ import threading
 import mujoco
 import mujoco.viewer
 
-import sys
-sys.path.append(".")
-from utils.common import ZMQSubscriber, PORTS
+from sim2real.utils.common import ZMQSubscriber, PORTS
 from typing import List
 
 scene = "data/robots/g1/g1_29dof_rubberhand-stool.xml"

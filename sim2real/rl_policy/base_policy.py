@@ -10,15 +10,11 @@ from copy import deepcopy
 from termcolor import colored
 from loguru import logger
 
-import sys
-sys.path.append(".")
-from utils.strings import resolve_matching_names_values
-from rl_policy.utils.state_processor import StateProcessor
-from rl_policy.utils.command_sender import CommandSender
-from rl_policy.utils.onnx_module import Timer
-
-# Import observation classes
-from observations import Observation, ObsGroup
+from sim2real.rl_policy.observations import Observation, ObsGroup
+from sim2real.rl_policy.utils.command_sender import CommandSender
+from sim2real.rl_policy.utils.onnx_module import Timer
+from sim2real.rl_policy.utils.state_processor import StateProcessor
+from sim2real.utils.strings import resolve_matching_names_values
 
 
 class BasePolicy:
@@ -28,34 +24,32 @@ class BasePolicy:
         policy_config,
         model_path,
         rl_rate=50,
+        onnx_provider="cpu",
     ):
         # initialize robot related processes
-        self.state_processor = StateProcessor(robot_config, policy_config["asset_joint_names"])
+        self.joint_names_simulation = list(policy_config["joint_names_simulation"])
+        self.body_names_simulation = list(policy_config["body_names_simulation"])
+        self.state_processor = StateProcessor(robot_config, policy_config)
         self.command_sender = CommandSender(robot_config, policy_config)
         self.rl_dt = 1.0 / rl_rate
+        self.onnx_provider = onnx_provider
 
-        self.policy_config = policy_config
-
-        self.setup_policy(model_path)
-        self.obs_cfg = policy_config["observation"]
-
-        self.asset_joint_names = policy_config["asset_joint_names"]
-        self.num_dofs = len(self.asset_joint_names)
+        self.num_dofs = len(self.joint_names_simulation)
 
         default_joint_pos_dict = policy_config["default_joint_pos"]
         joint_indices, joint_names, default_joint_pos = resolve_matching_names_values(
             default_joint_pos_dict,
-            self.asset_joint_names,
+            self.command_sender.joint_names,
             preserve_order=True,
             strict=False,
         )
-        self.default_dof_angles = np.zeros(len(self.asset_joint_names))
+        self.default_dof_angles = np.zeros(len(self.joint_names_simulation))
         self.default_dof_angles[joint_indices] = default_joint_pos
 
         self.policy_joint_names = policy_config["policy_joint_names"]
         self.num_actions = len(self.policy_joint_names)
         self.controlled_joint_indices = [
-            self.asset_joint_names.index(name)
+            self.command_sender.joint_names.index(name)
             for name in self.policy_joint_names
         ]
 
@@ -90,7 +84,7 @@ class BasePolicy:
         joint_indices, joint_names, joint_pos_lower_limit = (
             resolve_matching_names_values(
                 robot_config["joint_pos_lower_limit"],
-                self.asset_joint_names,
+                self.joint_names_simulation,
                 preserve_order=True,
                 strict=False,
             )
@@ -101,7 +95,7 @@ class BasePolicy:
         joint_indices, joint_names, joint_pos_upper_limit = (
             resolve_matching_names_values(
                 robot_config["joint_pos_upper_limit"],
-                self.asset_joint_names,
+                self.joint_names_simulation,
                 preserve_order=True,
                 strict=False,
             )
@@ -146,16 +140,17 @@ class BasePolicy:
             self.key_listener_thread.start()
 
         # Setup observations after state processor is initialized
-        self.setup_observations()
+        self.setup_policy(model_path)
+        self.setup_observations(policy_config["observation"])
 
     def setup_policy(self, model_path):
         # load onnx policy
-        from rl_policy.utils.onnx_module import ONNXModule
-        onnx_module = ONNXModule(model_path)
+        from sim2real.rl_policy.utils.onnx_module import ONNXModule
+        onnx_module = ONNXModule(model_path, providers=self.onnx_provider)
 
         def policy(input_dict):
             output_dict = onnx_module(input_dict)
-            action = output_dict["action"].squeeze(0)
+            action = output_dict["action"] #.squeeze(0)
             next_state_dict = {k[1]: v for k, v in output_dict.items() if k[0] == "next"}
             input_dict.update(next_state_dict)
 
@@ -167,7 +162,7 @@ class BasePolicy:
 
         self.policy = policy
 
-    def setup_observations(self):
+    def setup_observations(self, obs_cfg):
         """Setup observations for policy inference"""
         self.observations: Dict[str, ObsGroup] = {}
         self.reset_callbacks = []
@@ -177,7 +172,7 @@ class BasePolicy:
         self.update_callbacks.append(self.state_processor.update)
 
         # Create observation instances based on config
-        for obs_group, obs_items in self.obs_cfg.items():
+        for obs_group, obs_items in obs_cfg.items():
             print(f"obs_group: {obs_group}")
             obs_funcs = {}
             for obs_name, obs_config in obs_items.items():
@@ -191,12 +186,10 @@ class BasePolicy:
 
     def reset(self):
         self.state_dict["paused"] = True
-        for reset_callback in self.reset_callbacks:
-            reset_callback()
+        [reset_callback() for reset_callback in self.reset_callbacks]
 
     def update(self):
-        for update_callback in self.update_callbacks:
-            update_callback(self.state_dict)
+        [update_callback(self.state_dict) for update_callback in self.update_callbacks]
 
     def prepare_obs_for_rl(self):
         """Prepare observation for policy inference using observation classes"""
@@ -216,10 +209,6 @@ class BasePolicy:
         q_target = dof_pos + (self.default_dof_angles - dof_pos) * progress
         self.init_count += 1
         return q_target
-
-    @property
-    def command(self):
-        return np.zeros(0)
 
     def start_key_listener(self):
         """Start a key listener using sshkeyboard."""
@@ -476,7 +465,6 @@ class BasePolicy:
 
             with Timer(self.perf_dict, "policy"):   
                 # Inference
-                # print(self.state_dict.keys())
                 action, q_target, self.state_dict = self.policy(self.state_dict)
                 for key, value in self.state_dict.items():
                     if key.endswith("_ood_ratio"):
@@ -487,6 +475,9 @@ class BasePolicy:
                 self.state_dict["q_target"] = q_target
         except Exception as e:
             print(f"Error in policy inference: {e}")
+            # print traceback for debugging
+            import traceback
+            traceback.print_exc()
             self.state_dict["action"] = np.zeros(self.num_actions)
             return
 
@@ -524,6 +515,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--policy_config", type=str, help="policy config file"
     )
+    parser.add_argument(
+        "--onnx_provider",
+        type=str,
+        default="cpu",
+        choices=["cpu", "gpu"],
+        help="onnxruntime execution provider",
+    )
     args = parser.parse_args()
 
     with open(args.policy_config) as file:
@@ -537,5 +535,6 @@ if __name__ == "__main__":
         policy_config=policy_config,
         model_path=model_path,
         rl_rate=50,
+        onnx_provider=args.onnx_provider,
     )
     policy.run()

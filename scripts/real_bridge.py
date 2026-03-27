@@ -10,12 +10,8 @@ import yaml
 import zmq
 from loguru import logger
 
-import sys
-
-sys.path.append(".")
-
-from utils.common import LowCmdMessage, LowStateMessage, PORTS, UNITREE_LEGGED_CONST
-from utils.strings import unitree_joint_names
+from sim2real.utils.robot_defs import G1_JOINT_NAMES
+from sim2real.utils.common import LowCmdMessage, LowStateMessage, PORTS, UNITREE_LEGGED_CONST
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from unitree_sdk2py.idl.unitree_go.msg.dds_ import MotorCmd_
@@ -34,7 +30,7 @@ from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowCmd_ as LowCmd_hg
 
 from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import MotionSwitcherClient
 
-UNITREE_INTERFACE = "eth0"
+UNITREE_INTERFACE = "enx00e04c680182"
 UNITREE_DOMAIN_ID = 0
 
 class RealBridge:
@@ -149,10 +145,10 @@ class RealBridge:
         motor_state = msg.motor_state
         # print(f"low state mode machine: {msg.mode_machine}")
 
-        joint_pos = np.zeros(len(unitree_joint_names), dtype=np.float32)
-        joint_vel = np.zeros(len(unitree_joint_names), dtype=np.float32)
-        joint_tau = np.zeros(len(unitree_joint_names), dtype=np.float32)
-        for idx in range(len(unitree_joint_names)):
+        joint_pos = np.zeros(len(G1_JOINT_NAMES), dtype=np.float32)
+        joint_vel = np.zeros(len(G1_JOINT_NAMES), dtype=np.float32)
+        joint_tau = np.zeros(len(G1_JOINT_NAMES), dtype=np.float32)
+        for idx in range(len(G1_JOINT_NAMES)):
             joint_pos[idx] = motor_state[idx].q
             joint_vel[idx] = motor_state[idx].dq
             joint_tau[idx] = motor_state[idx].tau_est
@@ -186,7 +182,7 @@ class RealBridge:
                 logger.warning(f"Failed to decode low command message: {exc}")
                 continue
 
-            if low_cmd.q_target.size != len(unitree_joint_names):
+            if low_cmd.q_target.size != len(G1_JOINT_NAMES):
                 logger.warning(
                     "Received low command with unexpected size {}",
                     low_cmd.q_target.size,
@@ -194,7 +190,7 @@ class RealBridge:
                 continue
 
             motor_cmd = self.low_cmd.motor_cmd
-            count = min(len(unitree_joint_names), len(motor_cmd))
+            count = min(len(G1_JOINT_NAMES), len(motor_cmd))
             for i in range(count):
                 cmd: "MotorCmd_" = motor_cmd[i]
                 cmd.q = float(low_cmd.q_target[i])
