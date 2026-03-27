@@ -1,10 +1,6 @@
 import re
 from typing import Any, Sequence
 
-from sim2real.utils.robot_defs import G1_JOINT_NAMES
-
-unitree_joint_names = list(G1_JOINT_NAMES)
-
 def resolve_matching_names_values(
     data: dict[str, Any],
     list_of_strings: Sequence[str],

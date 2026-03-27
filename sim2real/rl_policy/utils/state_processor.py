@@ -6,20 +6,21 @@ import time
 
 from loguru import logger
 from typing import Any, Dict, Optional
+from sim2real.config.robots.base import RobotCfg
 from sim2real.rl_policy.utils.motion import MotionDataset, MotionData
 from sim2real.rl_policy.utils.motion_buffer import RealtimeMotionBuffer
-from sim2real.utils.robot_defs import G1_JOINT_NAMES
 from sim2real.utils.common import ZMQSubscriber, PORTS, LowStateMessage
 
 class StateProcessor:
     """Listens to the unitree sdk channels and converts observation into isaac compatible order.
-    Assumes the message in the channel follows the joint order of G1_JOINT_NAMES.
+    Assumes the message in the channel follows the joint order of robot_cfg.joint_names.
     """
-    def __init__(self, robot_config, policy_config):
-        self.mocap_ip = robot_config.get("MOCAP_IP", "localhost")
+    def __init__(self, robot_cfg: RobotCfg, policy_config):
+        self.robot_cfg = robot_cfg
+        self.mocap_ip = self.robot_cfg.mocap_ip
 
-        self.low_state_port = PORTS["low_state"]
-        state_host = robot_config.get("LOW_STATE_HOST", "127.0.0.1")
+        self.low_state_port = self.robot_cfg.low_state_port
+        state_host = self.robot_cfg.low_state_host
         state_endpoint = f"tcp://{state_host}:{self.low_state_port}"
 
         self.zmq_context = zmq.Context.instance()
@@ -31,7 +32,7 @@ class StateProcessor:
         self.latest_low_state: LowStateMessage | None = None
 
         # Initialize joint mapping
-        self.joint_names = list(G1_JOINT_NAMES)
+        self.joint_names = list(self.robot_cfg.joint_names)
         self.num_dof = len(self.joint_names)
 
         self.qpos = np.zeros(3 + 4 + self.num_dof)
@@ -91,7 +92,10 @@ class StateProcessor:
             motion_path = self.motion_config.get("motion_path")
             if motion_path is None:
                 raise ValueError("motion_path is required for npz motion backend")
-            self.motion_dataset = MotionDataset.create_from_path(motion_path)
+            self.motion_dataset = MotionDataset.create_from_path(
+                motion_path,
+                robot_cfg=self.robot_cfg,
+            )
             assert self.motion_dataset.num_motions == 1, "Only one motion is supported"
             self.motion_ids = np.array([0], dtype=int)
             self.motion_t = np.array([0], dtype=int)
@@ -101,6 +105,7 @@ class StateProcessor:
             self.motion_body_names = list(self.motion_dataset.body_names)
         elif self.motion_backend == "zmq":
             self.motion_buffer = RealtimeMotionBuffer(
+                robot_cfg=self.robot_cfg,
                 future_steps=self.motion_future_steps,
                 motion_zmq_connect=self.motion_config.get("motion_zmq_connect", "tcp://127.0.0.1:28701"),
                 motion_zmq_topic=self.motion_config.get("motion_zmq_topic", ""),

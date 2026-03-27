@@ -21,62 +21,14 @@ from general_motion_retargeting import GeneralMotionRetargeting as GMR
 from general_motion_retargeting import XRobotStreamer
 from loop_rate_limiters import RateLimiter
 
-from sim2real.utils.robot_defs import (
+from sim2real.config.robots import get_robot_cfg
+from sim2real.config.robots.base import (
     BODY_POS_W_KEY,
     BODY_QUAT_W_KEY,
-    G1_BODY_NAMES,
-    G1_JOINT_NAMES,
-    G1_MJCF_PATH,
-    G1_QPOS_SIZE,
-    JOINT_POS_SLICE,
     JOINT_POS_KEY,
     PUBLISH_T_NS_KEY,
     SEQ_KEY,
-    ROOT_POS_SLICE,
-    ROOT_QUAT_SLICE,
     SMPLX_T_NS_KEY,
-)
-
-
-DEFAULT_G1_QPOS = np.concatenate(
-    [
-        np.array([0.0, 0.0, 0.8], dtype=np.float32),
-        np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32),
-        np.array(
-            [
-                -0.2,
-                0.0,
-                0.0,
-                0.4,
-                -0.2,
-                0.0,
-                -0.2,
-                0.0,
-                0.0,
-                0.4,
-                -0.2,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.4,
-                0.0,
-                1.2,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                -0.4,
-                0.0,
-                1.2,
-                0.0,
-                0.0,
-                0.0,
-            ],
-            dtype=np.float32,
-        ),
-    ]
 )
 
 
@@ -102,6 +54,7 @@ def _body_pose_dict_from_streamer(streamer: XRobotStreamer) -> tuple[dict[str, l
 class LiveRetargetPublisher:
     def __init__(self, args: argparse.Namespace):
         self.args = args
+        self.robot_cfg = get_robot_cfg(args.robot)
         self.publish_hz = float(args.publish_hz)
         if self.publish_hz <= 0:
             raise ValueError("publish_hz must be > 0")
@@ -115,26 +68,26 @@ class LiveRetargetPublisher:
             verbose=bool(args.verbose),
         )
 
-        self.model = mujoco.MjModel.from_xml_path(str(G1_MJCF_PATH))
+        self.model = mujoco.MjModel.from_xml_path(str(self.robot_cfg.mjcf_path))
         self.data = mujoco.MjData(self.model)
         self.joint_qpos_indices = self._resolve_joint_qpos_indices()
         self.body_ids = self._resolve_body_ids()
 
-        expected_qpos_size = G1_QPOS_SIZE
+        expected_qpos_size = self.robot_cfg.qpos_size
         if self.model.nq != expected_qpos_size:
             print(
                 "[publish] warning: G1 MJCF qpos size mismatch "
                 f"(model.nq={self.model.nq}, expected={expected_qpos_size})"
             )
 
-        self.latest_qpos = DEFAULT_G1_QPOS.copy()
+        self.latest_qpos = np.asarray(self.robot_cfg.default_qpos, dtype=np.float32).copy()
         self.last_stream_wait_log_monotonic = 0.0
         self.fixed_min_link_height_offset: Optional[float] = None
         self.min_link_height_offset_samples: list[float] = []
 
     def _resolve_joint_qpos_indices(self) -> list[int]:
         joint_qpos_indices: list[int] = []
-        for joint_name in G1_JOINT_NAMES:
+        for joint_name in self.robot_cfg.joint_names:
             joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
             if joint_id < 0:
                 raise ValueError(f"Failed to resolve joint name in MJCF: {joint_name}")
@@ -143,7 +96,7 @@ class LiveRetargetPublisher:
 
     def _resolve_body_ids(self) -> list[int]:
         body_ids: list[int] = []
-        for body_name in G1_BODY_NAMES:
+        for body_name in self.robot_cfg.body_names:
             body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, body_name)
             if body_id < 0:
                 raise ValueError(f"Failed to resolve body name in MJCF: {body_name}")
@@ -257,7 +210,7 @@ def run_publish(args: argparse.Namespace) -> None:
 
     print(
         f"[publish] bind={args.bind} topic={args.topic} publish_hz={args.publish_hz} "
-        f"mjcf={G1_MJCF_PATH}"
+        f"mjcf={worker.robot_cfg.mjcf_path}"
     )
     if args.startup_sleep_s > 0:
         time.sleep(float(args.startup_sleep_s))
@@ -284,6 +237,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Retarget live XR frames and publish canonical G1 motion over ZMQ"
     )
+    parser.add_argument("--robot", type=str, default="g1")
     parser.add_argument("--bind", type=str, default="tcp://*:28701")
     parser.add_argument("--topic", type=str, default="g1")
     parser.add_argument("--publish_hz", type=float, default=30.0)

@@ -23,6 +23,11 @@ dependencies = [
     "viser>=1.0.24",
 ]
 
+[dependency-groups]
+dev = [
+    "mypy>=1.18",
+]
+
 [project.urls]
 Homepage = "https://hdmi-humanoid.github.io/"
 Repository = "https://github.com/EGalahad/sim2real"

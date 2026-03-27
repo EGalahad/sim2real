@@ -10,8 +10,8 @@ import numpy as np
 import zmq
 
 from loguru import logger
+from sim2real.config.robots.base import RobotCfg
 from sim2real.rl_policy.utils.motion import MotionData
-from sim2real.utils.robot_defs import G1_BODY_NAMES, G1_JOINT_NAMES
 
 
 def _ensure_np(value: Any, ndim: int, dtype=np.float32) -> np.ndarray:
@@ -67,6 +67,7 @@ def _frame_with_zero_velocities(frame: dict[str, np.ndarray]) -> dict[str, np.nd
 class RealtimeMotionBuffer:
     def __init__(
         self,
+        robot_cfg: RobotCfg,
         future_steps: Iterable[int],
         motion_zmq_connect: str | None = None,
         motion_zmq_topic: str = "",
@@ -74,11 +75,11 @@ class RealtimeMotionBuffer:
         dt_s: float = 0.02,
         tolerance_s: float = 0.04,
     ):
+        self.robot_cfg = robot_cfg
         if dt_s <= 0.0:
             raise ValueError("dt_s must be positive")
-        # Canonical G1 order is owned by the teleop layer and reused here.
-        self.joint_names: list[str] = list(G1_JOINT_NAMES)
-        self.body_names: list[str] = list(G1_BODY_NAMES)
+        self.joint_names: list[str] = list(self.robot_cfg.joint_names)
+        self.body_names: list[str] = list(self.robot_cfg.body_names)
         self.future_steps = np.asarray(list(future_steps), dtype=int)
         if self.future_steps.ndim != 1:
             raise ValueError(f"future_steps must be 1D, got {self.future_steps.shape}")
@@ -164,14 +165,14 @@ class RealtimeMotionBuffer:
             payload_joint_names = [str(name) for name in payload_joint_names]
             if payload_joint_names != self.joint_names:
                 logger.warning(
-                    "Live motion payload joint_names do not match canonical G1 order"
+                    "Live motion payload joint_names do not match RobotCfg canonical order"
                 )
         payload_body_names = payload.get("body_names")
         if payload_body_names is not None:
             payload_body_names = [str(name) for name in payload_body_names]
             if payload_body_names != self.body_names:
                 logger.warning(
-                    "Live motion payload body_names do not match canonical G1 order"
+                    "Live motion payload body_names do not match RobotCfg canonical order"
                 )
 
         timestamp_ns = (

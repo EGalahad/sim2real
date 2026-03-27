@@ -4,6 +4,7 @@ from copy import deepcopy
 import yaml
 from loguru import logger
 
+from sim2real.config.robots import get_robot_cfg
 from sim2real.rl_policy.base_policy import BasePolicy
 np.set_printoptions(precision=3, suppress=True, linewidth=1000)
 
@@ -49,7 +50,7 @@ class Tracking(BasePolicy):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Robot")
     parser.add_argument(
-        "--robot_config", type=str, default="config/robot/g1.yaml", help="robot config file"
+        "--robot", type=str, default="g1", help="robot name"
     )
     parser.add_argument(
         "--policy_config", help="policy config file"
@@ -102,8 +103,6 @@ if __name__ == "__main__":
 
     with open(args.policy_config) as file:
         policy_config = yaml.load(file, Loader=yaml.FullLoader)
-    with open(args.robot_config) as file:
-        robot_config = yaml.load(file, Loader=yaml.FullLoader)
     model_path = args.policy_config.replace(".yaml", ".onnx")
 
     policy_config = _apply_runtime_motion_config(
@@ -122,7 +121,7 @@ if __name__ == "__main__":
         )
 
     policy = Tracking(
-        robot_config=robot_config,
+        robot_cfg=get_robot_cfg(args.robot),
         policy_config=policy_config,
         model_path=model_path,
         rl_rate=50,

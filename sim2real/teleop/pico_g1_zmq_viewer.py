@@ -19,73 +19,26 @@ import numpy as np
 import zmq
 from loop_rate_limiters import RateLimiter
 
-from sim2real.utils.robot_defs import (
-    G1_BODY_NAMES,
-    G1_JOINT_NAMES,
-    G1_MJCF_PATH,
-    G1_QPOS_SIZE,
-    JOINT_POS_SLICE,
-    ROOT_POS_SLICE,
-    ROOT_QUAT_SLICE,
-    validate_name_order,
-)
+from sim2real.config.robots import RobotCfg, get_robot_cfg
+from sim2real.config.robots.base import validate_name_order
+from sim2real.teleop.mujoco_viewer_utils import temp_mjcf_with_floor
+
+GROUND_RGB = (0.6, 0.7, 0.6)
 
 
-DEFAULT_G1_QPOS = np.concatenate(
-    [
-        np.array([0.0, 0.0, 0.8], dtype=np.float32),
-        np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32),
-        np.array(
-            [
-                -0.2,
-                0.0,
-                0.0,
-                0.4,
-                -0.2,
-                0.0,
-                -0.2,
-                0.0,
-                0.0,
-                0.4,
-                -0.2,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.4,
-                0.0,
-                1.2,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                -0.4,
-                0.0,
-                1.2,
-                0.0,
-                0.0,
-                0.0,
-            ],
-            dtype=np.float32,
-        ),
-    ]
-)
-
-
-def _payload_to_qpos(payload: dict[str, object]) -> Optional[np.ndarray]:
+def _payload_to_qpos(payload: dict[str, object], robot_cfg: RobotCfg) -> Optional[np.ndarray]:
     joint_names = payload.get("joint_names")
     body_names = payload.get("body_names")
     if joint_names is not None:
-        validate_name_order(G1_JOINT_NAMES, joint_names, label="joint_names")
+        validate_name_order(robot_cfg.joint_names, joint_names, label="joint_names")
     if body_names is not None:
-        validate_name_order(G1_BODY_NAMES, body_names, label="body_names")
+        validate_name_order(robot_cfg.body_names, body_names, label="body_names")
 
     qpos = payload.get("qpos")
     if qpos is not None:
         q = np.asarray(qpos, dtype=np.float32).reshape(-1)
-        if q.shape[0] >= G1_QPOS_SIZE:
-            return q[:G1_QPOS_SIZE]
+        if q.shape[0] >= robot_cfg.qpos_size:
+            return q[: robot_cfg.qpos_size]
 
     root_pos = payload.get("root_pos")
     root_quat = payload.get("root_quat")
@@ -96,17 +49,17 @@ def _payload_to_qpos(payload: dict[str, object]) -> Optional[np.ndarray]:
         return None
 
     joint_pos_arr = np.asarray(joint_pos, dtype=np.float32).reshape(-1)
-    if joint_pos_arr.shape[0] < len(G1_JOINT_NAMES):
+    if joint_pos_arr.shape[0] < len(robot_cfg.joint_names):
         return None
 
-    q = np.zeros(G1_QPOS_SIZE, dtype=np.float32)
-    q[ROOT_POS_SLICE] = np.asarray(root_pos, dtype=np.float32).reshape(-1)[:3]
-    q[ROOT_QUAT_SLICE] = np.asarray(root_quat, dtype=np.float32).reshape(-1)[:4]
-    q[JOINT_POS_SLICE] = joint_pos_arr[: len(G1_JOINT_NAMES)]
+    q = np.zeros(robot_cfg.qpos_size, dtype=np.float32)
+    q[robot_cfg.root_pos_slice] = np.asarray(root_pos, dtype=np.float32).reshape(-1)[:3]
+    q[robot_cfg.root_quat_slice] = np.asarray(root_quat, dtype=np.float32).reshape(-1)[:4]
+    q[robot_cfg.joint_pos_slice] = joint_pos_arr[: len(robot_cfg.joint_names)]
     return q
 
 
-def _parse_payload(raw: str, topic: str) -> Optional[np.ndarray]:
+def _parse_payload(raw: str, topic: str, robot_cfg: RobotCfg) -> Optional[np.ndarray]:
     if topic:
         prefix = f"{topic} "
         if raw.startswith(prefix):
@@ -117,12 +70,19 @@ def _parse_payload(raw: str, topic: str) -> Optional[np.ndarray]:
     payload = json.loads(raw)
     if not isinstance(payload, dict):
         return None
-    return _payload_to_qpos(payload)
+    return _payload_to_qpos(payload, robot_cfg)
 
 
 class NativeG1Viewer:
-    def __init__(self) -> None:
-        self.model = mujoco.MjModel.from_xml_path(str(G1_MJCF_PATH))
+    def __init__(self, robot_cfg: RobotCfg) -> None:
+        self.robot_cfg = robot_cfg
+        if self.robot_cfg.mjcf_path is None:
+            raise ValueError(f"Robot '{self.robot_cfg.name}' does not define mjcf_path")
+        with temp_mjcf_with_floor(
+            self.robot_cfg.mjcf_path,
+            ground_rgb=GROUND_RGB,
+        ) as viewer_mjcf_path:
+            self.model = mujoco.MjModel.from_xml_path(str(viewer_mjcf_path))
         self.data = mujoco.MjData(self.model)
         self.viewer = mujoco.viewer.launch_passive(
             self.model,
@@ -130,7 +90,6 @@ class NativeG1Viewer:
             show_left_ui=False,
             show_right_ui=False,
         )
-        self.viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_TRANSPARENT] = 1
         self.track_body_id = self._resolve_track_body_id()
         if self.track_body_id is not None:
             self.viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
@@ -139,7 +98,7 @@ class NativeG1Viewer:
         self.viewer.cam.elevation = -10
 
     def _resolve_track_body_id(self) -> Optional[int]:
-        for body_name in ("torso_link", "pelvis"):
+        for body_name in self.robot_cfg.elastic_band_attach_body_names + self.robot_cfg.viewer_track_body_names:
             body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, body_name)
             if body_id >= 0:
                 return int(body_id)
@@ -161,6 +120,7 @@ class NativeG1Viewer:
 
 
 def run_viewer(args: argparse.Namespace) -> None:
+    robot_cfg = get_robot_cfg(args.robot)
     rate = RateLimiter(frequency=float(args.viewer_hz), warn=False)
 
     ctx = zmq.Context.instance()
@@ -172,9 +132,9 @@ def run_viewer(args: argparse.Namespace) -> None:
     sock.connect(args.connect)
     sock.setsockopt_string(zmq.SUBSCRIBE, args.topic)
 
-    viewer = NativeG1Viewer()
+    viewer = NativeG1Viewer(robot_cfg)
 
-    latest_qpos = DEFAULT_G1_QPOS.copy()
+    latest_qpos = np.asarray(robot_cfg.default_qpos, dtype=np.float32).copy()
     last_recv_log = 0.0
     print(f"[viewer] connect={args.connect} topic={args.topic} viewer_hz={args.viewer_hz}")
 
@@ -183,7 +143,7 @@ def run_viewer(args: argparse.Namespace) -> None:
             try:
                 while True:
                     raw = sock.recv_string(flags=zmq.NOBLOCK)
-                    qpos = _parse_payload(raw, args.topic)
+                    qpos = _parse_payload(raw, args.topic, robot_cfg)
                     if qpos is not None:
                         latest_qpos = qpos
                         last_recv_log = time.monotonic()
@@ -206,6 +166,7 @@ def run_viewer(args: argparse.Namespace) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Subscribe to G1 motion over ZMQ and visualize it")
+    parser.add_argument("--robot", type=str, default="g1")
     parser.add_argument("--connect", type=str, default="tcp://127.0.0.1:28701")
     parser.add_argument("--topic", type=str, default="g1")
     parser.add_argument("--viewer_hz", type=float, default=30.0)

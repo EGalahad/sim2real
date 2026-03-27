@@ -5,15 +5,33 @@ from threading import Thread
 import sched
 import os
 
+from sim2real.config.robots import get_robot_cfg
+from sim2real.config.robots.base import RobotCfg
 from sim2real.sim_env.utils.bridge import SimulationBridge
 from sim2real.sim_env.utils.elastic_band import ElasticBand
+from sim2real.teleop.mujoco_viewer_utils import temp_mjcf_with_floor
+
+
+def _parse_bool_arg(value: str) -> bool:
+    normalized = str(value).strip().lower()
+    if normalized in {"true", "1", "yes", "y", "on"}:
+        return True
+    if normalized in {"false", "0", "no", "n", "off"}:
+        return False
+    raise ValueError(f"Invalid boolean value: {value}")
+
 
 class BaseSimulator:
-    def __init__(self, robot_config, scene_config):
-        self.robot_config = robot_config
-        self.scene_config = scene_config
-        self.sim_dt = self.scene_config["SIMULATE_DT"]
-        self.viewer_dt = self.scene_config["VIEWER_DT"]
+    def __init__(
+        self,
+        robot_cfg: RobotCfg,
+        *,
+        sim_dt: float = 0.005,
+        enable_elastic_band: bool = True,
+    ):
+        self.robot_cfg = robot_cfg
+        self.sim_dt = float(sim_dt)
+        self.enable_elastic_band = bool(enable_elastic_band)
 
         self.init_scene()
         # for more scenes
@@ -36,9 +54,9 @@ class BaseSimulator:
                 try:
                     libc.sched_setscheduler(0, SCHED_FIFO, ctypes.byref(param))
                     print("Set real-time scheduling priority")
-                except:
+                except Exception:
                     print("Could not set real-time priority (try running with sudo)")
-        except:
+        except Exception:
             pass
 
     def init_subscriber(self):
@@ -48,17 +66,19 @@ class BaseSimulator:
         pass
     
     def init_scene(self):
-        robot_scene = self.scene_config["ROBOT_SCENE"]
-        self.mj_model = mujoco.MjModel.from_xml_path(robot_scene)
+        robot_scene = self.robot_cfg.sim_mjcf_path
+        if robot_scene is None:
+            raise ValueError(f"Robot '{self.robot_cfg.name}' does not define sim_mjcf_path")
+        with temp_mjcf_with_floor(robot_scene) as viewer_mjcf_path:
+            self.mj_model = mujoco.MjModel.from_xml_path(str(viewer_mjcf_path))
         self.mj_data = mujoco.MjData(self.mj_model)
         self.mj_model.opt.timestep = self.sim_dt
         # Enable the elastic band
-        if self.scene_config["ENABLE_ELASTIC_BAND"]:
+        if self.enable_elastic_band:
             self.elastic_band = ElasticBand()
-            if "h1" in self.robot_config["ROBOT_TYPE"] or "g1" in self.robot_config["ROBOT_TYPE"]:
-                self.band_attached_link = self.mj_model.body("torso_link").id
-            else:
-                self.band_attached_link = self.mj_model.body("base_link").id
+            self.band_attached_link = self._resolve_body_id(
+                self.robot_cfg.elastic_band_attach_body_names
+            )
             key_callback = self.elastic_band.MujocoKeyCallback
         else:
             key_callback = None
@@ -70,18 +90,27 @@ class BaseSimulator:
             show_left_ui=False,
             show_right_ui=False,
         )
-        # get pelvis body id
-        self.pelvis_body_id = self.mj_model.body("pelvis").id
+        self.pelvis_body_id = self._resolve_body_id(self.robot_cfg.viewer_track_body_names)
         self.viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
         self.viewer.cam.trackbodyid = self.pelvis_body_id
 
         self.sim_bridge = SimulationBridge(
-            self.mj_model, self.mj_data, self.robot_config, self.scene_config
+            self.mj_model, self.mj_data, self.robot_cfg
         )
+
+    def _resolve_body_id(self, body_names: tuple[str, ...]) -> int:
+        for body_name in body_names:
+            body_id = mujoco.mj_name2id(
+                self.mj_model, mujoco.mjtObj.mjOBJ_BODY, body_name
+            )
+            if body_id >= 0:
+                return int(body_id)
+        names = ", ".join(body_names)
+        raise ValueError(f"Failed to resolve body from candidates: {names}")
 
     def sim_step(self):
         self.sim_bridge.publish_low_state()
-        if self.scene_config["ENABLE_ELASTIC_BAND"]:
+        if self.enable_elastic_band:
             if self.elastic_band.enable:
                 pos = self.mj_data.xpos[self.band_attached_link]
                 lin_vel = self.mj_data.cvel[self.band_attached_link, 3:6]
@@ -105,9 +134,8 @@ class BaseSimulator:
             
             next_run_time += self.sim_dt
             sim_cnt += 1
-            
-            if sim_cnt % (self.viewer_dt / self.sim_dt) == 0:
-                self.viewer.sync()
+
+            self.viewer.sync()
         
             # Get FPS
             if sim_cnt % 100 == 0:
@@ -125,21 +153,25 @@ class BaseSimulator:
 
 if __name__ == "__main__":
     import argparse
-    import yaml
 
     parser = argparse.ArgumentParser(description="Robot")
     parser.add_argument(
-        "--robot_config", type=str, default="config/robot/g1.yaml", help="robot config file"
+        "--robot", type=str, default="g1", help="robot name"
     )
     parser.add_argument(
-        "--scene_config", type=str, default="config/scene/g1_29dof_nohand.yaml", help="scene config file"
+        "--sim_dt", type=float, default=0.005, help="simulation timestep in seconds"
+    )
+    parser.add_argument(
+        "--enable_elastic_band",
+        type=_parse_bool_arg,
+        default=True,
+        help="enable the elastic band in simulation (true/false)",
     )
     args = parser.parse_args()
 
-    with open(args.robot_config) as file:
-        robot_config = yaml.load(file, Loader=yaml.FullLoader)
-    with open(args.scene_config) as file:
-        scene_config = yaml.load(file, Loader=yaml.FullLoader)
-
-    simulation = BaseSimulator(robot_config, scene_config)
+    simulation = BaseSimulator(
+        get_robot_cfg(args.robot),
+        sim_dt=args.sim_dt,
+        enable_elastic_band=args.enable_elastic_band,
+    )
     simulation.sim_thread.start()

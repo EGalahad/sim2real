@@ -15,4 +15,4 @@ dependencies = [
 package = false
 
 [tool.uv.sources]
-hdmi-sim2real = { path = "../.." }
+hdmi-sim2real = { path = "../..", editable = true }

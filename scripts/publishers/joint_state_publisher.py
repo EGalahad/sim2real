@@ -1,7 +1,6 @@
 """This script listens to the low state of the robot and publishes the joint positions via ZMQ"""
 
 import numpy as np
-import yaml
 import time
 import threading
 import argparse
@@ -11,22 +10,24 @@ from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowState_ as LowState_go
 from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowState_ as LowState_hg
 from unitree_sdk2py.core.channel import ChannelSubscriber, ChannelFactoryInitialize
 
-from sim2real.utils.robot_defs import G1_JOINT_NAMES
+from sim2real.config.robots import get_robot_cfg
+from sim2real.config.robots.base import RobotCfg
 from sim2real.utils.common import ZMQPublisher, PORTS
 
 class JointStatePublisher:
     """
     Receives joint state from Unitree SDK and publishes via ZMQ as numpy array
     """
-    def __init__(self, robot_config, dest_joint_names, publish_freq=50):
+    def __init__(self, robot_cfg: RobotCfg, dest_joint_names, publish_freq=50):
+        self.robot_cfg = robot_cfg
         # initialize robot related processes
-        if robot_config.get("INTERFACE", None):
-            ChannelFactoryInitialize(robot_config["DOMAIN_ID"], robot_config["INTERFACE"])
+        if self.robot_cfg.interface:
+            ChannelFactoryInitialize(self.robot_cfg.domain_id, self.robot_cfg.interface)
         else:
-            ChannelFactoryInitialize(robot_config["DOMAIN_ID"])
+            ChannelFactoryInitialize(self.robot_cfg.domain_id)
 
         # Initialize channel subscriber
-        robot_type = robot_config["ROBOT_TYPE"]
+        robot_type = self.robot_cfg.robot_type
         if robot_type == "h1" or robot_type == "go2":
             self.robot_lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_go)
             self.robot_lowstate_subscriber.Init(self.LowStateHandler_go, 1)
@@ -38,7 +39,7 @@ class JointStatePublisher:
 
         # Initialize joint mapping
         self.num_dof = len(dest_joint_names)
-        self.joint_indices_in_source = [G1_JOINT_NAMES.index(name) for name in dest_joint_names]
+        self.joint_indices_in_source = [self.robot_cfg.joint_names.index(name) for name in dest_joint_names]
         
         # Initialize joint state arrays
         self.joint_pos = np.zeros(self.num_dof)
@@ -52,7 +53,7 @@ class JointStatePublisher:
         self.publisher = ZMQPublisher(zmq_port)
         print(f"ZMQ publisher bound to port {zmq_port}")
         
-        self.joint_names = list(G1_JOINT_NAMES)
+        self.joint_names = list(self.robot_cfg.joint_names)
         self.joint_names_publisher = ZMQPublisher(PORTS['joint_names'])
 
         # Publishing frequency
@@ -124,16 +125,15 @@ class JointStatePublisher:
 
 def main():
     parser = argparse.ArgumentParser(description="Joint State ZMQ Publisher")
-    parser.add_argument("--robot_config", type=str, default="config/robot/g1-real.yaml", help="Robot config file")
+    parser.add_argument("--robot", type=str, default="g1", help="Robot name")
     parser.add_argument("--freq", type=int, default=50, help="Publishing frequency")
     
     args = parser.parse_args()
-    with open(args.robot_config) as file:
-        robot_config = yaml.load(file, Loader=yaml.FullLoader)
-    dest_joint_names = list(G1_JOINT_NAMES)
+    robot_cfg = get_robot_cfg(args.robot)
+    dest_joint_names = list(robot_cfg.joint_names)
     
     publisher = JointStatePublisher(
-        robot_config=robot_config,
+        robot_cfg=robot_cfg,
         dest_joint_names=dest_joint_names,
         publish_freq=args.freq
     )

@@ -3,15 +3,14 @@
 import argparse
 import sched
 import time
-import threading
 
 import numpy as np
-import yaml
 import zmq
 from loguru import logger
 
-from sim2real.utils.robot_defs import G1_JOINT_NAMES
-from sim2real.utils.common import LowCmdMessage, LowStateMessage, PORTS, UNITREE_LEGGED_CONST
+from sim2real.config.robots import get_robot_cfg
+from sim2real.config.robots.base import RobotCfg
+from sim2real.utils.common import LowCmdMessage, LowStateMessage, UNITREE_LEGGED_CONST
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from unitree_sdk2py.idl.unitree_go.msg.dds_ import MotorCmd_
@@ -24,9 +23,7 @@ from unitree_sdk2py.core.channel import (
 from unitree_sdk2py.utils.crc import CRC
 
 from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowState_ as LowState_go
-from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowCmd_ as LowCmd_go
 from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowState_ as LowState_hg
-from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowCmd_ as LowCmd_hg
 
 from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import MotionSwitcherClient
 
@@ -36,9 +33,9 @@ UNITREE_DOMAIN_ID = 0
 class RealBridge:
     """Bridge Unitree SDK2 channels to the sim2real ZMQ interface."""
 
-    def __init__(self, robot_config, rate_hz=200):
-        self.robot_config = robot_config
-        self.robot_type = robot_config["ROBOT_TYPE"]
+    def __init__(self, robot_cfg: RobotCfg, rate_hz=200):
+        self.robot_cfg = robot_cfg
+        self.robot_type = robot_cfg.robot_type
         self.rate_hz = rate_hz
         self.dt = 1.0 / rate_hz
 
@@ -61,12 +58,12 @@ class RealBridge:
             time.sleep(1)
 
     def _init_unitree_channels(self):
-        self.robot_config["DOMAIN_ID"] = UNITREE_DOMAIN_ID
-        self.robot_config["INTERFACE"] = UNITREE_INTERFACE
-        ChannelFactoryInitialize(
-            self.robot_config["DOMAIN_ID"], self.robot_config["INTERFACE"]
+        domain_id = UNITREE_DOMAIN_ID
+        interface = UNITREE_INTERFACE
+        ChannelFactoryInitialize(domain_id, interface)
+        print(
+            f"ChannelFactory initialized with domain ID {domain_id} on interface {interface}"
         )
-        print(f"ChannelFactory initialized with domain ID {self.robot_config['DOMAIN_ID']} on interface {self.robot_config['INTERFACE']}")
 
         if self.robot_type in ("h1", "go2"):
             from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowState_ as LowState_go
@@ -98,20 +95,16 @@ class RealBridge:
     def _init_zmq(self):
         self.zmq_context = zmq.Context.instance()
 
-        self.low_state_port = self.robot_config.get(
-            "LOW_STATE_PORT", PORTS.get("low_state", 5590)
-        )
-        low_state_bind_addr = self.robot_config.get("LOW_STATE_BIND_ADDR", "*")
+        self.low_state_port = self.robot_cfg.low_state_port
+        low_state_bind_addr = self.robot_cfg.low_state_bind_addr
         low_state_endpoint = f"tcp://{low_state_bind_addr}:{self.low_state_port}"
         self.low_state_zmq_pub: zmq.Socket = self.zmq_context.socket(zmq.PUB)
         self.low_state_zmq_pub.setsockopt(zmq.SNDHWM, 1)
         self.low_state_zmq_pub.setsockopt(zmq.LINGER, 0)
         self.low_state_zmq_pub.bind(low_state_endpoint)
 
-        self.low_cmd_port = self.robot_config.get(
-            "LOW_CMD_PORT", PORTS.get("low_cmd", 5591)
-        )
-        low_cmd_host = self.robot_config.get("LOW_CMD_HOST", "127.0.0.1")
+        self.low_cmd_port = self.robot_cfg.low_cmd_port
+        low_cmd_host = self.robot_cfg.low_cmd_host
         low_cmd_endpoint = f"tcp://{low_cmd_host}:{self.low_cmd_port}"
         self.low_cmd_zmq_sub: zmq.Socket = self.zmq_context.socket(zmq.SUB)
         self.low_cmd_zmq_sub.setsockopt(zmq.SUBSCRIBE, b"")
@@ -145,10 +138,11 @@ class RealBridge:
         motor_state = msg.motor_state
         # print(f"low state mode machine: {msg.mode_machine}")
 
-        joint_pos = np.zeros(len(G1_JOINT_NAMES), dtype=np.float32)
-        joint_vel = np.zeros(len(G1_JOINT_NAMES), dtype=np.float32)
-        joint_tau = np.zeros(len(G1_JOINT_NAMES), dtype=np.float32)
-        for idx in range(len(G1_JOINT_NAMES)):
+        joint_count = len(self.robot_cfg.joint_names)
+        joint_pos = np.zeros(joint_count, dtype=np.float32)
+        joint_vel = np.zeros(joint_count, dtype=np.float32)
+        joint_tau = np.zeros(joint_count, dtype=np.float32)
+        for idx in range(joint_count):
             joint_pos[idx] = motor_state[idx].q
             joint_vel[idx] = motor_state[idx].dq
             joint_tau[idx] = motor_state[idx].tau_est
@@ -182,7 +176,7 @@ class RealBridge:
                 logger.warning(f"Failed to decode low command message: {exc}")
                 continue
 
-            if low_cmd.q_target.size != len(G1_JOINT_NAMES):
+            if low_cmd.q_target.size != len(self.robot_cfg.joint_names):
                 logger.warning(
                     "Received low command with unexpected size {}",
                     low_cmd.q_target.size,
@@ -190,7 +184,7 @@ class RealBridge:
                 continue
 
             motor_cmd = self.low_cmd.motor_cmd
-            count = min(len(G1_JOINT_NAMES), len(motor_cmd))
+            count = min(len(self.robot_cfg.joint_names), len(motor_cmd))
             for i in range(count):
                 cmd: "MotorCmd_" = motor_cmd[i]
                 cmd.q = float(low_cmd.q_target[i])
@@ -242,20 +236,17 @@ class RealBridge:
 def main():
     parser = argparse.ArgumentParser(description="Unitree <-> ZMQ real bridge")
     parser.add_argument(
-        "--robot_config",
+        "--robot",
         type=str,
-        default="config/robot/g1.yaml",
-        help="Robot config file",
+        default="g1",
+        help="Robot name",
     )
     parser.add_argument(
         "--rate", type=float, default=200.0, help="Bridge loop rate (Hz)"
     )
     args = parser.parse_args()
 
-    with open(args.robot_config) as file:
-        robot_config = yaml.load(file, Loader=yaml.FullLoader)
-
-    bridge = RealBridge(robot_config=robot_config, rate_hz=args.rate)
+    bridge = RealBridge(robot_cfg=get_robot_cfg(args.robot), rate_hz=args.rate)
     bridge.run()
 
 

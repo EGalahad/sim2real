@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Dict
 from scipy.spatial.transform import Rotation as sRot, Slerp
 from tqdm import tqdm
-from sim2real.utils.robot_defs import G1_JOINT_NAMES
+from sim2real.config.robots.base import RobotCfg
 from sim2real.utils.strings import resolve_matching_names
 
 
@@ -41,7 +41,7 @@ def interpolate(motion: Dict[str, np.ndarray], source_fps: int, target_fps: int)
     if source_fps != target_fps:
         in_keys = ["body_pos_w", "body_lin_vel_w", "body_quat_w", "body_ang_vel_w", "joint_pos", "joint_vel"]
         if not all(key in in_keys for key in motion.keys()):
-            raise NotImplementedError(f"interpolation is not fully implemented for some keys")
+            raise NotImplementedError("interpolation is not fully implemented for some keys")
         
         T = motion["joint_pos"].shape[0]
         ts_source = np.linspace(0, T, T)
@@ -88,7 +88,12 @@ class MotionDataset:
         self.data = data
 
     @classmethod
-    def create_from_path(cls, root_path: str, target_fps: int = 50):
+    def create_from_path(
+        cls,
+        root_path: str,
+        robot_cfg: RobotCfg,
+        target_fps: int = 50,
+    ):
         """Create dataset from motion files"""
         root = Path(root_path)
         any4hdmi_root = _find_any4hdmi_root(root)
@@ -138,17 +143,17 @@ class MotionDataset:
         total_length = sum(int(motion["body_pos_w"].shape[0]) for motion in motions)
             
         # Process joint names and indices
-        unitree_joint_names = list(G1_JOINT_NAMES)
+        canonical_joint_names = list(robot_cfg.joint_names)
         
-        share_joint_names = [name for name in meta["joint_names"] if name in unitree_joint_names]
+        share_joint_names = [name for name in meta["joint_names"] if name in canonical_joint_names]
         src_joint_indices = [meta["joint_names"].index(name) for name in share_joint_names]
-        dest_joint_indices = [unitree_joint_names.index(name) for name in share_joint_names]
+        dest_joint_indices = [canonical_joint_names.index(name) for name in share_joint_names]
 
-        more_joint_names = [name for name in meta["joint_names"] if name not in unitree_joint_names]
+        more_joint_names = [name for name in meta["joint_names"] if name not in canonical_joint_names]
         src_more_joint_indices = [meta["joint_names"].index(name) for name in more_joint_names]
-        dest_more_joint_indices = [len(unitree_joint_names) + i for i in range(len(more_joint_names))]
+        dest_more_joint_indices = [len(canonical_joint_names) + i for i in range(len(more_joint_names))]
 
-        joint_names = unitree_joint_names + more_joint_names
+        joint_names = canonical_joint_names + more_joint_names
         src_joint_indices = src_joint_indices + src_more_joint_indices
         dest_joint_indices = dest_joint_indices + dest_more_joint_indices
 

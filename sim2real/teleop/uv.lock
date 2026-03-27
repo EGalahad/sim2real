@@ -338,7 +338,7 @@ wheels = [
 [[package]]
 name = "hdmi-sim2real"
 version = "0.1.0"
-source = { directory = "../../" }
+source = { editable = "../../" }
 dependencies = [
     { name = "huggingface-hub" },
     { name = "loguru" },
@@ -373,6 +373,9 @@ requires-dist = [
     { name = "viser", specifier = ">=1.0.24" },
     { name = "zmq" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "mypy", specifier = ">=1.18" }]
 
 [[package]]
 name = "hf-xet"
@@ -1347,7 +1350,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "general-motion-retargeting", git = "https://github.com/EGalahad/GMR.git?rev=codex%2Fadd-pyproject-toml" },
-    { name = "hdmi-sim2real", directory = "../../" },
+    { name = "hdmi-sim2real", editable = "../../" },
     { name = "loop-rate-limiters" },
     { name = "numpy" },
     { name = "pyzmq" },

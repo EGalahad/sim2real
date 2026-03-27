@@ -24,14 +24,6 @@ HDMI is a framework that enables humanoid robots to acquire diverse whole-body i
 
 ```bash
 uv sync
-source .venv/bin/activate
-```
-
-If you prefer conda
-```bash
-conda create -n hdmi python=3.12
-conda activate hdmi
-pip install -e .
 ```
 
 ### FAQ
@@ -60,9 +52,9 @@ The sim2sim setup runs a MuJoCo environment and a reinforcement-learning policy 
 
 ```bash
 # 1) Start sim
-uv run sim2real/sim_env/base_sim.py --robot_config config/robot/g1.yaml --scene_config config/scene/g1_29dof_rubberhand.yaml
+uv run sim2real/sim_env/base_sim.py --robot g1
 # 2) Start policy
-uv run sim2real/rl_policy/tracking.py --robot_config ./config/robot/g1.yaml --policy_config checkpoints/lafan-aa/policy-kl5hrst6-final.yaml
+uv run sim2real/rl_policy/tracking.py --robot g1 --policy_config checkpoints/lafan-aa/policy-120e84e1_lafan_finetune-final.yaml
 ```
 
 To deploy the sim2sim policy on the real robot, replace the sim script with 
@@ -71,6 +63,17 @@ To deploy the sim2sim policy on the real robot, replace the sim script with
 # 1) Start real bridge
 uv run scripts/real_bridge.py
 ```
+
+## Misc
+
+Generate MuJoCo Python stubs 
+
+```bash
+uv run stubgen -p mujoco -o stubs
+```
+
+Then add `./stubs` to VSCode settings "python.analysis.extraPaths"
+
 
 ## Star History
 

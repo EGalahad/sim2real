@@ -10,8 +10,10 @@ from copy import deepcopy
 from termcolor import colored
 from loguru import logger
 
+from sim2real.config.robots import get_robot_cfg
+from sim2real.config.robots.base import RobotCfg
 from sim2real.rl_policy.observations import Observation, ObsGroup
-from sim2real.rl_policy.utils.command_sender import CommandSender
+from sim2real.rl_policy.utils.command_sender import ActionManager
 from sim2real.rl_policy.utils.onnx_module import Timer
 from sim2real.rl_policy.utils.state_processor import StateProcessor
 from sim2real.utils.strings import resolve_matching_names_values
@@ -20,17 +22,18 @@ from sim2real.utils.strings import resolve_matching_names_values
 class BasePolicy:
     def __init__(
         self,
-        robot_config,
+        robot_cfg: RobotCfg,
         policy_config,
         model_path,
         rl_rate=50,
         onnx_provider="cpu",
     ):
+        self.robot_cfg = robot_cfg
         # initialize robot related processes
         self.joint_names_simulation = list(policy_config["joint_names_simulation"])
         self.body_names_simulation = list(policy_config["body_names_simulation"])
-        self.state_processor = StateProcessor(robot_config, policy_config)
-        self.command_sender = CommandSender(robot_config, policy_config)
+        self.state_processor = StateProcessor(self.robot_cfg, policy_config)
+        self.action_manager = ActionManager(self.robot_cfg, policy_config)
         self.rl_dt = 1.0 / rl_rate
         self.onnx_provider = onnx_provider
 
@@ -39,7 +42,7 @@ class BasePolicy:
         default_joint_pos_dict = policy_config["default_joint_pos"]
         joint_indices, joint_names, default_joint_pos = resolve_matching_names_values(
             default_joint_pos_dict,
-            self.command_sender.joint_names,
+            self.action_manager.joint_names,
             preserve_order=True,
             strict=False,
         )
@@ -49,7 +52,7 @@ class BasePolicy:
         self.policy_joint_names = policy_config["policy_joint_names"]
         self.num_actions = len(self.policy_joint_names)
         self.controlled_joint_indices = [
-            self.command_sender.joint_names.index(name)
+            self.action_manager.joint_names.index(name)
             for name in self.policy_joint_names
         ]
 
@@ -83,7 +86,7 @@ class BasePolicy:
         # Joint limits
         joint_indices, joint_names, joint_pos_lower_limit = (
             resolve_matching_names_values(
-                robot_config["joint_pos_lower_limit"],
+                self.robot_cfg.joint_pos_lower_limit,
                 self.joint_names_simulation,
                 preserve_order=True,
                 strict=False,
@@ -94,7 +97,7 @@ class BasePolicy:
 
         joint_indices, joint_names, joint_pos_upper_limit = (
             resolve_matching_names_values(
-                robot_config["joint_pos_upper_limit"],
+                self.robot_cfg.joint_pos_upper_limit,
                 self.joint_names_simulation,
                 preserve_order=True,
                 strict=False,
@@ -103,17 +106,17 @@ class BasePolicy:
         self.joint_pos_upper_limit = np.zeros(self.num_dofs)
         self.joint_pos_upper_limit[joint_indices] = joint_pos_upper_limit
 
-        if robot_config.get("USE_JOYSTICK", False):
+        if self.robot_cfg.use_joystick:
             print("Using joystick")
             self.use_joystick = True
             self.wc_msg = None
             from unitree_sdk2py.core.channel import ChannelSubscriber, ChannelFactoryInitialize
             from unitree_sdk2py.idl.unitree_go.msg.dds_ import WirelessController_
 
-            if robot_config.get("INTERFACE", None):
-                ChannelFactoryInitialize(robot_config["DOMAIN_ID"], robot_config["INTERFACE"])
+            if self.robot_cfg.interface:
+                ChannelFactoryInitialize(self.robot_cfg.domain_id, self.robot_cfg.interface)
             else:
-                ChannelFactoryInitialize(robot_config["DOMAIN_ID"])
+                ChannelFactoryInitialize(self.robot_cfg.domain_id)
 
             self.wireless_controller_sub = ChannelSubscriber(
                 "rt/wirelesscontroller", WirelessController_
@@ -297,19 +300,19 @@ class BasePolicy:
             self.init_count = 0
             logger.info("Setting to init state")
         elif keycode == "5":
-            self.command_sender.kp_level -= 0.01
+            self.action_manager.kp_level -= 0.01
         elif keycode == "6":
-            self.command_sender.kp_level += 0.01
+            self.action_manager.kp_level += 0.01
         elif keycode == "4":
-            self.command_sender.kp_level -= 0.1
+            self.action_manager.kp_level -= 0.1
         elif keycode == "7":
-            self.command_sender.kp_level += 0.1
+            self.action_manager.kp_level += 0.1
         elif keycode == "0":
-            self.command_sender.kp_level = 1.0
+            self.action_manager.kp_level = 1.0
 
         if keycode in ["5", "6", "4", "7", "0"]:
             logger.info(
-                colored(f"Debug kp level: {self.command_sender.kp_level}", "green")
+                colored(f"Debug kp level: {self.action_manager.kp_level}", "green")
             )
 
     def process_joystick_input(self):
@@ -397,17 +400,17 @@ class BasePolicy:
             self.init_count = 0
             logger.info(colored("Setting to init state", "blue"))
         # elif cur_key == "Y+left":
-        #     self.command_sender.kp_level -= 0.1
+        #     self.action_manager.kp_level -= 0.1
         # elif cur_key == "Y+right":
-        #     self.command_sender.kp_level += 0.1
+        #     self.action_manager.kp_level += 0.1
         # elif cur_key == "A+left":
-        #     self.command_sender.kp_level -= 0.01
+        #     self.action_manager.kp_level -= 0.01
         # elif cur_key == "A+right":
-        #     self.command_sender.kp_level += 0.01
+        #     self.action_manager.kp_level += 0.01
 
         # Debug print for kp level tuning
         if cur_key in ["Y+left", "Y+right", "A+left", "A+right"]:
-            logger.info(colored(f"Debug kp level: {self.command_sender.kp_level}", "green"))
+            logger.info(colored(f"Debug kp level: {self.action_manager.kp_level}", "green"))
 
     def run(self):
         total_inference_cnt = 0
@@ -499,7 +502,7 @@ class BasePolicy:
             cmd_q = q_target
             cmd_dq = np.zeros(self.num_dofs)
             cmd_tau = np.zeros(self.num_dofs)
-            self.command_sender.send_command(cmd_q, cmd_dq, cmd_tau)
+            self.action_manager.send_command(cmd_q, cmd_dq, cmd_tau)
 
         elapsed = time.perf_counter() - loop_start
         if elapsed > self.rl_dt:
@@ -510,7 +513,7 @@ if __name__ == "__main__":
     import yaml
     parser = argparse.ArgumentParser(description="Robot")
     parser.add_argument(
-        "--robot_config", type=str, default="config/robot/g1.yaml", help="robot config file"
+        "--robot", type=str, default="g1", help="robot name"
     )
     parser.add_argument(
         "--policy_config", type=str, help="policy config file"
@@ -526,12 +529,10 @@ if __name__ == "__main__":
 
     with open(args.policy_config) as file:
         policy_config = yaml.load(file, Loader=yaml.FullLoader)
-    with open(args.robot_config) as file:
-        robot_config = yaml.load(file, Loader=yaml.FullLoader)
     model_path = args.policy_config.replace(".yaml", ".onnx")
 
     policy = BasePolicy(
-        robot_config=robot_config,
+        robot_cfg=get_robot_cfg(args.robot),
         policy_config=policy_config,
         model_path=model_path,
         rl_rate=50,

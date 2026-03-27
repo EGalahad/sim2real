@@ -1,8 +1,7 @@
 # VR Teleop Instructions
 
 ```bash
-export TELEOP_PROJECT=$(pwd)/sim2real/teleop
-uv --project "$TELEOP_PROJECT" sync
+uv --project sim2real/teleop sync
 ```
 
 实现细节、数据格式和参数说明见 [docs/teleop_impl.md](/home/elijah/Documents/projects/simple-tracking/sim2real/sim2real/teleop/docs/teleop_impl.md)。
@@ -25,24 +24,24 @@ uv --project "$TELEOP_PROJECT" sync
 
 ```bash
 git clone https://github.com/YanjieZe/XRoboToolkit-PC-Service-Pybind.git \
-  "$TELEOP_PROJECT/XRoboToolkit-PC-Service-Pybind"
-mkdir -p "$TELEOP_PROJECT/XRoboToolkit-PC-Service-Pybind/tmp"
+  sim2real/teleop/XRoboToolkit-PC-Service-Pybind
+mkdir -p sim2real/teleop/XRoboToolkit-PC-Service-Pybind/tmp
 git clone https://github.com/XR-Robotics/XRoboToolkit-PC-Service.git \
-  "$TELEOP_PROJECT/XRoboToolkit-PC-Service-Pybind/tmp/XRoboToolkit-PC-Service"
-mkdir -p "$TELEOP_PROJECT/XRoboToolkit-PC-Service-Pybind/lib"
-mkdir -p "$TELEOP_PROJECT/XRoboToolkit-PC-Service-Pybind/include"
+  sim2real/teleop/XRoboToolkit-PC-Service-Pybind/tmp/XRoboToolkit-PC-Service
+mkdir -p sim2real/teleop/XRoboToolkit-PC-Service-Pybind/lib
+mkdir -p sim2real/teleop/XRoboToolkit-PC-Service-Pybind/include
 ```
 
 然后构建底层 SDK，并把生成的头文件和动态库放到 `XRoboToolkit-PC-Service-Pybind` 对应目录，再安装 pybind 包：
 
 ```bash
-uv pip install --python "$TELEOP_PROJECT/.venv/bin/python" -e "$TELEOP_PROJECT/XRoboToolkit-PC-Service-Pybind"
+uv pip install --python sim2real/teleop/.venv/bin/python -e sim2real/teleop/XRoboToolkit-PC-Service-Pybind
 ```
 
 建议先验证环境：
 
 ```bash
-uv --project "$TELEOP_PROJECT" run python - <<'PY'
+uv --project sim2real/teleop run python - <<'PY'
 import general_motion_retargeting
 import xrobotoolkit_sdk
 import zmq
@@ -71,7 +70,7 @@ PY
 建议先在 Linux 侧确认已经收到 XR 数据：
 
 ```bash
-uv --project "$TELEOP_PROJECT" run python - <<'PY'
+uv --project sim2real/teleop run python - <<'PY'
 import xrobotoolkit_sdk as xrt
 
 xrt.init()
@@ -97,7 +96,7 @@ PY
 先启动 publisher：
 
 ```bash
-uv --project "$TELEOP_PROJECT" run python -m sim2real.teleop.pico_g1_zmq_publisher \
+uv --project sim2real/teleop run python -m sim2real.teleop.pico_g1_zmq_publisher \
   --bind tcp://*:28701 \
   --topic g1 \
   --publish_hz 50 \
@@ -115,7 +114,7 @@ uv --project "$TELEOP_PROJECT" run python -m sim2real.teleop.pico_g1_zmq_publish
 再启动 viewer：
 
 ```bash
-uv --project "$TELEOP_PROJECT" run python -m sim2real.teleop.pico_g1_zmq_viewer \
+uv --project sim2real/teleop run python -m sim2real.teleop.pico_g1_zmq_viewer \
   --connect tcp://127.0.0.1:28701 \
   --topic g1 \
   --viewer_hz 50
@@ -132,8 +131,8 @@ uv --project "$TELEOP_PROJECT" run python -m sim2real.teleop.pico_g1_zmq_viewer 
 录制原始 XRobot body pose：
 
 ```bash
-uv --project "$TELEOP_PROJECT" run python -m sim2real.teleop.record_xrobot_smplx \
-  --output "$TELEOP_PROJECT/xrobot_smplx_$(date +%Y%m%d_%H%M%S).npz" \
+uv --project sim2real/teleop run python -m sim2real.teleop.record_xrobot_smplx \
+  --output sim2real/teleop/xrobot_smplx_$(date +%Y%m%d_%H%M%S).npz \
   --sample_fps 30 \
   --actual_human_height 1.70
 ```
@@ -151,8 +150,8 @@ uv --project "$TELEOP_PROJECT" run python -m sim2real.teleop.record_xrobot_smplx
 离线 benchmark retarget：
 
 ```bash
-uv --project "$TELEOP_PROJECT" run python -m sim2real.teleop.benchmark_smplx_retarget \
-  --input "$TELEOP_PROJECT/xrobot_smplx_20260321_000000.npz" \
+uv --project sim2real/teleop run python -m sim2real.teleop.benchmark_smplx_retarget \
+  --input sim2real/teleop/xrobot_smplx_20260321_000000.npz \
   --actual_human_height 1.70 \
   --warmup_frames 10
 ```

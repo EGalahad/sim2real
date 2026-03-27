@@ -1,6 +1,7 @@
 checkpoints
 docs
 .vscode
+stubs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

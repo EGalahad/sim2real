@@ -1,12 +1,11 @@
 import numpy as np
-import glfw
 import mujoco
 import zmq
 
 from loguru import logger
 
-from sim2real.utils.robot_defs import G1_JOINT_NAMES
-from sim2real.utils.common import LowStateMessage, LowCmdMessage, PORTS
+from sim2real.config.robots.base import RobotCfg
+from sim2real.utils.common import LowStateMessage, LowCmdMessage
 from sim2real.utils.strings import resolve_matching_names_values
 
 
@@ -16,11 +15,9 @@ class SimulationBridge:
         self,
         mj_model: mujoco.MjModel,
         mj_data: mujoco.MjData,
-        robot_config: dict,
-        scene_config: dict,
+        robot_cfg: RobotCfg,
     ):
-        self.robot_config = robot_config
-        self.scene_config = scene_config
+        self.robot_cfg = robot_cfg
         self.mj_model = mj_model
         self.mj_data = mj_data
 
@@ -29,20 +26,16 @@ class SimulationBridge:
         # ZMQ communication setup
         self.zmq_context = zmq.Context.instance()
 
-        self.low_state_port = robot_config.get(
-            "LOW_STATE_PORT", PORTS.get("low_state", 5590)
-        )
-        low_state_bind_addr = robot_config.get("LOW_STATE_BIND_ADDR", "*")
+        self.low_state_port = self.robot_cfg.low_state_port
+        low_state_bind_addr = self.robot_cfg.low_state_bind_addr
         low_state_endpoint = f"tcp://{low_state_bind_addr}:{self.low_state_port}"
         self.low_state_pub = self.zmq_context.socket(zmq.PUB)
         self.low_state_pub.setsockopt(zmq.SNDHWM, 1)
         self.low_state_pub.setsockopt(zmq.LINGER, 0)
         self.low_state_pub.bind(low_state_endpoint)
 
-        self.low_cmd_port = robot_config.get(
-            "LOW_CMD_PORT", PORTS.get("low_cmd", 5591)
-        )
-        low_cmd_host = robot_config.get("LOW_CMD_HOST", "127.0.0.1")
+        self.low_cmd_port = self.robot_cfg.low_cmd_port
+        low_cmd_host = self.robot_cfg.low_cmd_host
         low_cmd_endpoint = f"tcp://{low_cmd_host}:{self.low_cmd_port}"
         self.low_cmd_sub = self.zmq_context.socket(zmq.SUB)
         self.low_cmd_sub.setsockopt(zmq.SUBSCRIBE, b"")
@@ -51,7 +44,7 @@ class SimulationBridge:
         self.low_cmd_sub.setsockopt(zmq.LINGER, 0)
         self.low_cmd_sub.connect(low_cmd_endpoint)
 
-        total_joints = len(G1_JOINT_NAMES)
+        total_joints = len(self.robot_cfg.joint_names)
         self.cmd_q = np.zeros(total_joints, dtype=np.float32)
         self.cmd_dq = np.zeros(total_joints, dtype=np.float32)
         self.cmd_tau = np.zeros(total_joints, dtype=np.float32)
@@ -73,26 +66,28 @@ class SimulationBridge:
         self.qvel_adrs = []
         self.act_adrs = []
 
-        shared_joint_names = set(joint_names_mujoco) & set(G1_JOINT_NAMES)
-        for name in shared_joint_names:
+        for name in self.robot_cfg.joint_names:
+            if name not in joint_names_mujoco or name not in actuator_names_mujoco:
+                continue
             print(f"shared_joint_names: {name}")
-            self.joint_indices_unitree.append(G1_JOINT_NAMES.index(name))
+            self.joint_indices_unitree.append(self.robot_cfg.joint_names.index(name))
 
             joint_idx = joint_names_mujoco.index(name)
             self.qpos_adrs.append(self.mj_model.jnt_qposadr[joint_idx])
             self.qvel_adrs.append(self.mj_model.jnt_dofadr[joint_idx])
             self.act_adrs.append(actuator_names_mujoco.index(name))
         
-        if "floating_base_joint" in joint_names_mujoco:
-            root_joint_idx = joint_names_mujoco.index("floating_base_joint")
-        elif "pelvis_root" in joint_names_mujoco:
-            root_joint_idx = joint_names_mujoco.index("pelvis_root")
-        else:
+        root_joint_idx = None
+        for root_joint_name in self.robot_cfg.root_joint_names:
+            if root_joint_name in joint_names_mujoco:
+                root_joint_idx = joint_names_mujoco.index(root_joint_name)
+                break
+        if root_joint_idx is None:
             raise ValueError("No root joint found in the MuJoCo model.")
         self.root_qpos_adr = self.mj_model.jnt_qposadr[root_joint_idx]
         self.root_qvel_adr = self.mj_model.jnt_dofadr[root_joint_idx]
 
-        joint_effort_limit_dict = self.robot_config["joint_effort_limit"]
+        joint_effort_limit_dict = self.robot_cfg.joint_effort_limit
         joint_indices, joint_names_matched, joint_effort_limit = (
             resolve_matching_names_values(
                 joint_effort_limit_dict,
@@ -153,7 +148,7 @@ class SimulationBridge:
                 logger.warning(f"Failed to decode low command message: {exc}")
                 continue
 
-            if low_cmd.q_target.size != len(G1_JOINT_NAMES):
+            if low_cmd.q_target.size != len(self.robot_cfg.joint_names):
                 logger.warning(
                     "Received low command with unexpected size {}",
                     low_cmd.q_target.size,
@@ -171,16 +166,16 @@ class SimulationBridge:
             self.has_received_command = True
 
     def publish_low_state(self):
-        if self.mj_data == None:
+        if self.mj_data is None:
             return
 
         joint_pos_partial = self.mj_data.qpos[self.qpos_adrs]
         joint_vel_partial = self.mj_data.qvel[self.qvel_adrs]
         joint_torque_partial = self.mj_data.actuator_force[self.act_adrs]
 
-        joint_pos_full = np.zeros(len(G1_JOINT_NAMES), dtype=np.float32)
-        joint_vel_full = np.zeros(len(G1_JOINT_NAMES), dtype=np.float32)
-        joint_tau_full = np.zeros(len(G1_JOINT_NAMES), dtype=np.float32)
+        joint_pos_full = np.zeros(len(self.robot_cfg.joint_names), dtype=np.float32)
+        joint_vel_full = np.zeros(len(self.robot_cfg.joint_names), dtype=np.float32)
+        joint_tau_full = np.zeros(len(self.robot_cfg.joint_names), dtype=np.float32)
         for mjc_idx, unitree_idx in enumerate(self.joint_indices_unitree):
             joint_pos_full[unitree_idx] = joint_pos_partial[mjc_idx]
             joint_vel_full[unitree_idx] = joint_vel_partial[mjc_idx]
