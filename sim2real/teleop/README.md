@@ -37,9 +37,7 @@ On onboard Orin, start with `bash /opt/apps/roboticsservice/runService.sh`.
 
 ### 3. xrobotoolkit_sdk
 
-GMR is installed by `uv --project venv/teleop sync`; do not clone it manually.
-
-Clone:
+#### Clone
 
 ```bash
 mkdir -p external
@@ -47,11 +45,11 @@ git clone https://github.com/YanjieZe/XRoboToolkit-PC-Service-Pybind.git \
   external/XRoboToolkit-PC-Service-Pybind
 git clone https://github.com/XR-Robotics/XRoboToolkit-PC-Service.git \
   external/XRoboToolkit-PC-Service
-mkdir -p external/XRoboToolkit-PC-Service-Pybind/include
-mkdir -p external/XRoboToolkit-PC-Service-Pybind/lib
 ```
 
-On onboard Orin, switch the SDK repo to `orin`:
+##### Additionnal steps for onboard Orin
+
+Switch the SDK repo to `orin`:
 
 ```bash
 (cd external/XRoboToolkit-PC-Service && git checkout orin)
@@ -72,10 +70,15 @@ mv "$sdk_grpc" "$sdk_grpc.upstream"
 cp -a "$local_grpc" "$sdk_grpc"
 ```
 
-Build and copy for `amd64` / `x86_64`:
+##### Build and copy
+
+For `amd64` / `x86_64`:
 
 ```bash
 (cd external/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK && bash build.sh)
+
+mkdir -p external/XRoboToolkit-PC-Service-Pybind/include
+mkdir -p external/XRoboToolkit-PC-Service-Pybind/lib
 
 cp external/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/PXREARobotSDK.h \
   external/XRoboToolkit-PC-Service-Pybind/include/
@@ -86,7 +89,7 @@ cp external/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/build/libPXREA
   external/XRoboToolkit-PC-Service-Pybind/lib/
 ```
 
-Build and copy for `aarch64` such as the G1 onboard Orin or an SSH session into that machine:
+For `aarch64`:
 
 ```bash
 (cd external/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK && bash build.sh)
@@ -121,7 +124,7 @@ ls -l external/XRoboToolkit-PC-Service-Pybind/lib/aarch64/libPXREARobotSDK.so
 ldd external/XRoboToolkit-PC-Service-Pybind/lib/aarch64/libPXREARobotSDK.so
 ```
 
-Install python package:
+##### Install python package
 
 ```bash
 export pybind11_DIR=$(uv --project venv/teleop run python -c "import pybind11; print(pybind11.get_cmake_dir())")
@@ -137,8 +140,6 @@ uv --project venv/teleop pip install --python venv/teleop/.venv/bin/python -e ex
 4. Enable whole-body streaming.
 
 ### 5. validate your setup
-
-These validation commands use `venv/teleop`.
 
 Import check:
 
