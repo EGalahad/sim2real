@@ -1,24 +1,17 @@
 import mujoco
 import mujoco.viewer
 import time
+from dataclasses import dataclass
 from threading import Thread
 import sched
 import os
 
+import tyro
 from sim2real.config.robots import get_robot_cfg
 from sim2real.config.robots.base import RobotCfg
+from sim2real.sim_env.utils.mjcf import load_sim_model
 from sim2real.sim_env.utils.bridge import SimulationBridge
 from sim2real.sim_env.utils.elastic_band import ElasticBand
-from sim2real.teleop.mujoco_viewer_utils import temp_mjcf_with_floor
-
-
-def _parse_bool_arg(value: str) -> bool:
-    normalized = str(value).strip().lower()
-    if normalized in {"true", "1", "yes", "y", "on"}:
-        return True
-    if normalized in {"false", "0", "no", "n", "off"}:
-        return False
-    raise ValueError(f"Invalid boolean value: {value}")
 
 
 class BaseSimulator:
@@ -27,10 +20,12 @@ class BaseSimulator:
         robot_cfg: RobotCfg,
         *,
         sim_dt: float = 0.005,
+        decimation: int = 4,
         enable_elastic_band: bool = True,
     ):
         self.robot_cfg = robot_cfg
         self.sim_dt = float(sim_dt)
+        self.decimation = int(decimation)
         self.enable_elastic_band = bool(enable_elastic_band)
 
         self.init_scene()
@@ -66,11 +61,7 @@ class BaseSimulator:
         pass
     
     def init_scene(self):
-        robot_scene = self.robot_cfg.sim_mjcf_path
-        if robot_scene is None:
-            raise ValueError(f"Robot '{self.robot_cfg.name}' does not define sim_mjcf_path")
-        with temp_mjcf_with_floor(robot_scene) as viewer_mjcf_path:
-            self.mj_model = mujoco.MjModel.from_xml_path(str(viewer_mjcf_path))
+        self.mj_model = load_sim_model(self.robot_cfg)
         self.mj_data = mujoco.MjData(self.mj_model)
         self.mj_model.opt.timestep = self.sim_dt
         # Enable the elastic band
@@ -135,7 +126,8 @@ class BaseSimulator:
             next_run_time += self.sim_dt
             sim_cnt += 1
 
-            self.viewer.sync()
+            if sim_cnt % self.decimation == 0:
+                self.viewer.sync()
         
             # Get FPS
             if sim_cnt % 100 == 0:
@@ -151,27 +143,23 @@ class BaseSimulator:
             print(f"Sim step took {elapsed:.6f} seconds, expected {self.sim_dt}")
 
 
-if __name__ == "__main__":
-    import argparse
+@dataclass
+class Args:
+    """Robot."""
 
-    parser = argparse.ArgumentParser(description="Robot")
-    parser.add_argument(
-        "--robot", type=str, default="g1", help="robot name"
-    )
-    parser.add_argument(
-        "--sim_dt", type=float, default=0.005, help="simulation timestep in seconds"
-    )
-    parser.add_argument(
-        "--enable_elastic_band",
-        type=_parse_bool_arg,
-        default=True,
-        help="enable the elastic band in simulation (true/false)",
-    )
-    args = parser.parse_args()
+    robot: str = "g1"
+    sim_dt: float = 0.005
+    decimation: int = 4
+    enable_elastic_band: bool = True
+
+
+if __name__ == "__main__":
+    args = tyro.cli(Args)
 
     simulation = BaseSimulator(
         get_robot_cfg(args.robot),
         sim_dt=args.sim_dt,
+        decimation=args.decimation,
         enable_elastic_band=args.enable_elastic_band,
     )
     simulation.sim_thread.start()

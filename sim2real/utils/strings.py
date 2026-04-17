@@ -1,12 +1,12 @@
 import re
-from typing import Any, Sequence
+from typing import Any, Dict, Sequence, Tuple, List, Union
 
 def resolve_matching_names_values(
-    data: dict[str, Any],
+    data: Dict[str, Any],
     list_of_strings: Sequence[str],
     preserve_order: bool = False,
     strict: bool = True,
-) -> tuple[list[int], list[str], list[Any]]:
+) -> Tuple[List[int], List[str], List[Any]]:
     """Match a list of regular expressions in a dictionary against a list of strings and return
     the matched indices, names, and values.
 
@@ -102,8 +102,8 @@ def resolve_matching_names_values(
 
 
 def resolve_matching_names(
-    keys: str | Sequence[str], list_of_strings: Sequence[str], preserve_order: bool = False
-) -> tuple[list[int], list[str]]:
+    keys: Union[str, Sequence[str]], list_of_strings: Sequence[str], preserve_order: bool = False
+) -> Tuple[List[int], List[str]]:
     """Match a list of query regular expressions against a list of strings and return the matched indices and names.
 
     When a list of query regular expressions is provided, the function checks each target string against each

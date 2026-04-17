@@ -4,6 +4,8 @@ Common ZMQ communication configuration for motion data visualization.
 Defines ports and message formats for body poses and joint states.
 """
 
+from __future__ import annotations
+
 UNITREE_LEGGED_CONST = dict(
   HIGHLEVEL = 0xEE,
   LOWLEVEL = 0xFF,
@@ -45,7 +47,58 @@ PORTS = {
     "stair_pose": 5572,
     "low_state": 5590,
     "low_cmd": 5591,
+    "pico_controller": 5592,
 }
+
+
+_PICO_CONTROLLER_STATE_STRUCT = struct.Struct('<QBBBB')
+
+
+class PicoControllerStateMessage:
+    """Binary message containing PICO controller button states."""
+
+    def __init__(
+        self,
+        timestamp_ns: int = 0,
+        A: bool = False,
+        B: bool = False,
+        X: bool = False,
+        Y: bool = False,
+    ):
+        self.timestamp_ns = int(timestamp_ns)
+        self.A = bool(A)
+        self.B = bool(B)
+        self.X = bool(X)
+        self.Y = bool(Y)
+
+    def to_bytes(self) -> bytes:
+        if self.timestamp_ns < 0:
+            raise ValueError("PicoControllerStateMessage timestamp_ns must be non-negative")
+        return _PICO_CONTROLLER_STATE_STRUCT.pack(
+            self.timestamp_ns,
+            int(self.A),
+            int(self.B),
+            int(self.X),
+            int(self.Y),
+        )
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> 'PicoControllerStateMessage':
+        expected_size = _PICO_CONTROLLER_STATE_STRUCT.size
+        if len(data) != expected_size:
+            raise ValueError(
+                "PicoControllerStateMessage data has invalid size: "
+                f"expected {expected_size} bytes, got {len(data)}"
+            )
+
+        timestamp_ns, a, b, x, y = _PICO_CONTROLLER_STATE_STRUCT.unpack(data)
+        return cls(
+            timestamp_ns=timestamp_ns,
+            A=bool(a),
+            B=bool(b),
+            X=bool(x),
+            Y=bool(y),
+        )
 
 class PoseMessage:
     """Message format for body pose (position + quaternion)"""

@@ -12,11 +12,12 @@ Features:
 """
 
 import numpy as np
-import argparse
 import os
+from dataclasses import dataclass
 from datetime import datetime
 from scipy.spatial.transform import Rotation
 from scipy.ndimage import gaussian_filter1d
+import tyro
 
 
 def weighted_quaternion_mean(quats, weights):
@@ -253,19 +254,18 @@ def process_qpos_data(qpos_data, timestamps, pos_sigma=1.0, quat_sigma=1.0, join
     return smoothed_qpos, qvel
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Process qpos data with smoothing and velocity calculation")
-    parser.add_argument("input_npz", type=str, help="Path to input npz file containing qpos data")
-    parser.add_argument("--output", "-o", type=str, default=None, 
-                       help="Output npz file path (default: adds '_processed' to input filename)")
-    parser.add_argument("--pos_sigma", type=float, default=0.0,
-                       help="Smoothing sigma (seconds) for pelvis position (0:3) (default: 0.0)")
-    parser.add_argument("--quat_sigma", type=float, default=0.0,
-                       help="Smoothing sigma (seconds) for pelvis quaternion (3:7) (default: 0.0)")
-    parser.add_argument("--joint_sigma", type=float, default=0.0,
-                       help="Smoothing sigma (seconds) for joint angles (7:nq) (default: 0.0)")
+@dataclass
+class Args:
+    """Process qpos data with smoothing and velocity calculation."""
 
-    args = parser.parse_args()
+    input_npz: str
+    output: str | None = None
+    pos_sigma: float = 0.0
+    quat_sigma: float = 0.0
+    joint_sigma: float = 0.0
+
+
+def main(args: Args) -> int:
     
     # Check if input file exists
     if not os.path.exists(args.input_npz):
@@ -353,4 +353,4 @@ def main():
 
 
 if __name__ == "__main__":
-    exit(main())
+    raise SystemExit(main(tyro.cli(Args)))

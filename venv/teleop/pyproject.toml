@@ -1,0 +1,35 @@
+[project]
+name = "hdmi-sim2real-teleop"
+version = "0.1.0"
+description = "Orin/PC teleop uv environment for HDMI sim2real"
+requires-python = "==3.10.*"
+dependencies = [
+    "mujoco",
+    "mjhub @ git+https://github.com/EGalahad/mjhub.git@main",
+    "loguru",
+    "pyyaml",
+    "scipy",
+    "pyzmq",
+    "tqdm",
+    "tyro",
+    # "viser>=1.0.24",
+    "general_motion_retargeting @ git+https://github.com/EGalahad/GMR.git@codex/add-pyproject-toml",
+    "loop-rate-limiters",
+    "pybind11",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["../.."]
+include = [
+    "sim2real",
+    "sim2real.teleop*",
+    "sim2real.config*",
+    "sim2real.utils*",
+]
+
+[tool.uv]
+package = true

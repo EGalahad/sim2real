@@ -2,14 +2,63 @@ import numpy as np
 import json
 import mujoco
 from pathlib import Path
-from typing import List, Dict
-from scipy.spatial.transform import Rotation as sRot, Slerp
+from typing import List, Dict, Tuple
 from tqdm import tqdm
 from sim2real.config.robots.base import RobotCfg
 from sim2real.utils.strings import resolve_matching_names
 
+try:
+    from mjhub import resolve_asset_reference
+except ImportError:
+    from mjhub import resolve_mjcf_reference as resolve_asset_reference
+
 
 ANY4HDMI_MANIFEST_NAME = "manifest.json"
+
+
+def _normalize_quat_batch(quat_wxyz: np.ndarray, eps: float = 1e-12) -> np.ndarray:
+    denom = np.linalg.norm(quat_wxyz, axis=-1, keepdims=True)
+    denom = np.clip(denom, eps, None)
+    return quat_wxyz / denom
+
+
+def _quat_slerp_batch(
+    q0_wxyz: np.ndarray,
+    q1_wxyz: np.ndarray,
+    alpha,
+    *,
+    normalize_inputs: bool = True,
+    eps: float = 1e-12,
+) -> np.ndarray:
+    q0 = np.asarray(q0_wxyz)
+    q1 = np.asarray(q1_wxyz)
+    if normalize_inputs:
+        q0 = _normalize_quat_batch(q0, eps=eps)
+        q1 = _normalize_quat_batch(q1, eps=eps)
+
+    dot = np.sum(q0 * q1, axis=-1, keepdims=True)
+    flip_mask = dot < 0.0
+    q1 = np.where(flip_mask, -q1, q1)
+    dot = np.where(flip_mask, -dot, dot)
+    dot = np.clip(dot, -1.0, 1.0)
+
+    alpha_arr = np.asarray(alpha, dtype=q0.dtype)
+    while alpha_arr.ndim < dot.ndim:
+        alpha_arr = np.expand_dims(alpha_arr, axis=-1)
+
+    theta_0 = np.arccos(dot)
+    sin_theta_0 = np.sin(theta_0)
+    theta = theta_0 * alpha_arr
+
+    safe_denom = np.where(sin_theta_0 > eps, sin_theta_0, 1.0)
+    s0 = np.sin(theta_0 - theta) / safe_denom
+    s1 = np.sin(theta) / safe_denom
+    slerp_out = s0 * q0 + s1 * q1
+
+    nlerp_out = (1.0 - alpha_arr) * q0 + alpha_arr * q1
+    out = np.where(dot > 0.9995, nlerp_out, slerp_out)
+    return _normalize_quat_batch(out, eps=eps)
+
 
 def lerp(ts_target, ts_source, x):
     """Linear interpolation for arrays"""
@@ -26,15 +75,27 @@ def slerp(ts_target, ts_source, quat):
     steps_target = ts_target.shape[0]
     steps_source = ts_source.shape[0]
 
-    quat = quat.reshape(steps_source, -1, quat_dim)
+    quat = np.asarray(quat, dtype=np.float64).reshape(steps_source, -1, quat_dim)
+    ts_source = np.asarray(ts_source, dtype=np.float64)
+    ts_target = np.asarray(ts_target, dtype=np.float64)
 
-    batch_size = int(np.prod(batch_shape, initial=1))
-    out = np.empty((steps_target, batch_size, quat_dim))
-    for i in range(batch_size):
-        s = Slerp(ts_source, sRot.from_quat(quat[:, i, [1, 2, 3, 0]]))  # quat first to quat last
-        out[:, i, :] = s(ts_target).as_quat()[..., [3, 0, 1, 2]]  # quat last to quat first
-    out = out.reshape(steps_target, *batch_shape, quat_dim)
-    return out
+    if steps_source == 0:
+        raise ValueError("Cannot interpolate empty quaternion sequence")
+    if steps_source == 1:
+        out = np.broadcast_to(quat[:1], (steps_target, *quat[:1].shape[1:])).copy()
+        return out.reshape(steps_target, *batch_shape, quat_dim)
+
+    right_idx = np.searchsorted(ts_source, ts_target, side="left")
+    right_idx = np.clip(right_idx, 1, steps_source - 1)
+    left_idx = right_idx - 1
+
+    t_left = ts_source[left_idx]
+    t_right = ts_source[right_idx]
+    denom = np.where(t_right > t_left, t_right - t_left, 1.0)
+    alpha = ((ts_target - t_left) / denom).astype(np.float64, copy=False)
+
+    out = _quat_slerp_batch(quat[left_idx], quat[right_idx], alpha)
+    return out.reshape(steps_target, *batch_shape, quat_dim)
 
 def interpolate(motion: Dict[str, np.ndarray], source_fps: int, target_fps: int) -> Dict[str, np.ndarray]:
     """Interpolate motion data to target fps"""
@@ -241,7 +302,7 @@ class MotionDataset:
         return resolve_matching_names(body_names, self.body_names, preserve_order)
 
 
-def _find_any4hdmi_root(path: Path) -> Path | None:
+def _find_any4hdmi_root(path: Path) -> Path:
     current = path if path.is_dir() else path.parent
     for candidate in (current, *current.parents):
         if (candidate / ANY4HDMI_MANIFEST_NAME).is_file():
@@ -249,7 +310,7 @@ def _find_any4hdmi_root(path: Path) -> Path | None:
     return None
 
 
-def _resolve_any4hdmi_motion_paths(path: Path) -> tuple[Path, dict, list[Path]]:
+def _resolve_any4hdmi_motion_paths(path: Path) -> Tuple[Path, dict, List[Path]]:
     dataset_root = _find_any4hdmi_root(path)
     if dataset_root is None:
         raise RuntimeError(f"Could not find {ANY4HDMI_MANIFEST_NAME} above {path}")
@@ -270,29 +331,13 @@ def _resolve_any4hdmi_motion_paths(path: Path) -> tuple[Path, dict, list[Path]]:
 
 def _resolve_any4hdmi_mjcf_path(dataset_root: Path, manifest: dict) -> Path:
     mjcf_ref = manifest.get("mjcf")
-    if isinstance(mjcf_ref, dict):
-        if mjcf_ref.get("kind") != "huggingface":
-            raise ValueError(f"Unsupported any4hdmi mjcf kind: {mjcf_ref.get('kind')!r}")
-        try:
-            from huggingface_hub import snapshot_download
-        except ImportError as exc:
-            raise ImportError(
-                "Resolving any4hdmi Hugging Face MJCF references requires "
-                "`huggingface-hub` to be installed."
-            ) from exc
+    if mjcf_ref is not None:
+        return resolve_asset_reference(mjcf_ref, local_root=dataset_root)
 
-        repo_id = str(mjcf_ref["repo_id"])
-        repo_path = str(mjcf_ref["path"])
-        revision = str(mjcf_ref.get("revision", "main"))
-        snapshot_root = Path(snapshot_download(repo_id=repo_id, revision=revision))
-        mjcf_path = snapshot_root / repo_path
-    elif mjcf_ref is not None:
-        mjcf_path = (dataset_root / Path(mjcf_ref)).resolve()
-    else:
-        mjcf_path_raw = manifest.get("mjcf_path")
-        if mjcf_path_raw is None:
-            raise KeyError(f"{ANY4HDMI_MANIFEST_NAME} is missing mjcf or mjcf_path")
-        mjcf_path = Path(mjcf_path_raw).expanduser().resolve()
+    mjcf_path_raw = manifest.get("mjcf_path")
+    if mjcf_path_raw is None:
+        raise KeyError(f"{ANY4HDMI_MANIFEST_NAME} is missing mjcf or mjcf_path")
+    mjcf_path = Path(mjcf_path_raw).expanduser().resolve()
     if not mjcf_path.is_file():
         raise FileNotFoundError(f"MJCF not found: {mjcf_path}")
     return mjcf_path
@@ -314,14 +359,14 @@ def _compute_qvel(model: mujoco.MjModel, qpos: np.ndarray, fps: float) -> np.nda
     return qvel
 
 
-def _body_names_from_model(model: mujoco.MjModel) -> list[str]:
+def _body_names_from_model(model: mujoco.MjModel) -> List[str]:
     return [
         mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, body_id)
         for body_id in range(model.nbody)
     ]
 
 
-def _hinge_joint_info(model: mujoco.MjModel) -> tuple[list[str], np.ndarray, np.ndarray]:
+def _hinge_joint_info(model: mujoco.MjModel) -> Tuple[List[str], np.ndarray, np.ndarray]:
     joint_names: list[str] = []
     joint_qpos_addrs: list[int] = []
     joint_dof_addrs: list[int] = []
@@ -379,9 +424,9 @@ def _load_any4hdmi_motions(
     *,
     dataset_root: Path,
     manifest: dict,
-    motion_paths: list[Path],
+    motion_paths: List[Path],
     target_fps: int,
-) -> tuple[dict, list[Dict[str, np.ndarray]]]:
+) -> Tuple[dict, List[Dict[str, np.ndarray]]]:
     mjcf_path = _resolve_any4hdmi_mjcf_path(dataset_root, manifest)
     model = mujoco.MjModel.from_xml_path(str(mjcf_path))
     data = mujoco.MjData(model)

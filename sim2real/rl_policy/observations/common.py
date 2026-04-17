@@ -1,7 +1,7 @@
 from .base import Observation
 
 import numpy as np
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Sequence, Tuple, Union
 from sim2real.utils.math import quat_rotate_inverse_numpy
 from sim2real.utils.strings import resolve_matching_names
 
@@ -21,7 +21,7 @@ def sort_names_by_preferred_order(
     return ordered_names
 
 
-def _get_simulation_joint_selection(env, joint_names: str | List[str]):
+def _get_simulation_joint_selection(env, joint_names: Union[str, List[str]]) -> Tuple[List[int], List[str]]:
     _, matched_joint_names = resolve_matching_names(
         joint_names,
         env.state_processor.joint_names,
@@ -74,7 +74,7 @@ class projected_gravity_history(Observation):
         return self.projected_gravity_history[self.history_steps].reshape(-1)
 
 class joint_pos_history(Observation):
-    def __init__(self, history_steps: int, joint_names: str | List[str] = ".*", **kwargs):
+    def __init__(self, history_steps: int, joint_names: Union[str, List[str]] = ".*", **kwargs):
         super().__init__(**kwargs)
         self.history_steps = history_steps
         buffer_size = max(history_steps) + 1
@@ -93,7 +93,7 @@ class joint_pos_history(Observation):
         return self.joint_pos_multistep[self.history_steps].reshape(-1)
 
 class joint_vel_history(Observation):
-    def __init__(self, history_steps: int, joint_names: str | List[str] = ".*", **kwargs):
+    def __init__(self, history_steps: int, joint_names: Union[str, List[str]] = ".*", **kwargs):
         super().__init__(**kwargs)
         self.history_steps = history_steps
         buffer_size = max(history_steps) + 1

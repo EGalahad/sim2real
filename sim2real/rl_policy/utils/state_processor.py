@@ -108,7 +108,6 @@ class StateProcessor:
                 robot_cfg=self.robot_cfg,
                 future_steps=self.motion_future_steps,
                 motion_zmq_connect=self.motion_config.get("motion_zmq_connect", "tcp://127.0.0.1:28701"),
-                motion_zmq_topic=self.motion_config.get("motion_zmq_topic", ""),
                 motion_zmq_hwm=int(self.motion_config.get("motion_zmq_hwm", 1)),
                 dt_s=float(self.motion_config.get("motion_dt_s", 0.02)),
                 tolerance_s=float(self.motion_config.get("motion_tolerance_s", 0.04)),
@@ -129,7 +128,7 @@ class StateProcessor:
         elif self.motion_backend == "zmq":
             self.motion_data = self.motion_buffer.get_obs()
 
-    def register_subscriber(self, object_name: str, port: int | None = None):
+    def register_subscriber(self, object_name: str, port: Optional[int] = None):
         if object_name in self.mocap_subscribers:
             return
 

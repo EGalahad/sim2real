@@ -1,42 +1,45 @@
 [project]
 name = "hdmi-sim2real"
 version = "0.1.0"
-description = "Sim-to-sim and sim-to-real code for HDMI humanoid control"
+description = "HDMI sim2real development"
 readme = "README.md"
 authors = [{ name = "HDMI Contributors" }]
-requires-python = ">=3.10,<3.13"
+requires-python = "==3.10.*"
 dependencies = [
-    "huggingface-hub",
     "mujoco",
+    "mjhub @ git+https://github.com/EGalahad/mjhub.git@main",
     "loguru",
     "pyyaml",
     "scipy",
     "torch",
-    "onnxruntime-gpu",
+    "onnxruntime",
     "onnx==1.17.0",
-    "termcolor",
     "sshkeyboard",
-    "zmq",
+    "pyzmq",
     "tqdm",
-    # "pyvicon-datastream",
-    "unitree-sdk2py",
-    "viser>=1.0.24",
+    "tyro",
+    "unitree-sdk2py @ git+https://github.com/EGalahad/unitree_sdk2_python.git",
 ]
 
-[dependency-groups]
-dev = [
-    "mypy>=1.18",
-]
+# [project.optional-dependencies]
+# tensorrt = [
+    # "tensorrt ; sys_platform == 'linux' and platform_machine == 'x86_64'",
+# ]
 
-[project.urls]
-Homepage = "https://hdmi-humanoid.github.io/"
-Repository = "https://github.com/EGalahad/sim2real"
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["sim2real*"]
 
 [tool.uv]
 package = true
 
-[tool.uv.sources]
-unitree-sdk2py = { git = "https://github.com/EGalahad/unitree_sdk2_python.git" }
+[[tool.uv.index]]
+name = "nvidia-pypi"
+url = "https://pypi.nvidia.com/"
+explicit = true
 
-[tool.setuptools.packages.find]
-include = ["sim2real*"]
+[tool.uv.sources]
+tensorrt = { index = "nvidia-pypi" }

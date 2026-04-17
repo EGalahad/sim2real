@@ -3,15 +3,17 @@
 import numpy as np
 import time
 import threading
-import argparse
 import sched
+from dataclasses import dataclass
+
+import tyro
 
 from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowState_ as LowState_go
 from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowState_ as LowState_hg
 from unitree_sdk2py.core.channel import ChannelSubscriber, ChannelFactoryInitialize
 
 from sim2real.config.robots import get_robot_cfg
-from sim2real.config.robots.base import RobotCfg
+from sim2real.config.robots.base import RobotCfg, get_unitree_dds_family
 from sim2real.utils.common import ZMQPublisher, PORTS
 
 class JointStatePublisher:
@@ -27,15 +29,16 @@ class JointStatePublisher:
             ChannelFactoryInitialize(self.robot_cfg.domain_id)
 
         # Initialize channel subscriber
-        robot_type = self.robot_cfg.robot_type
-        if robot_type == "h1" or robot_type == "go2":
+        robot_name = self.robot_cfg.name
+        dds_family = get_unitree_dds_family(robot_name)
+        if dds_family == "go":
             self.robot_lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_go)
             self.robot_lowstate_subscriber.Init(self.LowStateHandler_go, 1)
-        elif robot_type == "g1_29dof" or robot_type == "h1-2_27dof" or robot_type == "h1-2_21dof" or robot_type == "g1_real":
+        elif dds_family == "hg":
             self.robot_lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_hg)
             self.robot_lowstate_subscriber.Init(self.LowStateHandler_hg, 1)
         else:
-            raise NotImplementedError(f"Robot type {robot_type} is not supported")
+            raise NotImplementedError(f"Robot name {robot_name} is not supported")
 
         # Initialize joint mapping
         self.num_dof = len(dest_joint_names)
@@ -123,12 +126,15 @@ class JointStatePublisher:
     def LowStateHandler_hg(self, msg: LowState_hg):
         self.robot_low_state = msg
 
-def main():
-    parser = argparse.ArgumentParser(description="Joint State ZMQ Publisher")
-    parser.add_argument("--robot", type=str, default="g1", help="Robot name")
-    parser.add_argument("--freq", type=int, default=50, help="Publishing frequency")
-    
-    args = parser.parse_args()
+@dataclass
+class Args:
+    """Joint State ZMQ Publisher."""
+
+    robot: str = "g1"
+    freq: int = 50
+
+
+def main(args: Args) -> None:
     robot_cfg = get_robot_cfg(args.robot)
     dest_joint_names = list(robot_cfg.joint_names)
     
@@ -148,4 +154,4 @@ def main():
         publisher.publisher.close()
 
 if __name__ == "__main__":
-    main() 
+    main(tyro.cli(Args))

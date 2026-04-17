@@ -30,6 +30,53 @@ def yaw_quat(quat: np.ndarray) -> np.ndarray:
     return quat_yaw.reshape(shape)
 
 
+def quat_from_yaw(yaw: np.ndarray) -> np.ndarray:
+    """Build quaternions in (w, x, y, z) from yaw angles."""
+    yaw = np.asarray(yaw)
+    shape = yaw.shape
+    yaw = yaw.reshape(-1)
+    quat = np.zeros((yaw.shape[0], 4), dtype=yaw.dtype)
+    quat[:, 0] = np.cos(yaw / 2.0)
+    quat[:, 3] = np.sin(yaw / 2.0)
+    return quat.reshape(shape + (4,))
+
+
+def projected_yaw_quat(
+    quat: np.ndarray,
+    x_axis_xy_threshold: float = 0.1,
+) -> np.ndarray:
+    """Build a level yaw quaternion from horizontal axis projections.
+
+    This matches the HDMI tracking convention:
+    1. use the projected body x-axis when it has enough horizontal component;
+    2. otherwise fall back to the projected z-axis with a sign adjustment.
+    """
+    shape = quat.shape
+    quat_flat = quat.reshape(-1, 4)
+
+    basis_x = np.zeros((quat_flat.shape[0], 3), dtype=quat.dtype)
+    basis_x[:, 0] = 1.0
+    basis_z = np.zeros_like(basis_x)
+    basis_z[:, 2] = 1.0
+
+    x_axis_w = quat_rotate_numpy(quat_flat, basis_x)
+    z_axis_w = quat_rotate_numpy(quat_flat, basis_z)
+
+    x_axis_xy = x_axis_w[:, :2]
+    z_axis_xy = z_axis_w[:, :2]
+    x_axis_xy_norm = np.linalg.norm(x_axis_xy, axis=-1, keepdims=True)
+
+    z_axis_heading_xy = np.where(x_axis_w[:, 2:3] < 0.0, z_axis_xy, -z_axis_xy)
+    heading_xy = np.where(
+        x_axis_xy_norm > x_axis_xy_threshold,
+        x_axis_xy,
+        z_axis_heading_xy,
+    )
+
+    yaw = np.arctan2(heading_xy[:, 1], heading_xy[:, 0])
+    return quat_from_yaw(yaw).reshape(shape)
+
+
 def quat_rotate_inverse_numpy(q: np.ndarray, v: np.ndarray) -> np.ndarray:
     shape = v.shape
     assert q.shape[:-1] == v.shape[:-1], "q and v must have the same batch size"
@@ -164,4 +211,3 @@ def quat_conjugate(q: np.ndarray) -> np.ndarray:
     shape = q.shape
     q = q.reshape(-1, 4)
     return np.concatenate((q[:, 0:1], -q[:, 1:]), axis=-1).reshape(shape)
-

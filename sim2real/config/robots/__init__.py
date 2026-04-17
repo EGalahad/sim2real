@@ -1,8 +1,9 @@
 from sim2real.config.robots.base import RobotCfg
 from sim2real.config.robots.g1 import G1_CFG
+from typing import Dict
 
 
-_ROBOT_CFGS: dict[str, RobotCfg] = {
+_ROBOT_CFGS: Dict[str, RobotCfg] = {
     G1_CFG.name: G1_CFG,
 }
 

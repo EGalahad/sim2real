@@ -8,8 +8,6 @@ from sim2real.utils.strings import resolve_matching_names_values
 
 class ActionManager:
     def __init__(self, robot_cfg: RobotCfg, policy_config):
-        # init robot and kp kd
-        self._kp_level = 1.0  # 0.1
         self.robot_cfg = robot_cfg
 
         self.policy_config = policy_config
@@ -20,9 +18,8 @@ class ActionManager:
             preserve_order=True,
             strict=False,
         )
-        self.joint_kp_unitree_default = np.zeros(len(self.robot_cfg.joint_names))
-        self.joint_kp_unitree_default[joint_indices] = joint_kp
-        self.joint_kp_unitree = self.joint_kp_unitree_default.copy()
+        self.joint_kp_unitree = np.zeros(len(self.robot_cfg.joint_names))
+        self.joint_kp_unitree[joint_indices] = joint_kp
 
         joint_kd_dict = self.policy_config["joint_kd"]
         joint_indices, joint_names, joint_kd = resolve_matching_names_values(
@@ -63,15 +60,6 @@ class ActionManager:
         self.lowcmd_socket.bind(bind_endpoint)
 
         self.InitLowCmd()
-
-    @property
-    def kp_level(self):
-        return self._kp_level
-
-    @kp_level.setter
-    def kp_level(self, value):
-        self._kp_level = value
-        self.joint_kp_unitree[:] = self.joint_kp_unitree_default * self._kp_level
 
     def InitLowCmd(self):
         self.cmd_q = np.zeros(len(self.robot_cfg.joint_names))
