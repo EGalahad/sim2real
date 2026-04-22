@@ -3,6 +3,8 @@
 root project 负责 inference、tracking policy，以及 MuJoCo 的 sim / sim2real runtime。Pico / XR teleoperation 工具请使用 `venv/teleop`。
 
 English version: [README.md](./README.md)
+Full documentation: [https://egalahad.github.io/sim2real/](https://egalahad.github.io/sim2real/)
+如果你在找 HDMI 的 deployment stack，请看 [hdmi tag](https://github.com/EGalahad/sim2real/tree/hdmi)。
 
 ## Quick Start
 
