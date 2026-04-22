@@ -18,7 +18,7 @@ In a second terminal, start the tracking policy:
 ```bash
 uv run sim2real/rl_policy/tracking.py \
   --robot g1 \
-  --policy_config checkpoints/lafan-aa/policy-33e770c9_lafan_finetune-final.yaml
+  --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
 ```
 
 Process roles:
@@ -41,7 +41,7 @@ In a second terminal, run the same tracking policy:
 ```bash
 uv run sim2real/rl_policy/tracking.py \
   --robot g1 \
-  --policy_config checkpoints/lafan-aa/policy-33e770c9_lafan_finetune-final.yaml
+  --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
 ```
 
 Process roles:

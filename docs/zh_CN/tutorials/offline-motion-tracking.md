@@ -17,7 +17,7 @@ uv run sim2real/sim_env/base_sim.py --robot g1
 ```bash
 uv run sim2real/rl_policy/tracking.py \
   --robot g1 \
-  --policy_config checkpoints/lafan-aa/policy-33e770c9_lafan_finetune-final.yaml
+  --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
 ```
 
 两个进程各自负责：
@@ -40,7 +40,7 @@ uv run scripts/real_bridge.py
 ```bash
 uv run sim2real/rl_policy/tracking.py \
   --robot g1 \
-  --policy_config checkpoints/lafan-aa/policy-33e770c9_lafan_finetune-final.yaml
+  --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
 ```
 
 两个进程各自负责：

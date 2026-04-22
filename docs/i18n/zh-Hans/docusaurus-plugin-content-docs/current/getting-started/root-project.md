@@ -43,7 +43,7 @@ uv run scripts/ankle_swing.py
 
 ```bash
 uv run scripts/test_policy_inference.py \
-  --policy_config checkpoints/lafan-aa/policy-33e770c9_lafan_finetune-final.yaml \
+  --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml \
   --inference_backend onnx-cpu
 ```
 

@@ -147,7 +147,7 @@ class BasePolicy:
             return self.joystick_controller
 
         if controller_type == "pico":
-            self.pico_controller = PicoController(connect=self.args.pico_controller_zmq_connect)
+            self.pico_controller = PicoController(connect=self.args.pico_zmq_connect)
             return self.pico_controller
 
         raise ValueError(f"Unsupported controller_type: {controller_type}")
@@ -401,7 +401,7 @@ class BasePolicyArgs:
     rl_rate: float = 50.0
     inference_backend: Literal["onnx-gpu", "onnx-cpu", "tensorrt"] = "tensorrt"
     controller: Literal["keyboard", "joystick", "pico"] = "keyboard"
-    pico_controller_zmq_connect: str = f"tcp://127.0.0.1:{PORTS['pico_controller']}"
+    pico_zmq_connect: str = f"tcp://127.0.0.1:{PORTS['pico_controller']}"
 
 if __name__ == "__main__":
     args = tyro.cli(BasePolicyArgs)
