@@ -1,7 +1,9 @@
 # sim2real
 
 Chinese version: [README_zh.md](./README_zh.md)
+
 Full documentation: [https://egalahad.github.io/sim2real/](https://egalahad.github.io/sim2real/)
+
 If you're looking for the HDMI deployment stack, go to [hdmi tag](https://github.com/EGalahad/sim2real/tree/hdmi).
 
 ## Quick Start
