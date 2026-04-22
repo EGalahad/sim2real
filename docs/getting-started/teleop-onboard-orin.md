@@ -11,13 +11,29 @@ Use this path when Pico / XR tooling runs directly on the G1 onboard Orin. The r
 uv --project venv/teleop sync
 ```
 
+Choose the setup path that matches the onboard Orin image:
+
+### JetPack 5
+
 Download the [JetPack 5 prebuilt package bundle](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e?usp=sharing) and extract it at the repo root so `prebuilt/` exists.
 
-### Install XRoboToolkit PC Service
+Install `XRoboToolkit PC Service` from the prebuilt bundle:
 
 ```bash
 sudo apt install -y \
   ./prebuilt/jetpack5-aarch64/xrobotservice/XRoboToolkit-PC-Service_1.0.0.0_arm64_ubuntu20.04.deb
+```
+
+### JetPack 6
+
+If the onboard Orin is already on JetPack 6, for example after flashing Sonic, do not download the JetPack 5 prebuilt bundle.
+
+Download the arm64 `.deb` for `XRoboToolkit PC Service` from:
+
+[https://github.com/XR-Robotics/XRoboToolkit-PC-Service/releases](https://github.com/XR-Robotics/XRoboToolkit-PC-Service/releases)
+
+```bash
+sudo apt install -y ./XRoboToolkit*.deb
 ```
 
 Start the service:
@@ -37,7 +53,9 @@ git clone https://github.com/XR-Robotics/XRoboToolkit-PC-Service.git \
 git -C external/XRoboToolkit-PC-Service checkout orin
 ```
 
-### Replace the upstream aarch64 gRPC package
+These repos are used to build `xrobotoolkit_sdk`. They are separate from the installable `XRoboToolkit PC Service` `.deb`.
+
+### JetPack 5 only: replace the upstream aarch64 gRPC package
 
 Build the JetPack 5 compatible package first by following [XRobot gRPC JetPack 5](/reference/xrobot-grpc-jetpack5), then replace the upstream directory:
 
@@ -49,6 +67,8 @@ rm -rf "$sdk_grpc.upstream"
 mv "$sdk_grpc" "$sdk_grpc.upstream"
 cp -a "$local_grpc" "$sdk_grpc"
 ```
+
+If the onboard Orin is on JetPack 6, skip this section and keep the upstream `linux_aarch64/grpc` directory.
 
 ### Build and install `xrobotoolkit_sdk`
 

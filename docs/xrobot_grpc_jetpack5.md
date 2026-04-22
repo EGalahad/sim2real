@@ -8,6 +8,9 @@ slug: /reference/xrobot-grpc-jetpack5
 This note builds JetPack 5 compatible gRPC dependencies for
 `XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK`.
 
+If the onboard Orin is already on JetPack 6, skip this entire guide and keep
+the upstream `Redistributable/linux_aarch64/grpc` package.
+
 ## Why
 
 The upstream `Redistributable/linux_aarch64/grpc` package can require newer
@@ -103,7 +106,8 @@ You can keep this extracted directory anywhere convenient; do not assume a
 
 ## Use The Prepared Package
 
-Run this on onboard Orin before building `PXREARobotSDK`.
+Run this on onboard Orin before building `PXREARobotSDK`, but only on
+JetPack 5.
 
 ```bash
 export xrobot_root=external/XRoboToolkit-PC-Service

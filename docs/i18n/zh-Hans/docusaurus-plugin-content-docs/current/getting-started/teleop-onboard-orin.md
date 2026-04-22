@@ -8,13 +8,29 @@
 uv --project venv/teleop sync
 ```
 
+根据 onboard Orin 上的 JetPack 版本选择对应路径：
+
+### JetPack 5
+
 先下载 [JetPack 5 预编译包](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e?usp=sharing) 并解压到 repo 根目录，保证 `prebuilt/` 存在。
 
-### 安装 XRoboToolkit PC Service
+`XRoboToolkit PC Service` 继续从预编译包里安装：
 
 ```bash
 sudo apt install -y \
   ./prebuilt/jetpack5-aarch64/xrobotservice/XRoboToolkit-PC-Service_1.0.0.0_arm64_ubuntu20.04.deb
+```
+
+### JetPack 6
+
+如果 onboard Orin 已经是 JetPack 6，比如刷过 Sonic，就不要再下载 JetPack 5 预编译包。
+
+从下面的 GitHub Releases 页面下载 arm64 `.deb`：
+
+[https://github.com/XR-Robotics/XRoboToolkit-PC-Service/releases](https://github.com/XR-Robotics/XRoboToolkit-PC-Service/releases)
+
+```bash
+sudo apt install -y ./XRoboToolkit*.deb
 ```
 
 启动服务：
@@ -34,7 +50,9 @@ git clone https://github.com/XR-Robotics/XRoboToolkit-PC-Service.git \
 git -C external/XRoboToolkit-PC-Service checkout orin
 ```
 
-### 替换上游 aarch64 gRPC 包
+这些仓库是给 `xrobotoolkit_sdk` 编译用的，和安装 `XRoboToolkit PC Service` 的 `.deb` 来源是两回事。
+
+### 仅 JetPack 5：替换上游 aarch64 gRPC 包
 
 先按 [XRobot gRPC JetPack 5](/reference/xrobot-grpc-jetpack5) 准备 JetPack 5 兼容包，再替换目录：
 
@@ -46,6 +64,8 @@ rm -rf "$sdk_grpc.upstream"
 mv "$sdk_grpc" "$sdk_grpc.upstream"
 cp -a "$local_grpc" "$sdk_grpc"
 ```
+
+如果 onboard Orin 是 JetPack 6，这一步直接跳过，保留上游自带的 `linux_aarch64/grpc` 目录。
 
 ### Build 并安装 `xrobotoolkit_sdk`
 
