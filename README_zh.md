@@ -27,9 +27,9 @@ uv run sim2real/rl_policy/tracking.py \
 
 ## 下一步
 
-- [文档首页](./docs/zh_CN/README.md)
-- [快速上手](./docs/zh_CN/getting-started/README.md)
-- [Root Project Setup](./docs/zh_CN/getting-started/root-project.md)
-- [离线动作跟踪教程](./docs/zh_CN/tutorials/offline-motion-tracking.md)
-- [Pico Teleoperation 教程](./docs/zh_CN/tutorials/pico-teleoperation.md)
-- [Motion Recording 教程](./docs/zh_CN/tutorials/motion-recording.md)
+- [文档首页](https://egalahad.github.io/sim2real/zh-Hans/)
+- [快速上手](https://egalahad.github.io/sim2real/zh-Hans/getting-started/overview)
+- [Root Project Setup](https://egalahad.github.io/sim2real/zh-Hans/getting-started/root-project)
+- [离线动作跟踪教程](https://egalahad.github.io/sim2real/zh-Hans/tutorials/offline-motion-tracking)
+- [Pico Teleoperation 教程](https://egalahad.github.io/sim2real/zh-Hans/tutorials/pico-teleoperation)
+- [Motion Recording 教程](https://egalahad.github.io/sim2real/zh-Hans/tutorials/motion-recording)

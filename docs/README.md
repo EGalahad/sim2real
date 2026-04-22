@@ -1,6 +1,6 @@
 # sim2real Docs
 
-Chinese version: [zh_CN/README.md](./zh_CN/README.md)
+Chinese docs: [https://egalahad.github.io/sim2real/zh-Hans/](https://egalahad.github.io/sim2real/zh-Hans/)
 
 ## Getting Started
 

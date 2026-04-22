@@ -1,6 +1,6 @@
 # Getting Started
 
-Chinese version: [../zh_CN/getting-started/README.md](../zh_CN/getting-started/README.md)
+Chinese docs: [https://egalahad.github.io/sim2real/zh-Hans/getting-started/overview](https://egalahad.github.io/sim2real/zh-Hans/getting-started/overview)
 
 `sim2real` is split into two environments:
 

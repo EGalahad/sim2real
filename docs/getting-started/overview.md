@@ -3,6 +3,12 @@ title: Getting Started
 sidebar_position: 1
 ---
 
+Start by cloning the repository:
+
+```bash
+git clone https://github.com/EGalahad/sim2real
+```
+
 `sim2real` is split into two environments:
 
 - The root project is for policy inference, MuJoCo simulation, and the real bridge.

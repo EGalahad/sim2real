@@ -1,5 +1,11 @@
 # Getting Started
 
+开始前先克隆仓库：
+
+```bash
+git clone https://github.com/EGalahad/sim2real
+```
+
 `sim2real` 分成两个环境：
 
 - root project 负责 policy inference、MuJoCo simulation，以及 `scripts/real_bridge.py`

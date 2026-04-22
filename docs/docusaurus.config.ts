@@ -34,7 +34,6 @@ const config: Config = {
             'README.md',
             'getting-started/README.md',
             'tutorials/README.md',
-            'zh_CN/**',
             'i18n/**',
             'package.json',
             'package-lock.json',
