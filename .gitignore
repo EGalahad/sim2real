@@ -1,7 +1,20 @@
 checkpoints
-docs
 .vscode
 stubs
+/legacy
+/g1_motion*
+.omx
+prebuilt
+.cache
+external/
+.venv/
+docs/node_modules/
+docs/.cache/
+docs/.docusaurus/
+docs/build/
+docs/.eslintcache
+docs/npm-debug.log*
+docs/yarn-*.log
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

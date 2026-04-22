@@ -7,7 +7,7 @@ import time
 from loguru import logger
 from typing import Any, Dict, Optional
 from sim2real.config.robots.base import RobotCfg
-from sim2real.rl_policy.utils.motion import MotionDataset, MotionData
+from sim2real.rl_policy.utils.motion import MotionDataset, MotionData, motion_dataset_first_motion
 from sim2real.rl_policy.utils.motion_buffer import RealtimeMotionBuffer
 from sim2real.utils.common import ZMQSubscriber, PORTS, LowStateMessage
 
@@ -96,6 +96,7 @@ class StateProcessor:
                 motion_path,
                 robot_cfg=self.robot_cfg,
             )
+            self.motion_dataset = motion_dataset_first_motion(self.motion_dataset)
             assert self.motion_dataset.num_motions == 1, "Only one motion is supported"
             self.motion_ids = np.array([0], dtype=int)
             self.motion_t = np.array([0], dtype=int)

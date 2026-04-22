@@ -1,0 +1,30 @@
+{
+  "link.title.Docs": {
+    "message": "文档",
+    "description": "The title of the footer links column with title=Docs in the footer"
+  },
+  "link.title.More": {
+    "message": "更多",
+    "description": "The title of the footer links column with title=More in the footer"
+  },
+  "link.item.label.Getting Started": {
+    "message": "快速上手",
+    "description": "The label of footer link with label=Getting Started"
+  },
+  "link.item.label.Tutorials": {
+    "message": "教程",
+    "description": "The label of footer link with label=Tutorials"
+  },
+  "link.item.label.Reference": {
+    "message": "参考",
+    "description": "The label of footer link with label=Reference"
+  },
+  "link.item.label.GitHub": {
+    "message": "GitHub",
+    "description": "The label of footer link with label=GitHub"
+  },
+  "copyright": {
+    "message": "Copyright ${year} sim2real Contributors. Built with Docusaurus.",
+    "description": "The footer copyright"
+  }
+}
