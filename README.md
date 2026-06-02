@@ -22,6 +22,26 @@ uv run sim2real/rl_policy/tracking.py --robot g1 \
 
 After both processes are up, press `]` in the policy terminal to start, then press `9` in the MuJoCo viewer to disable the virtual gantry.
 
+## Migrating to sim2real
+
+This repo includes a Codex skill for adapting policies trained in external codebases into `sim2real`:
+
+```text
+skills/adapt-policy-to-sim2real
+```
+
+Converted SONIC checkpoints are available on Google Drive:
+[SONIC checkpoints](https://drive.google.com/drive/folders/1KgkLnfRzth2ZHMq8I49qpCSbY977iUAK).
+
+Install it into your local Codex skills directory:
+
+```bash
+mkdir -p ~/.codex/skills
+cp -r skills/adapt-policy-to-sim2real ~/.codex/skills/
+```
+
+After installation, start a new Codex session and use the skill by asking for policy adaptation work, or explicitly refer to `adapt-policy-to-sim2real`.
+
 ## Next Steps
 
 - [Docs Home](./docs/README.md)

@@ -18,6 +18,7 @@ git clone https://github.com/EGalahad/sim2real
 
 ## Next Steps
 
+- 上硬件前先选择 [Network Configuration](./network-configuration.md)
 - 只需要 policy、sim2sim 或 real bridge 时，看 [Root Project](./root-project.md)
 - Pico / XR 工具跑在 laptop / desktop 上时，看 [Teleop Project (x86_64 PC)](./teleop-x86-64.md)
 - Pico / XR 工具跑在机载 Orin 上时，看 [Teleop Project (Onboard Orin)](./teleop-onboard-orin.md)

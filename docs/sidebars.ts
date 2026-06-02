@@ -14,6 +14,11 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'doc',
+          id: 'getting-started/network-configuration',
+          label: 'Network Configuration',
+        },
+        {
+          type: 'doc',
           id: 'getting-started/root-project',
           label: 'Root Project',
         },

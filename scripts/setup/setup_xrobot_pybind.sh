@@ -67,6 +67,11 @@ SERVICE_DIR="$ROOT_DIR/external/XRoboToolkit-PC-Service"
 PYBIND_DIR="$ROOT_DIR/external/XRoboToolkit-PC-Service-Pybind"
 SDK_DIR="$SERVICE_DIR/RoboticsService/PXREARobotSDK"
 PYTHON_BIN="$ROOT_DIR/venv/teleop/.venv/bin/python"
+UV_BIN=$(command -v uv || true)
+
+if [[ -z "$UV_BIN" && -x "$HOME/.local/bin/uv" ]]; then
+  UV_BIN="$HOME/.local/bin/uv"
+fi
 
 if [[ ! -d "$SERVICE_DIR" ]]; then
   echo "Missing repo: $SERVICE_DIR" >&2
@@ -86,6 +91,23 @@ fi
 if [[ ! -x "$PYTHON_BIN" ]]; then
   echo "Missing teleop environment at $PYTHON_BIN. Run 'uv --project venv/teleop sync' first." >&2
   exit 1
+fi
+
+if [[ -z "$UV_BIN" ]]; then
+  echo "Missing uv. Install it or add it to PATH." >&2
+  exit 1
+fi
+
+if [[ "$ARCH" == "aarch64" ]]; then
+  GRPC_DIR="$SERVICE_DIR/RoboticsService/Redistributable/linux_aarch64/grpc"
+  GRPC_UPSTREAM_DIR="$SERVICE_DIR/RoboticsService/Redistributable/linux_aarch64/grpc.upstream"
+  PROTOBUF_STUBS_DIR="$GRPC_DIR/include/google/protobuf/stubs"
+  PROTOBUF_UPSTREAM_STUBS_DIR="$GRPC_UPSTREAM_DIR/include/google/protobuf/stubs"
+
+  if [[ ! -d "$PROTOBUF_STUBS_DIR" && -d "$PROTOBUF_UPSTREAM_STUBS_DIR" ]]; then
+    echo "[setup_xrobot_pybind] restoring aarch64 protobuf stubs from grpc.upstream"
+    cp -r "$PROTOBUF_UPSTREAM_STUBS_DIR" "$PROTOBUF_STUBS_DIR"
+  fi
 fi
 
 echo "[setup_xrobot_pybind] repo_root=$ROOT_DIR"
@@ -126,11 +148,11 @@ fi
 
 export pybind11_DIR
 pybind11_DIR=$(
-  uv --project "$ROOT_DIR/venv/teleop" run python -c "import pybind11; print(pybind11.get_cmake_dir())"
+  "$UV_BIN" --project "$ROOT_DIR/venv/teleop" run python -c "import pybind11; print(pybind11.get_cmake_dir())"
 )
 
 echo "[setup_xrobot_pybind] pybind11_DIR=$pybind11_DIR"
-uv --project "$ROOT_DIR/venv/teleop" pip uninstall --python "$PYTHON_BIN" xrobotoolkit_sdk >/dev/null 2>&1 || true
-uv --project "$ROOT_DIR/venv/teleop" pip install --python "$PYTHON_BIN" -e "$PYBIND_DIR"
+"$UV_BIN" --project "$ROOT_DIR/venv/teleop" pip uninstall --python "$PYTHON_BIN" xrobotoolkit_sdk >/dev/null 2>&1 || true
+"$UV_BIN" --project "$ROOT_DIR/venv/teleop" pip install --python "$PYTHON_BIN" -e "$PYBIND_DIR"
 
 echo "[setup_xrobot_pybind] xrobotoolkit_sdk installed"

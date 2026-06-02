@@ -399,7 +399,7 @@ class BasePolicyArgs:
     policy_config: str
     robot: str = "g1"
     rl_rate: float = 50.0
-    inference_backend: Literal["onnx-gpu", "onnx-cpu", "tensorrt"] = "tensorrt"
+    inference_backend: Literal["onnx-gpu", "onnx-cpu", "tensorrt"] = "onnx-cpu"
     controller: Literal["keyboard", "joystick", "pico"] = "keyboard"
     pico_zmq_connect: str = f"tcp://127.0.0.1:{PORTS['pico_controller']}"
 

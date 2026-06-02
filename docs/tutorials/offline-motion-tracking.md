@@ -28,6 +28,19 @@ Process roles:
 
 After both processes are up, press `]` in the policy terminal to start, then press `9` in the MuJoCo viewer to disable the virtual gantry.
 
+## Integrated Sim2Sim
+
+Use the integrated runner when the policy and MuJoCo should live in one process. It loads the policy immediately, sets the robot to the first frame of the motion, waits five seconds, tracks until the motion ends, and then holds the last frame. Elastic band is disabled by default for this runner.
+
+```bash
+uv run sim2real/sim_env/integrated_sim2sim.py \
+  --robot g1 \
+  --policy_config checkpoints/sonic_groot_6k/policy-sonic-groot-006000.yaml \
+  --motion_path ../any4hdmi/output/sonic/motions/240529/macarena_001__A545.npz
+```
+
+Add `--headless` for non-visual runs. In the MuJoCo viewer, pressing space after the final-frame hold resets the robot to the first frame and repeats the wait-track-hold sequence.
+
 ## Sim2Real
 
 Replace the MuJoCo execution process with the real bridge:

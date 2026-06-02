@@ -25,6 +25,19 @@ uv run sim2real/rl_policy/tracking.py \
 
 两个进程都起来后，在 policy 终端按 `]` 开始跟踪，然后在 MuJoCo viewer 里按 `9` 关闭虚拟 gantry。
 
+## Integrated Sim2Sim
+
+如果希望 policy 和 MuJoCo 在同一个进程里运行，用 integrated runner。它会立即加载 policy，把机器人设置到 motion 第一帧，等待 5 秒后开始跟踪；motion 结束后会停在最后一帧。这个 runner 默认关闭 elastic band。
+
+```bash
+uv run sim2real/sim_env/integrated_sim2sim.py \
+  --robot g1 \
+  --policy_config checkpoints/sonic_groot_6k/policy-sonic-groot-006000.yaml \
+  --motion_path ../any4hdmi/output/sonic/motions/240529/macarena_001__A545.npz
+```
+
+非可视化运行加 `--headless`。在 MuJoCo viewer 里，停在最后一帧后按空格会回到第一帧，并重新执行等待、跟踪、停在最后一帧的流程。
+
 ## Sim2Real
 
 把 MuJoCo 执行进程换成 real bridge：

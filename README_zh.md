@@ -25,6 +25,26 @@ uv run sim2real/rl_policy/tracking.py \
 
 两个进程都启动后，在 policy 终端按 `]` 开始跟踪，然后在 MuJoCo viewer 里按 `9` 关闭虚拟 gantry。
 
+## Migrating to sim2real
+
+这个 repo 内置了一个 Codex skill，用来把外部训练 codebase 里的 policy 适配到 `sim2real`：
+
+```text
+skills/adapt-policy-to-sim2real
+```
+
+已经转好的 SONIC checkpoints 放在 Google Drive：
+[SONIC checkpoints](https://drive.google.com/drive/folders/1KgkLnfRzth2ZHMq8I49qpCSbY977iUAK)。
+
+安装到本机 Codex skills 目录：
+
+```bash
+mkdir -p ~/.codex/skills
+cp -r skills/adapt-policy-to-sim2real ~/.codex/skills/
+```
+
+安装后重新打开一个 Codex session，即可通过 policy adaptation 相关请求触发；也可以显式提到 `adapt-policy-to-sim2real`。
+
 ## 下一步
 
 - [文档首页](https://egalahad.github.io/sim2real/zh-Hans/)
