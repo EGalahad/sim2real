@@ -14,7 +14,7 @@ uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
 ## 2. 录制 motion stream
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/record_motion.py \
+uv run scripts/record_motion.py \
   --connect tcp://127.0.0.1:28701
 ```
 
@@ -24,16 +24,16 @@ uv --project venv/teleop run sim2real/teleop/record_motion.py \
 
 默认会生成一个时间戳目录，例如 `g1_motion_YYYYMMDD_HHMMSS/`，里面会写出：
 
-- `motion.npz`
-- 单条 motion 数据集 payload
-- 自动生成的 manifest
+- `manifest.json`
+- `motions/motion.npz`
 
-终端会打印最终输出目录、frame 数、invalid frame 数，以及推断出的 FPS。
+这个输出目录就是 any4hdmi dataset root。终端会打印最终输出目录、frame 数、invalid frame 数，以及推断出的 FPS。
 
-## 3. 可选：用 realtime viewer 回看保存的 motion
+## 3. 可选：用 any4hdmi 回看保存的 motion
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/realtime_viewer.py \
-  --motion_backend npz \
-  --motion_path g1_motion_YYYYMMDD_HHMMSS/motion.npz
+uv run scripts/view_motion.py \
+  --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.npz
 ```
+
+`sim2real/teleop/realtime_viewer.py` 只用于实时 ZMQ retarget 检查，不再回放录好的 `.npz` 文件。

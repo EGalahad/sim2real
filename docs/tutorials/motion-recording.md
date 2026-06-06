@@ -17,7 +17,7 @@ uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
 ## 2. Record the motion stream
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/record_motion.py \
+uv run scripts/record_motion.py \
   --connect tcp://127.0.0.1:28701
 ```
 
@@ -27,16 +27,16 @@ Press `Ctrl-C` to stop recording and write the dataset.
 
 By default, the recorder creates a timestamped directory such as `g1_motion_YYYYMMDD_HHMMSS/` and writes:
 
-- `motion.npz`
-- the single-motion dataset payload
-- the generated manifest
+- `manifest.json`
+- `motions/motion.npz`
 
-The terminal prints the final output directory, frame count, invalid frame count, and inferred FPS.
+The output directory is an any4hdmi dataset root. The terminal prints the final output directory, frame count, invalid frame count, and inferred FPS.
 
-## 3. Optional: replay the saved motion in the realtime viewer
+## 3. Optional: replay the saved motion with any4hdmi
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/realtime_viewer.py \
-  --motion_backend npz \
-  --motion_path g1_motion_YYYYMMDD_HHMMSS/motion.npz
+uv run scripts/view_motion.py \
+  --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.npz
 ```
+
+`sim2real/teleop/realtime_viewer.py` is only for live ZMQ retarget inspection. It does not replay recorded `.npz` files.

@@ -186,7 +186,6 @@ def run_record(args: RecordArgs) -> None:
 
     print(f"[record] saved {len(frames)} frames to {motion_path}")
     print(f"[record] wrote manifest to {manifest_path}")
-    print(f"[record] root motion alias: {output_dir / 'motion.npz'}")
     print(f"[record] invalid frames: {invalid_frames}")
     print(f"[record] fps: {fps}")
 

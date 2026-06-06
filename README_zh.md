@@ -25,6 +25,20 @@ uv run sim2real/rl_policy/tracking.py \
 
 两个进程都启动后，在 policy 终端按 `]` 开始跟踪，然后在 MuJoCo viewer 里按 `9` 关闭虚拟 gantry。
 
+## 录制和回放 Motion
+
+在 root project 里把 Pico / XR retarget 后的 motion 录成 any4hdmi dataset：
+
+```bash
+uv run scripts/record_motion.py --connect tcp://127.0.0.1:28701
+```
+
+用 any4hdmi viewer wrapper 回放录好的 qpos motion：
+
+```bash
+uv run scripts/view_motion.py --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.npz
+```
+
 ## Migrating to sim2real
 
 这个 repo 内置了一个 Codex skill，用来把外部训练 codebase 里的 policy 适配到 `sim2real`：

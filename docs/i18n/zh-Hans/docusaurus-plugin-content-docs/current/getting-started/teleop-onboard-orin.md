@@ -94,6 +94,13 @@ uv --project venv/teleop run sim2real/teleop/realtime_viewer.py \
 
 如果 viewer 里能看到实时更新的 G1 retarget 动作，说明 onboard teleop 环境已经打通。
 
+live publisher 跑起来之后，如果要录制并回放 qpos clip，使用 root project 环境：
+
+```bash
+uv run scripts/record_motion.py --connect tcp://<g1-orin-ip>:28701
+uv run scripts/view_motion.py --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.npz
+```
+
 ## Notes
 
 - 如果 onboard 机器也跑 policy 和 bridge，请同时在 repo 根目录执行 `uv sync`

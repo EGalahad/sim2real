@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import time
-from typing import Literal, Optional
+from typing import Optional
 
 import mujoco
 import mujoco.viewer
@@ -23,22 +23,16 @@ from mjhub import temp_mjcf_with_floor
 
 from sim2real.config.robots import RobotCfg, get_robot_cfg
 from sim2real.config.robots.base import (
-    BODY_NAMES_KEY,
     BODY_POS_W_KEY,
     BODY_QUAT_W_KEY,
-    JOINT_NAMES_KEY,
     JOINT_POS_KEY,
     XROBOT_BODY_NAMES_KEY,
     XROBOT_BODY_POS_W_KEY,
     XROBOT_BODY_QUAT_W_KEY,
     resolve_mjcf_joint_names,
     resolve_mjcf_root_body_name,
-    validate_name_order,
 )
-from sim2real.teleop.motion_legacy import (
-    load_legacy_motion_dataset,
-    motion_to_qpos,
-)
+from sim2real.teleop.motion_legacy import motion_to_qpos
 
 GROUND_RGB = (0.6, 0.7, 0.6)
 AXIS_FRAME_LENGTH_M = 0.2
@@ -235,12 +229,10 @@ class NativeG1Viewer:
 
 @dataclass
 class ViewerArgs:
-    """Receive a ZMQ motion stream or motion.npz clip and visualize it in MuJoCo."""
+    """Receive a live ZMQ motion stream and visualize it in MuJoCo."""
 
     robot: str = "g1"
-    motion_backend: Literal["zmq", "npz"] = "zmq"
     connect: str = "tcp://127.0.0.1:28701"
-    motion_path: str | None = None
     viewer_hz: float = 30.0
     hwm: int = 1
     show_xrobot_frames: bool = True
@@ -253,22 +245,13 @@ def run_viewer(args: ViewerArgs) -> None:
     mjcf_root_body_name = resolve_mjcf_root_body_name(mjcf_path)
     mjcf_joint_names = resolve_mjcf_joint_names(mjcf_path)
     try:
-        if args.motion_backend == "npz":
-            run_npz_viewer(
-                args,
-                robot_cfg,
-                viewer,
-                mjcf_root_body_name,
-                mjcf_joint_names,
-            )
-        else:
-            run_zmq_viewer(
-                args,
-                robot_cfg,
-                viewer,
-                mjcf_root_body_name,
-                mjcf_joint_names,
-            )
+        run_zmq_viewer(
+            args,
+            robot_cfg,
+            viewer,
+            mjcf_root_body_name,
+            mjcf_joint_names,
+        )
     finally:
         viewer.close()
 
@@ -345,69 +328,6 @@ def run_zmq_viewer(
         print("KeyboardInterrupt, exiting viewer.")
     finally:
         sock.close(0)
-
-def run_npz_viewer(
-    args: ViewerArgs,
-    robot_cfg: RobotCfg,
-    viewer: NativeG1Viewer,
-    mjcf_root_body_name: str,
-    mjcf_joint_names: tuple[str, ...],
-) -> None:
-    if args.motion_path is None:
-        raise ValueError("--motion_path is required when --motion_backend=npz")
-
-    meta, motion = load_legacy_motion_dataset(args.motion_path)
-    body_names = meta.get("body_names")
-    joint_names = meta.get("joint_names")
-    if body_names is not None and not validate_name_order(
-        robot_cfg.body_names,
-        body_names,
-        label=BODY_NAMES_KEY,
-    ):
-        raise ValueError("meta body_names do not match canonical robot order")
-    if joint_names is not None and not validate_name_order(
-        robot_cfg.joint_names,
-        joint_names,
-        label=JOINT_NAMES_KEY,
-    ):
-        raise ValueError("meta joint_names do not match canonical robot order")
-
-    body_pos_w = np.asarray(motion["body_pos_w"], dtype=np.float32)
-    body_quat_w = np.asarray(motion["body_quat_w"], dtype=np.float32)
-    joint_pos = np.asarray(motion["joint_pos"], dtype=np.float32)
-    if body_pos_w.shape[0] == 0:
-        raise RuntimeError(f"No frames found in {args.motion_path}")
-
-    playback_fps = float(meta.get("fps", args.viewer_hz))
-    if playback_fps <= 0:
-        playback_fps = float(args.viewer_hz)
-    rate = RateLimiter(frequency=playback_fps, warn=False)
-
-    print(
-        f"[viewer] backend=npz motion_path={args.motion_path} "
-        f"frames={body_pos_w.shape[0]} playback_fps={playback_fps}"
-    )
-
-    frame_idx = 0
-    try:
-        while viewer.is_running():
-            qpos = motion_to_qpos(
-                body_pos_w[frame_idx],
-                body_quat_w[frame_idx],
-                joint_pos[frame_idx],
-                robot_cfg,
-                mjcf_root_body_name,
-                mjcf_joint_names,
-            )
-            viewer.render(
-                qpos,
-                xrobot_frame=None,
-                show_xrobot_frames=bool(args.show_xrobot_frames),
-            )
-            frame_idx = (frame_idx + 1) % body_pos_w.shape[0]
-            rate.sleep()
-    except KeyboardInterrupt:
-        print("KeyboardInterrupt, exiting viewer.")
 
 
 def main() -> None:

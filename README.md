@@ -22,6 +22,20 @@ uv run sim2real/rl_policy/tracking.py --robot g1 \
 
 After both processes are up, press `]` in the policy terminal to start, then press `9` in the MuJoCo viewer to disable the virtual gantry.
 
+## Record and Visualize Motion
+
+Record retargeted Pico / XR motion into an any4hdmi dataset from the root project:
+
+```bash
+uv run scripts/record_motion.py --connect tcp://127.0.0.1:28701
+```
+
+Replay the recorded qpos motion with the any4hdmi viewer wrapper:
+
+```bash
+uv run scripts/view_motion.py --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.npz
+```
+
 ## Migrating to sim2real
 
 This repo includes a Codex skill for adapting policies trained in external codebases into `sim2real`:

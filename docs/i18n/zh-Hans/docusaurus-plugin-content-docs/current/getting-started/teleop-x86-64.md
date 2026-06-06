@@ -1,6 +1,6 @@
 # Teleop Project (x86_64 PC)
 
-`venv/teleop` 用来在 laptop / desktop 上跑 Pico / XR body tracking、realtime retarget 检查，以及 motion recording。
+`venv/teleop` 用来在 laptop / desktop 上跑 Pico / XR body tracking 和 realtime retarget 检查。录制和回放 motion clip 请切到 root project，用 any4hdmi-backed scripts。
 
 ## Setup
 
@@ -65,6 +65,13 @@ uv --project venv/teleop run sim2real/teleop/realtime_viewer.py \
 ```
 
 如果 viewer 里能看到实时更新的 G1 retarget 动作，teleop 环境就通了。
+
+live publisher 跑起来之后，如果要录制并回放 qpos clip，切到 root project 环境：
+
+```bash
+uv run scripts/record_motion.py --connect tcp://127.0.0.1:28701
+uv run scripts/view_motion.py --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.npz
+```
 
 ## Next Steps
 
