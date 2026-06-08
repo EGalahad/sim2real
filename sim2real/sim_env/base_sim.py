@@ -2,9 +2,10 @@ import mujoco
 import mujoco.viewer
 import time
 from dataclasses import dataclass
-from threading import Thread
+from threading import Event, Thread
 import sched
 import os
+from typing import Callable
 
 import tyro
 from sim2real.config.robots import get_robot_cfg
@@ -22,11 +23,16 @@ class BaseSimulator:
         sim_dt: float = 0.005,
         decimation: int = 4,
         enable_elastic_band: bool = True,
+        headless: bool = False,
+        key_callback: Callable[[int], None] | None = None,
     ):
         self.robot_cfg = robot_cfg
         self.sim_dt = float(sim_dt)
         self.decimation = int(decimation)
         self.enable_elastic_band = bool(enable_elastic_band)
+        self.headless = bool(headless)
+        self._external_key_callback = key_callback
+        self._stop_event = Event()
 
         self.init_scene()
         # for more scenes
@@ -65,25 +71,32 @@ class BaseSimulator:
         self.mj_data = mujoco.MjData(self.mj_model)
         self.mj_model.opt.timestep = self.sim_dt
         # Enable the elastic band
+        callbacks = []
         if self.enable_elastic_band:
             self.elastic_band = ElasticBand()
             self.band_attached_link = self._resolve_body_id(
                 self.robot_cfg.elastic_band_attach_body_names
             )
-            key_callback = self.elastic_band.MujocoKeyCallback
-        else:
-            key_callback = None
+            callbacks.append(self.elastic_band.MujocoKeyCallback)
+        if self._external_key_callback is not None:
+            callbacks.append(self._external_key_callback)
 
-        self.viewer = mujoco.viewer.launch_passive(
-            self.mj_model,
-            self.mj_data,
-            key_callback=key_callback,
-            show_left_ui=False,
-            show_right_ui=False,
-        )
+        def combined_key_callback(key: int) -> None:
+            for callback in callbacks:
+                callback(key)
+
         self.pelvis_body_id = self._resolve_body_id(self.robot_cfg.viewer_track_body_names)
-        self.viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
-        self.viewer.cam.trackbodyid = self.pelvis_body_id
+        self.viewer = None
+        if not self.headless:
+            self.viewer = mujoco.viewer.launch_passive(
+                self.mj_model,
+                self.mj_data,
+                key_callback=combined_key_callback if callbacks else None,
+                show_left_ui=False,
+                show_right_ui=False,
+            )
+            self.viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
+            self.viewer.cam.trackbodyid = self.pelvis_body_id
 
         self.sim_bridge = SimulationBridge(
             self.mj_model, self.mj_data, self.robot_cfg
@@ -119,14 +132,14 @@ class BaseSimulator:
         scheduler = sched.scheduler(time.perf_counter, time.sleep)
         next_run_time = time.perf_counter()
         
-        while self.viewer.is_running():
+        while self.is_running():
             scheduler.enterabs(next_run_time, 1, self._sim_step_scheduled, ())
             scheduler.run()
             
             next_run_time += self.sim_dt
             sim_cnt += 1
 
-            if sim_cnt % self.decimation == 0:
+            if self.viewer is not None and sim_cnt % self.decimation == 0:
                 self.viewer.sync()
         
             # Get FPS
@@ -142,6 +155,22 @@ class BaseSimulator:
         if elapsed > self.sim_dt:
             print(f"Sim step took {elapsed:.6f} seconds, expected {self.sim_dt}")
 
+    def is_running(self) -> bool:
+        if self._stop_event.is_set():
+            return False
+        if self.viewer is None:
+            return True
+        return bool(self.viewer.is_running())
+
+    def sync_viewer(self) -> None:
+        if self.viewer is not None:
+            self.viewer.sync()
+
+    def stop(self) -> None:
+        self._stop_event.set()
+        if self.viewer is not None:
+            self.viewer.close()
+
 
 @dataclass
 class Args:
@@ -151,6 +180,7 @@ class Args:
     sim_dt: float = 0.005
     decimation: int = 4
     enable_elastic_band: bool = True
+    headless: bool = False
 
 
 if __name__ == "__main__":
@@ -161,5 +191,6 @@ if __name__ == "__main__":
         sim_dt=args.sim_dt,
         decimation=args.decimation,
         enable_elastic_band=args.enable_elastic_band,
+        headless=args.headless,
     )
     simulation.sim_thread.start()

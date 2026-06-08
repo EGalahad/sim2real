@@ -71,8 +71,14 @@ class StateProcessor:
             self.motion_t += 1
             if self.motion_backend == "npz" and self.motion_dataset is not None and self.motion_length > 0:
                 if self.motion_t[0] >= self.motion_length:
-                    self.motion_t[:] = 0
+                    self.motion_t[:] = self.motion_length - 1
                     data["paused"] = True
+        self._update_motion_data()
+
+    def restart_motion(self) -> None:
+        if self.motion_backend != "npz":
+            return
+        self.motion_t[:] = 0
         self._update_motion_data()
 
     def _init_motion_backend(self) -> None:

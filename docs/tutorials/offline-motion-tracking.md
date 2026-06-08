@@ -41,6 +41,10 @@ uv run sim2real/sim_env/integrated_sim2sim.py \
 
 Add `--headless` for non-visual runs. In the MuJoCo viewer, pressing space after the final-frame hold resets the robot to the first frame and repeats the wait-track-hold sequence.
 
+For quantitative evaluation, add `--trajectory-output <path>.npz` and compute
+motion progress, global root tracking, and local body tracking with the scripts
+under `scripts/tracking_experiment/`.
+
 ## Sim2Real
 
 Replace the MuJoCo execution process with the real bridge:

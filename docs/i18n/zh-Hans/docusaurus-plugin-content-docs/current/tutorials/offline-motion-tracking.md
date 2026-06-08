@@ -38,6 +38,9 @@ uv run sim2real/sim_env/integrated_sim2sim.py \
 
 非可视化运行加 `--headless`。在 MuJoCo viewer 里，停在最后一帧后按空格会回到第一帧，并重新执行等待、跟踪、停在最后一帧的流程。
 
+如果要做定量评测，可以加 `--trajectory-output <path>.npz` 保存完整轨迹，再用
+`scripts/tracking_experiment/` 里的脚本计算动作进度、全局根部跟踪和局部身体跟踪指标。
+
 ## Sim2Real
 
 把 MuJoCo 执行进程换成 real bridge：

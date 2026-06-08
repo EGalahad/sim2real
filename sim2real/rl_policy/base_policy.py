@@ -1,7 +1,8 @@
 import time
 import numpy as np
 from dataclasses import dataclass
-from typing import Dict, Literal, Type
+from pathlib import Path
+from typing import Any, Dict, Literal, Type
 import sched
 
 import tyro
@@ -20,6 +21,33 @@ from sim2real.rl_policy.utils.state_processor import StateProcessor
 from sim2real.utils.common import PORTS
 from sim2real.utils.profiling import ScopedTimer
 from sim2real.utils.strings import resolve_matching_names_values
+
+
+def _record_array(values: list[Any]) -> Any:
+    if not values:
+        return np.empty((0,), dtype=np.float32)
+
+    if any(value is None for value in values):
+        return np.asarray(values, dtype=object)
+
+    try:
+        arrays = [np.asarray(value) for value in values]
+        if arrays and all(array.shape == arrays[0].shape for array in arrays):
+            if arrays[0].dtype.kind in "biufc?":
+                return np.stack(arrays, axis=0)
+    except Exception:
+        pass
+
+    try:
+        return np.asarray(values)
+    except Exception:
+        return np.asarray(values, dtype=object)
+
+
+def _copy_array(value: Any, dtype: Any | None = np.float32) -> np.ndarray:
+    if dtype is None:
+        return np.asarray(value).copy()
+    return np.asarray(value, dtype=dtype).copy()
 
 
 class BasePolicy:
@@ -121,6 +149,10 @@ class BasePolicy:
         # Setup observations after state processor is initialized
         self.setup_policy(model_path)
         self.setup_observations(policy_config["observation"])
+        self._record_enabled = bool(args.record)
+        self._record_output = self._resolve_record_output(args.record_output)
+        self._record_frames: list[dict[str, Any]] = []
+        self._record_start_time_ns: int | None = None
 
     def prepare_policy_config(self, policy_config):
         return policy_config
@@ -217,10 +249,19 @@ class BasePolicy:
     def prepare_obs_for_rl(self):
         """Prepare observation for policy inference using observation classes"""
         obs_dict: Dict[str, np.ndarray] = {}
+        obs_components: dict[str, dict[str, np.ndarray]] = {}
         for obs_group in self.observations.values():
-            obs = obs_group.compute()
-            obs_dict[obs_group.name] = obs.astype(np.float32)
-        return obs_dict
+            group_components: dict[str, np.ndarray] = {}
+            group_values: list[np.ndarray] = []
+            for obs_name, obs_func in obs_group.funcs.items():
+                obs = obs_func.compute().astype(np.float32)
+                group_components[obs_name] = obs
+                group_values.append(obs)
+
+            obs_components[obs_group.name] = group_components
+            obs_dict[obs_group.name] = np.concatenate(group_values, axis=-1)
+
+        return obs_dict, obs_components
 
     def get_init_target(self):
         if self.init_count > 500:
@@ -259,6 +300,164 @@ class BasePolicy:
         elif mode == "init":
             self.set_init_mode(source=self.controller.name)
 
+    def _resolve_record_output(self, record_output: str | None) -> Path:
+        if record_output:
+            return Path(record_output).expanduser()
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        policy_stem = Path(self.args.policy_config).stem
+        return Path.cwd() / f"policy_tracking_record_{policy_stem}_{timestamp}.npz"
+
+    def _append_record_frame(
+        self,
+        *,
+        obs_dict: Dict[str, np.ndarray],
+        obs_components: dict[str, dict[str, np.ndarray]],
+        action: np.ndarray,
+        q_target: np.ndarray,
+        cmd_q: np.ndarray,
+        cmd_dq: np.ndarray,
+        cmd_tau: np.ndarray,
+    ) -> None:
+        if not self._record_enabled:
+            return
+
+        now_ns = time.time_ns()
+        if self._record_start_time_ns is None:
+            self._record_start_time_ns = now_ns
+
+        low_state = getattr(self.state_processor, "latest_low_state", None)
+        joint_torque = getattr(low_state, "joint_torques", None) if low_state is not None else None
+        if joint_torque is None:
+            joint_torque = np.full(self.num_dofs, np.nan, dtype=np.float32)
+
+        motion_t = getattr(self.state_processor, "motion_t", None)
+        motion_t_value = -1
+        if motion_t is not None:
+            motion_t_value = int(np.asarray(motion_t).reshape(-1)[0])
+
+        self._record_frames.append(
+            {
+                "step_index": int(self.total_inference_cnt),
+                "time_ns": int(now_ns),
+                "robot": {
+                    "joint_pos": _copy_array(self.state_processor.joint_pos),
+                    "joint_vel": _copy_array(self.state_processor.joint_vel),
+                    "joint_torque": _copy_array(joint_torque),
+                    "root_quat_w": _copy_array(self.state_processor.root_quat_w),
+                    "root_ang_vel_b": _copy_array(self.state_processor.root_ang_vel_b),
+                    "low_state_tick": int(getattr(low_state, "tick", -1)),
+                },
+                "policy": {
+                    "action": _copy_array(action),
+                    "q_target": _copy_array(q_target),
+                    "cmd_q": _copy_array(cmd_q),
+                    "cmd_dq": _copy_array(cmd_dq),
+                    "cmd_tau": _copy_array(cmd_tau),
+                    "obs": {
+                        group_name: {
+                            obs_name: _copy_array(obs)
+                            for obs_name, obs in group_obs.items()
+                        }
+                        for group_name, group_obs in obs_components.items()
+                    },
+                },
+                "runtime": {
+                    "motion_t": int(motion_t_value),
+                    "control_mode": str(self.state_dict.get("control_mode", "")),
+                    "paused": bool(self.state_dict.get("paused", False)),
+                },
+            }
+        )
+
+    def _build_record_data(self) -> dict[str, Any]:
+        frames = self._record_frames
+
+        def collect(group: str, key: str) -> Any:
+            return _record_array([frame[group].get(key) for frame in frames])
+
+        obs_groups = sorted(
+            {
+                group_name
+                for frame in frames
+                for group_name in frame["policy"].get("obs", {}).keys()
+            }
+        )
+        obs = {}
+        for group_name in obs_groups:
+            obs_names = sorted(
+                {
+                    obs_name
+                    for frame in frames
+                    for obs_name in frame["policy"].get("obs", {}).get(group_name, {}).keys()
+                }
+            )
+            obs[group_name] = {
+                obs_name: _record_array(
+                    [
+                        frame["policy"].get("obs", {}).get(group_name, {}).get(obs_name)
+                        for frame in frames
+                    ]
+                )
+                for obs_name in obs_names
+            }
+
+        return {
+            "metadata": {
+                "schema": "policy_tracking_record_v1",
+                "robot": str(self.args.robot),
+                "policy_config": str(self.args.policy_config),
+                "model_path": str(self.model_path),
+                "rl_rate": float(self.args.rl_rate),
+                "joint_names_simulation": list(self.joint_names_simulation),
+                "body_names_simulation": list(self.body_names_simulation),
+                "motion_backend": str(
+                    getattr(self.state_processor, "motion_backend", "")
+                ),
+                "motion_path": str(
+                    getattr(self.state_processor, "motion_config", {}).get("motion_path", "")
+                ),
+                "frame_count": int(len(frames)),
+                "recorded_at_unix_ns": int(time.time_ns()),
+                "record_start_unix_ns": int(self._record_start_time_ns or 0),
+            },
+            "robot": {
+                "joint_names": list(self.state_processor.joint_names),
+                "joint_pos": collect("robot", "joint_pos"),
+                "joint_vel": collect("robot", "joint_vel"),
+                "joint_torque": collect("robot", "joint_torque"),
+                "root_quat_w": collect("robot", "root_quat_w"),
+                "root_ang_vel_b": collect("robot", "root_ang_vel_b"),
+                "low_state_tick": collect("robot", "low_state_tick"),
+            },
+            "policy": {
+                "step_index": _record_array([frame["step_index"] for frame in frames]),
+                "time_ns": _record_array([frame["time_ns"] for frame in frames]),
+                "action": collect("policy", "action"),
+                "q_target": collect("policy", "q_target"),
+                "cmd_q": collect("policy", "cmd_q"),
+                "cmd_dq": collect("policy", "cmd_dq"),
+                "cmd_tau": collect("policy", "cmd_tau"),
+                "obs": obs,
+            },
+            "runtime": {
+                "motion_t": collect("runtime", "motion_t"),
+                "control_mode": collect("runtime", "control_mode"),
+                "paused": collect("runtime", "paused"),
+            },
+        }
+
+    def _save_recording(self) -> None:
+        if not self._record_enabled:
+            return
+        data = self._build_record_data()
+        self._record_output.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(self._record_output, data=np.asarray(data, dtype=object))
+        logger.info(
+            "Saved {} policy tracking frames to {}",
+            len(self._record_frames),
+            self._record_output,
+        )
+
     def run(self):
         total_inference_cnt = 0
 
@@ -289,6 +488,7 @@ class BasePolicy:
         except KeyboardInterrupt:
             pass
         finally:
+            self._save_recording()
             self.controller.close()
 
     def step(self):
@@ -314,7 +514,7 @@ class BasePolicy:
                     with Timer(self.perf_dict, "prepare_obs"):
                         # Prepare observations
                         self.update()
-                        obs_dict = self.prepare_obs_for_rl()
+                        obs_dict, obs_components = self.prepare_obs_for_rl()
                         self.state_dict.update(obs_dict)
                         self.state_dict["is_init"] = np.zeros(1, dtype=bool)
 
@@ -367,6 +567,15 @@ class BasePolicy:
                         "rl_policy.step.rule_based_control_flow.send_command"
                     ) as send_command_timer:
                         self.action_manager.send_command(cmd_q, cmd_dq, cmd_tau)
+                        self._append_record_frame(
+                            obs_dict=obs_dict,
+                            obs_components=obs_components,
+                            action=action,
+                            q_target=q_target,
+                            cmd_q=cmd_q,
+                            cmd_dq=cmd_dq,
+                            cmd_tau=cmd_tau,
+                        )
 
         elapsed = step_timer.last_time
         if elapsed > self.rl_dt:
@@ -402,6 +611,8 @@ class BasePolicyArgs:
     inference_backend: Literal["onnx-gpu", "onnx-cpu", "tensorrt"] = "onnx-cpu"
     controller: Literal["keyboard", "joystick", "pico"] = "keyboard"
     pico_zmq_connect: str = f"tcp://127.0.0.1:{PORTS['pico_controller']}"
+    record: bool = False
+    record_output: str | None = None
 
 if __name__ == "__main__":
     args = tyro.cli(BasePolicyArgs)
