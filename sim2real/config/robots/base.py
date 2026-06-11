@@ -15,6 +15,7 @@ from sim2real.utils.common import PORTS, UNITREE_LEGGED_CONST
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 SMPLX_T_NS_KEY = "smplx_t_ns"
+PICO_RECV_TIME_NS_KEY = "pico_recv_time_ns"
 PUBLISH_T_NS_KEY = "publish_t_ns"
 SEQ_KEY = "seq"
 JOINT_NAMES_KEY = "joint_names"

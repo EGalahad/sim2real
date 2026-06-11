@@ -27,6 +27,7 @@ from sim2real.config.robots.base import (
     BODY_POS_W_KEY,
     BODY_QUAT_W_KEY,
     JOINT_POS_KEY,
+    PICO_RECV_TIME_NS_KEY,
     PUBLISH_T_NS_KEY,
     SEQ_KEY,
     SMPLX_T_NS_KEY,
@@ -146,11 +147,12 @@ def _xrobot_payload_dict(xrobot_frame: Optional[XRobotBodyFrame]) -> dict[str, o
 
 def _body_pose_dict_from_streamer(
     streamer: XRobotStreamer,
-) -> tuple[dict[str, list[np.ndarray]], int]:
+) -> tuple[dict[str, list[np.ndarray]], int, int]:
     with ScopedTimer(BODY_POSE_TIMER_NAME):
         body_poses, _body_velocities, _body_accelerations, _imu_timestamps, body_timestamp = (
             streamer.get_raw_body_data()
         )
+        pico_recv_time_ns = int(time.time_ns())
         if body_poses is None:
             raise RuntimeError("No XR body data available")
 
@@ -163,7 +165,7 @@ def _body_pose_dict_from_streamer(
 
         # Keep the same coordinate transform that the streamer uses for its live path.
         body_pose_dict = streamer.coordinate_transform_unity_data(body_pose_dict).copy()
-        return body_pose_dict, int(body_timestamp)
+        return body_pose_dict, int(body_timestamp), pico_recv_time_ns
 
 
 def _controller_button_pressed(controller_data: object, controller_name: str, key_name: str) -> bool:
@@ -434,6 +436,7 @@ class LiveRetargetPublisher:
         self,
         *,
         source_smplx_t_ns: int,
+        pico_recv_time_ns: int,
         body_pos_w: np.ndarray,
         body_quat_w: np.ndarray,
         joint_pos: np.ndarray,
@@ -446,6 +449,7 @@ class LiveRetargetPublisher:
             payload = {
                 PUBLISH_T_NS_KEY: publish_t_ns,
                 SMPLX_T_NS_KEY: int(source_smplx_t_ns),
+                PICO_RECV_TIME_NS_KEY: int(pico_recv_time_ns),
                 "paused": self.paused,
                 JOINT_POS_KEY: np.asarray(joint_pos, dtype=np.float32).tolist(),
                 BODY_POS_W_KEY: np.asarray(body_pos_w, dtype=np.float32).tolist(),
@@ -542,6 +546,7 @@ class LiveRetargetPublisher:
             if self.paused:
                 return self._build_payload(
                     source_smplx_t_ns=self._latest_controller_t_ns,
+                    pico_recv_time_ns=time.time_ns(),
                     body_pos_w=self.paused_body_pos_w,
                     body_quat_w=self.paused_body_quat_w,
                     joint_pos=self.paused_joint_pos,
@@ -550,7 +555,24 @@ class LiveRetargetPublisher:
                 )
 
             try:
-                smplx_data, source_smplx_t_ns = _body_pose_dict_from_streamer(self.streamer)
+                smplx_data, source_smplx_t_ns, pico_recv_time_ns = _body_pose_dict_from_streamer(self.streamer)
+                if source_smplx_t_ns > 0:
+                    delay_ms = (pico_recv_time_ns - int(source_smplx_t_ns)) / 1e6
+                    print(
+                        "[pico body timestamp] "
+                        f"source_smplx_t_ns={int(source_smplx_t_ns)} "
+                        f"pico_recv_time_ns={pico_recv_time_ns} "
+                        f"delay_ms={delay_ms:.3f}",
+                        flush=True,
+                    )
+                else:
+                    print(
+                        "[pico body timestamp] "
+                        f"source_smplx_t_ns={int(source_smplx_t_ns)} "
+                        f"pico_recv_time_ns={pico_recv_time_ns} "
+                        "delay_ms=unavailable",
+                        flush=True,
+                    )
             except RuntimeError:
                 now = time.monotonic()
                 if now - self.last_stream_wait_log_monotonic > 2.0:
@@ -586,6 +608,7 @@ class LiveRetargetPublisher:
                     qpos = self._skip_retarget_qpos_from_scaled_human_data(processed_human_data)
                 return self._build_payload(
                     source_smplx_t_ns=int(source_smplx_t_ns),
+                    pico_recv_time_ns=pico_recv_time_ns,
                     body_pos_w=body_pos_w,
                     body_quat_w=body_quat_w,
                     joint_pos=joint_pos,
@@ -599,6 +622,7 @@ class LiveRetargetPublisher:
                 joint_pos = np.asarray(configuration_data.qpos[self.joint_qpos_indices], dtype=np.float32)
                 return self._build_payload(
                     source_smplx_t_ns=int(source_smplx_t_ns),
+                    pico_recv_time_ns=pico_recv_time_ns,
                     body_pos_w=body_pos_w,
                     body_quat_w=body_quat_w,
                     joint_pos=joint_pos,

@@ -15,7 +15,14 @@ import numpy as np
 import tyro
 import zmq
 
-from sim2real.config.robots.base import resolve_mjcf_joint_names, resolve_mjcf_root_body_name
+from sim2real.config.robots.base import (
+    PICO_RECV_TIME_NS_KEY,
+    PUBLISH_T_NS_KEY,
+    SEQ_KEY,
+    SMPLX_T_NS_KEY,
+    resolve_mjcf_joint_names,
+    resolve_mjcf_root_body_name,
+)
 from sim2real.config.robots import get_robot_cfg
 from sim2real.teleop.motion_legacy import (
     estimate_fps_from_timestamps_ns,
@@ -122,9 +129,16 @@ def run_record(args: RecordArgs) -> None:
                         )
                     frame = {
                         "qpos": qpos.copy(),
-                        "publish_t_ns": int(payload["publish_t_ns"]) if payload.get("publish_t_ns") is not None else None,
-                        "seq": int(payload["seq"]) if payload.get("seq") is not None else None,
-                        "smplx_t_ns": int(payload["smplx_t_ns"]) if payload.get("smplx_t_ns") is not None else None,
+                        PICO_RECV_TIME_NS_KEY: int(payload[PICO_RECV_TIME_NS_KEY])
+                        if payload.get(PICO_RECV_TIME_NS_KEY) is not None
+                        else None,
+                        PUBLISH_T_NS_KEY: int(payload[PUBLISH_T_NS_KEY])
+                        if payload.get(PUBLISH_T_NS_KEY) is not None
+                        else None,
+                        SEQ_KEY: int(payload[SEQ_KEY]) if payload.get(SEQ_KEY) is not None else None,
+                        SMPLX_T_NS_KEY: int(payload[SMPLX_T_NS_KEY])
+                        if payload.get(SMPLX_T_NS_KEY) is not None
+                        else None,
                     }
             except Exception as exc:
                 invalid_frames += 1
@@ -135,8 +149,10 @@ def run_record(args: RecordArgs) -> None:
                 print("[record] incomplete payload skipped")
                 continue
 
-            if frame.get("publish_t_ns") is None:
-                frame["publish_t_ns"] = receive_t_ns
+            if frame.get(PICO_RECV_TIME_NS_KEY) is None:
+                frame[PICO_RECV_TIME_NS_KEY] = receive_t_ns
+            if frame.get(PUBLISH_T_NS_KEY) is None:
+                frame[PUBLISH_T_NS_KEY] = receive_t_ns
             frames.append(frame)
 
             if len(frames) % 50 == 0:
@@ -159,7 +175,7 @@ def run_record(args: RecordArgs) -> None:
         fps = estimate_fps_from_timestamps_ns(
             [
                 int(cast(Any, value)) if value is not None else None
-                for value in (frame.get("publish_t_ns") for frame in frames)
+                for value in (frame.get(PICO_RECV_TIME_NS_KEY) for frame in frames)
             ],
             default_fps=int(args.default_fps),
         )

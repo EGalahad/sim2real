@@ -10,7 +10,7 @@ import numpy as np
 import zmq
 
 from loguru import logger
-from sim2real.config.robots.base import RobotCfg
+from sim2real.config.robots.base import PICO_RECV_TIME_NS_KEY, PUBLISH_T_NS_KEY, RobotCfg
 from sim2real.rl_policy.utils.motion import MotionData, _normalize_quat_batch, _quat_slerp_batch
 
 
@@ -92,7 +92,7 @@ class RealtimeMotionBuffer:
                     continue
 
                 try:
-                    self.__append_payload(raw)
+                    self.__append_payload(raw, recv_time_ns=time.time_ns())
                 except Exception as exc:
                     logger.warning(f"Failed to decode motion payload: {exc}")
 
@@ -111,12 +111,12 @@ class RealtimeMotionBuffer:
         if not isinstance(payload, dict):
             raise TypeError(f"Unsupported payload type: {type(payload)}")
 
-        timestamp_ns = (
-            payload.get("smplx_t_ns")
+        recv_time_ns = int(recv_time_ns or time.time_ns())
+        timestamp_ns = int(
+            payload.get(PICO_RECV_TIME_NS_KEY)
+            or payload.get(PUBLISH_T_NS_KEY)
             or recv_time_ns
-            or time.time_ns()
         )
-        timestamp_ns = int(timestamp_ns)
 
         joint_pos = payload.get("joint_pos", payload.get("dof_pos", payload.get("qpos", None)))
         if joint_pos is None:
