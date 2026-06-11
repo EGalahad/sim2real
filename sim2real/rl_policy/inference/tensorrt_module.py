@@ -311,6 +311,10 @@ def _squeeze_output_value(value: np.ndarray) -> np.ndarray:
     return array
 
 
+def _cuda_stream_handle(stream) -> int:
+    return int(stream)
+
+
 def _normalize_input_name(name: str) -> str:
     key = name
     if key.endswith("_orig"):
@@ -443,30 +447,21 @@ class TensorRTModule:
 
         onnx_bytes = Path(self.onnx_path).read_bytes()
         if not parser.parse(onnx_bytes):
-            # Try a small ONNX patch to convert ReduceMean axes inputs to attributes
-            # (TensorRT requires axes to be initializers). Only run if onnx is available.
-            if onnx is not None and any(
-                "Axis input must be an initializer" in parser.get_error(i).desc()
-                for i in range(parser.num_errors)
-            ):
-                patched = self._patch_reduce_axes(self.onnx_path)
-                if patched is not None:
-                    parser = trt.OnnxParser(network, self.logger)
-                    if parser.parse(patched):
-                        Path(self.onnx_path + ".patched").write_bytes(patched)
-                    else:
-                        err_msgs = [parser.get_error(i) for i in range(parser.num_errors)]
-                        raise RuntimeError(f"Failed to parse patched ONNX for TensorRT: {err_msgs}")
-                else:
-                    err_msgs = [parser.get_error(i) for i in range(parser.num_errors)]
-                    raise RuntimeError(
-                        "Failed to parse ONNX for TensorRT and could not auto-patch ReduceMean axes. "
-                        "Install `onnx` to enable auto-fix. "
-                        f"Errors: {err_msgs}"
-                    )
-            else:
-                err_msgs = [parser.get_error(i) for i in range(parser.num_errors)]
+            err_msgs = [parser.get_error(i) for i in range(parser.num_errors)]
+            patched = self._patch_for_tensorrt(self.onnx_path)
+            if patched is None:
                 raise RuntimeError(f"Failed to parse ONNX for TensorRT: {err_msgs}")
+
+            network = builder.create_network(network_flags)
+            parser = trt.OnnxParser(network, self.logger)
+            if parser.parse(patched):
+                Path(self.onnx_path + ".patched").write_bytes(patched)
+            else:
+                patched_errors = [parser.get_error(i) for i in range(parser.num_errors)]
+                raise RuntimeError(
+                    f"Failed to parse ONNX for TensorRT: {err_msgs}; "
+                    f"failed to parse patched ONNX: {patched_errors}"
+                )
 
         config = builder.create_builder_config()
         config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, self.workspace_size)
@@ -522,6 +517,147 @@ class TensorRTModule:
 
         if not patched:
             return None
+        return model.SerializeToString()
+
+    def _patch_for_tensorrt(self, onnx_path: str):
+        """Patch common training-export ops that TensorRT 8.5 cannot import directly."""
+        if onnx is None:
+            return None
+
+        try:
+            model = onnx.load(onnx_path)
+        except Exception:
+            return None
+
+        helper = onnx.helper
+        numpy_helper = onnx.numpy_helper
+        tensor_proto = onnx.TensorProto
+        initializers = {init.name: init for init in model.graph.initializer}
+        name_to_const = {}
+        for node in model.graph.node:
+            if node.op_type == "Constant":
+                for attr in node.attribute:
+                    if attr.name == "value":
+                        name_to_const[node.output[0]] = attr.t
+
+        def unique(base: str) -> str:
+            existing = {
+                value
+                for node in model.graph.node
+                for value in list(node.input) + list(node.output)
+            }
+            existing.update(init.name for init in model.graph.initializer)
+            candidate = base
+            suffix = 0
+            while candidate in existing:
+                suffix += 1
+                candidate = f"{base}_{suffix}"
+            return candidate
+
+        patched = False
+        new_nodes = []
+        for node in model.graph.node:
+            if node.op_type.startswith("Reduce") and len(node.input) >= 2:
+                axes_name = node.input[1]
+                tensor = initializers.get(axes_name) or name_to_const.get(axes_name)
+                if tensor is not None:
+                    axes = numpy_helper.to_array(tensor).astype(np.int64).tolist()
+                    del node.input[1]
+                    del node.attribute[:]
+                    node.attribute.add(name="axes", ints=axes)
+                    patched = True
+                new_nodes.append(node)
+                continue
+
+            if node.op_type == "LayerNormalization":
+                if len(node.input) < 2:
+                    new_nodes.append(node)
+                    continue
+                axis = -1
+                epsilon = 1e-5
+                for attr in node.attribute:
+                    if attr.name == "axis":
+                        axis = int(attr.i)
+                    elif attr.name == "epsilon":
+                        epsilon = float(attr.f)
+                if axis != -1:
+                    new_nodes.append(node)
+                    continue
+
+                x = node.input[0]
+                scale = node.input[1]
+                bias = node.input[2] if len(node.input) >= 3 and node.input[2] else None
+                out = node.output[0]
+                prefix = unique(f"{node.name or out}_ln")
+                mean = f"{prefix}_mean"
+                centered = f"{prefix}_centered"
+                squared = f"{prefix}_squared"
+                var = f"{prefix}_var"
+                var_eps = f"{prefix}_var_eps"
+                std = f"{prefix}_std"
+                normalized = f"{prefix}_normalized"
+                scaled = f"{prefix}_scaled"
+                eps_name = f"{prefix}_eps"
+                pow_name = f"{prefix}_pow"
+                model.graph.initializer.extend(
+                    [
+                        numpy_helper.from_array(np.asarray(epsilon, dtype=np.float32), eps_name),
+                        numpy_helper.from_array(np.asarray(2.0, dtype=np.float32), pow_name),
+                    ]
+                )
+                new_nodes.extend(
+                    [
+                        helper.make_node("ReduceMean", [x], [mean], name=f"{prefix}_mean_node", axes=[-1], keepdims=1),
+                        helper.make_node("Sub", [x, mean], [centered], name=f"{prefix}_center_node"),
+                        helper.make_node("Pow", [centered, pow_name], [squared], name=f"{prefix}_pow_node"),
+                        helper.make_node("ReduceMean", [squared], [var], name=f"{prefix}_var_node", axes=[-1], keepdims=1),
+                        helper.make_node("Add", [var, eps_name], [var_eps], name=f"{prefix}_eps_node"),
+                        helper.make_node("Sqrt", [var_eps], [std], name=f"{prefix}_sqrt_node"),
+                        helper.make_node("Div", [centered, std], [normalized], name=f"{prefix}_div_node"),
+                        helper.make_node("Mul", [normalized, scale], [scaled if bias else out], name=f"{prefix}_scale_node"),
+                    ]
+                )
+                if bias:
+                    new_nodes.append(helper.make_node("Add", [scaled, bias], [out], name=f"{prefix}_bias_node"))
+                patched = True
+                continue
+
+            if node.op_type == "Mish":
+                x = node.input[0]
+                out = node.output[0]
+                prefix = unique(f"{node.name or out}_mish")
+                one = f"{prefix}_one"
+                exp = f"{prefix}_exp"
+                exp_plus_one = f"{prefix}_exp_plus_one"
+                softplus = f"{prefix}_softplus"
+                tanh = f"{prefix}_tanh"
+                model.graph.initializer.append(
+                    numpy_helper.from_array(np.asarray(1.0, dtype=np.float32), one)
+                )
+                new_nodes.extend(
+                    [
+                        helper.make_node("Exp", [x], [exp], name=f"{prefix}_exp_node"),
+                        helper.make_node("Add", [exp, one], [exp_plus_one], name=f"{prefix}_add_node"),
+                        helper.make_node("Log", [exp_plus_one], [softplus], name=f"{prefix}_log_node"),
+                        helper.make_node("Tanh", [softplus], [tanh], name=f"{prefix}_tanh_node"),
+                        helper.make_node("Mul", [x, tanh], [out], name=f"{prefix}_mul_node"),
+                    ]
+                )
+                patched = True
+                continue
+
+            new_nodes.append(node)
+
+        if not patched:
+            return None
+
+        del model.graph.node[:]
+        model.graph.node.extend(new_nodes)
+        if model.ir_version > 9:
+            model.ir_version = 9
+        for opset in model.opset_import:
+            if opset.domain == "" and opset.version > 19:
+                opset.version = 19
         return model.SerializeToString()
 
     # ------------------------------------------------------------------
@@ -625,10 +761,13 @@ class TensorRTModule:
                 self.stream,
             )
 
+        stream_handle = _cuda_stream_handle(self.stream)
         if self.use_tensor_api:
-            self.context.execute_async_v3(self.stream)
+            self.context.execute_async_v3(stream_handle)
+        elif hasattr(self.context, "execute_async_v2"):
+            self.context.execute_async_v2(self.bindings, stream_handle)
         else:
-            self.context.execute_async_v3(self.stream, self.bindings)
+            self.context.execute_async_v3(stream_handle, self.bindings)
 
         # Device-to-host copies
         for idx in self.output_binding_idxs:
