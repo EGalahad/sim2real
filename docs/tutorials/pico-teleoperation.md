@@ -3,7 +3,7 @@ title: Pico Teleoperation
 sidebar_position: 2
 ---
 
-This tutorial uses the teleop publisher for live Pico / XR retargeting, the realtime viewer to inspect the retargeted G1 motion, and the root project tracking policy for execution.
+This tutorial uses the teleop publisher for live Pico / XR retargeting, its built-in mjviser server to inspect the retargeted G1 motion, and the root project tracking policy for execution.
 
 ## 1. Start the Pico retarget publisher
 
@@ -16,13 +16,7 @@ uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
 
 ## 2. Inspect the retarget in realtime
 
-```bash
-uv --project venv/teleop run sim2real/teleop/realtime_viewer.py \
-  --connect tcp://127.0.0.1:28701 \
-  --viewer_hz 50
-```
-
-Keep the viewer open until the retargeted G1 motion looks correct.
+Open the mjviser URL printed by the publisher and keep it open until the retargeted G1 motion looks correct.
 
 ## 3. Choose the execution backend
 
@@ -64,7 +58,7 @@ uv run sim2real/rl_policy/tracking.py \
 
 ## Notes
 
-- `pico_retarget_pub.py` publishes the live motion stream consumed by both the realtime viewer and the tracking policy.
+- `pico_retarget_pub.py` publishes the live motion stream consumed by the tracking policy and opens the retarget mjviser server.
 - `sim2real/sim_env/base_sim.py` is the sim2sim execution backend.
 - `scripts/real_bridge.py` is the sim2real execution backend.
 - If you want the policy control mode to come from the Pico controller topic instead of the keyboard, add `--controller pico` to the tracking command.

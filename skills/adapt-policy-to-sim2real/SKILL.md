@@ -35,7 +35,7 @@ Use this skill when bringing a policy checkpoint from any training repo into `/h
 8. Validate with integrated sim2sim:
    - set robot to motion frame 0,
    - keep policy active during initial pause,
-   - use `motion_end_behavior: hold`,
+   - rely on the default final-frame hold behavior,
    - save root trajectory when evaluating tracking error,
    - compare robot final root displacement against motion final root displacement in each start frame.
 9. Keep a small experiment log with exact commands, policy paths, motion paths, seeds, output files, and summary metrics.

@@ -56,15 +56,7 @@ uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
   --actual_human_height 1.80
 ```
 
-在第二个终端里启动 realtime viewer：
-
-```bash
-uv --project venv/teleop run sim2real/teleop/realtime_viewer.py \
-  --connect tcp://127.0.0.1:28701 \
-  --viewer_hz 50
-```
-
-如果 viewer 里能看到实时更新的 G1 retarget 动作，teleop 环境就通了。
+打开 publisher 打印出来的 mjviser URL。如果 viewer 里能看到实时更新的 G1 retarget 动作，teleop 环境就通了。
 
 live publisher 跑起来之后，如果要录制并回放 qpos clip，切到 root project 环境：
 

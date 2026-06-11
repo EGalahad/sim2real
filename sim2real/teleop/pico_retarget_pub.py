@@ -21,8 +21,10 @@ import zmq
 from general_motion_retargeting import GeneralMotionRetargeting as GMR
 from general_motion_retargeting import XRobotStreamer
 from loop_rate_limiters import RateLimiter
+from mjhub import temp_mjcf_with_floor
 
 from sim2real.config.robots import get_robot_cfg
+from sim2real.config.robots.base import RobotCfg
 from sim2real.config.robots.base import (
     BODY_POS_W_KEY,
     BODY_QUAT_W_KEY,
@@ -35,6 +37,7 @@ from sim2real.config.robots.base import (
     XROBOT_BODY_POS_W_KEY,
     XROBOT_BODY_QUAT_W_KEY,
 )
+from sim2real.utils.mjviser_viewer import MjviserMujocoViewer
 from sim2real.utils.common import PORTS, PicoControllerStateMessage
 from sim2real.utils.math import quat_conjugate, quat_mul, quat_rotate_inverse_numpy, quat_rotate_numpy, yaw_quat
 from sim2real.utils.profiling import ScopedTimer
@@ -189,10 +192,6 @@ def _pico_controller_state_from_data(controller_data: object) -> PicoControllerS
         X=_controller_button_pressed(controller_data, "LeftController", "key_one"),
         Y=_controller_button_pressed(controller_data, "LeftController", "key_two"),
     )
-
-
-def _controller_x_pressed(controller_data: object) -> bool:
-    return _pico_controller_state_from_data(controller_data).X
 
 
 class LiveRetargetPublisher:
@@ -634,8 +633,99 @@ class LiveRetargetPublisher:
         self._controller_sock.close(0)
 
 
+class LiveRetargetMjviser:
+    def __init__(
+        self,
+        robot_cfg: RobotCfg,
+        *,
+        show_xrobot_frames: bool,
+    ) -> None:
+        self.robot_cfg = robot_cfg
+        self.show_xrobot_frames = bool(show_xrobot_frames)
+        with temp_mjcf_with_floor(robot_cfg.resolve_mjcf_path()) as viewer_mjcf_path:
+            self.model = mujoco.MjModel.from_xml_path(str(viewer_mjcf_path))
+        self.data = mujoco.MjData(self.model)
+        self.viewer = MjviserMujocoViewer(
+            self.model,
+            self.data,
+            label="sim2real-retarget-pub",
+            tracked_body_id=self._resolve_track_body_id(),
+        )
+        self._xrobot_frame_handles: dict[str, object] = {}
+
+    def _resolve_track_body_id(self) -> int | None:
+        for body_name in self.robot_cfg.viewer_track_body_names:
+            body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, body_name)
+            if body_id >= 0:
+                return int(body_id)
+        return None
+
+    def render_payload(self, payload: dict[str, object]) -> None:
+        qpos = payload.get("qpos")
+        if qpos is None:
+            return
+
+        qpos_arr = np.asarray(qpos, dtype=np.float32).reshape(-1)
+        self.data.qpos[:] = 0.0
+        self.data.qvel[:] = 0.0
+        self.data.qpos[: min(self.model.nq, qpos_arr.shape[0])] = qpos_arr[: self.model.nq]
+        mujoco.mj_forward(self.model, self.data)
+        self.viewer.sync()
+        self._update_xrobot_frames(payload)
+
+    def _update_xrobot_frames(self, payload: dict[str, object]) -> None:
+        if not self.show_xrobot_frames:
+            for handle in self._xrobot_frame_handles.values():
+                handle.visible = False
+            return
+
+        names_raw = payload.get(XROBOT_BODY_NAMES_KEY)
+        pos_raw = payload.get(XROBOT_BODY_POS_W_KEY)
+        quat_raw = payload.get(XROBOT_BODY_QUAT_W_KEY)
+        if names_raw is None or pos_raw is None or quat_raw is None:
+            for handle in self._xrobot_frame_handles.values():
+                handle.visible = False
+            return
+
+        names = tuple(str(name) for name in names_raw)
+        body_pos_w = np.asarray(pos_raw, dtype=np.float32)
+        body_quat_w = np.asarray(quat_raw, dtype=np.float32)
+        if body_pos_w.shape != (len(names), 3) or body_quat_w.shape != (len(names), 4):
+            return
+
+        active_names = set(names)
+        for body_name, pos_w, quat_w in zip(names, body_pos_w, body_quat_w):
+            frame_name = f"/xrobot/{body_name}"
+            handle = self._xrobot_frame_handles.get(body_name)
+            if handle is None:
+                handle = self.viewer.server.scene.add_frame(
+                    frame_name,
+                    axes_length=0.2,
+                    axes_radius=0.01,
+                )
+                self._xrobot_frame_handles[body_name] = handle
+            handle.position = np.asarray(pos_w, dtype=np.float32)
+            handle.wxyz = np.asarray(quat_w, dtype=np.float32)
+            handle.visible = True
+
+        for body_name, handle in self._xrobot_frame_handles.items():
+            if body_name not in active_names:
+                handle.visible = False
+
+    def close(self) -> None:
+        self.viewer.close()
+
+
 def run_publish(args: "PublisherArgs") -> None:
     worker = LiveRetargetPublisher(args)
+    viewer = (
+        LiveRetargetMjviser(
+            worker.robot_cfg,
+            show_xrobot_frames=args.show_xrobot_frames,
+        )
+        if args.viewer
+        else None
+    )
 
     ctx = zmq.Context.instance()
     sock = ctx.socket(zmq.PUB)
@@ -664,13 +754,17 @@ def run_publish(args: "PublisherArgs") -> None:
                     sock.send_string(
                         json.dumps(payload, separators=(",", ":")),
                         flags=zmq.NOBLOCK,
-                    )
+                )
                 seq += 1
+                if viewer is not None:
+                    viewer.render_payload(payload)
             worker._maybe_print_late_frame_breakdown(time.perf_counter() - loop_start)
             worker.rate.sleep()
     except KeyboardInterrupt:
         print("KeyboardInterrupt, exiting publisher.")
     finally:
+        if viewer is not None:
+            viewer.close()
         worker.close()
         sock.close(0)
 
@@ -686,6 +780,8 @@ class PublisherArgs:
     hwm: int = 1
     controller_hwm: int = 1
     startup_sleep_s: float = 0.5
+    viewer: bool = True
+    show_xrobot_frames: bool = True
     actual_human_height: float = 1.6
     skip_retarget: bool = False
     min_link_height: float = 0.01

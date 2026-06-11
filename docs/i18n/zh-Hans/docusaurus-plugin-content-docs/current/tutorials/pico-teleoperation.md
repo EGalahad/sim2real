@@ -1,6 +1,6 @@
 # Pico Teleoperation
 
-这个教程使用 teleop publisher 提供实时 Pico / XR retarget，用 realtime viewer 检查 retarget 结果，再用 root project 的 tracking policy 做执行。
+这个教程使用 teleop publisher 提供实时 Pico / XR retarget，用它内置的 mjviser server 检查 retarget 结果，再用 root project 的 tracking policy 做执行。
 
 ## 1. 启动 Pico retarget publisher
 
@@ -11,15 +11,9 @@ uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
   --actual_human_height 1.80
 ```
 
-## 2. 用 realtime viewer 检查 retarget
+## 2. 用 mjviser 检查 retarget
 
-```bash
-uv --project venv/teleop run sim2real/teleop/realtime_viewer.py \
-  --connect tcp://127.0.0.1:28701 \
-  --viewer_hz 50
-```
-
-先确认 viewer 里的 G1 retarget 动作是对的，再继续执行。
+打开 publisher 打印出来的 mjviser URL。先确认 viewer 里的 G1 retarget 动作是对的，再继续执行。
 
 ## 3. 选择执行后端
 
@@ -61,7 +55,7 @@ uv run sim2real/rl_policy/tracking.py \
 
 ## Notes
 
-- `pico_retarget_pub.py` 发布的实时 motion stream 同时给 realtime viewer 和 tracking policy 使用
+- `pico_retarget_pub.py` 发布实时 motion stream 给 tracking policy 使用，并自己创建 retarget mjviser server
 - `sim2real/sim_env/base_sim.py` 是 sim2sim 的执行后端
 - `scripts/real_bridge.py` 是 sim2real 的执行后端
 - 如果希望 policy control mode 跟着 Pico controller topic 走，而不是键盘控制，可以在 tracking 命令里加 `--controller pico`

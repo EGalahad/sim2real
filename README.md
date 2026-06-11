@@ -20,7 +20,7 @@ uv run sim2real/rl_policy/tracking.py --robot g1 \
   --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
 ```
 
-After both processes are up, press `]` in the policy terminal to start, then press `9` in the MuJoCo viewer to disable the virtual gantry.
+After both processes are up, press `]` in the policy terminal to start. Open the mjviser URL printed by `base_sim.py`, then use the Elastic Band controls in the viewer UI to disable or tune the virtual gantry.
 
 ## Record and Visualize Motion
 

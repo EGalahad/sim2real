@@ -31,7 +31,7 @@ uv run sim2real/sim_env/base_sim.py --robot_config config/robot/g1.yaml --scene_
 ### `sim2real/sim_env/base_sim.py`
 
 - 读取 `robot_config` 和 `scene_config`。
-- 加载 MuJoCo 场景，创建 viewer。
+- 加载 MuJoCo 场景，创建 mjviser server。
 - 创建 `SimulationBridge`，把 MuJoCo 状态发布成统一的 `low_state`，并从统一的 `low_cmd` 里取关节目标。
 - 以固定仿真步长循环：
   - 发布低层状态

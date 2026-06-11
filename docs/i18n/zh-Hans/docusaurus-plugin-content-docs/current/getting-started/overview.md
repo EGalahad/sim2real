@@ -9,7 +9,7 @@ git clone https://github.com/EGalahad/sim2real
 `sim2real` 分成两个环境：
 
 - root project 负责 policy inference、MuJoCo simulation，以及 `scripts/real_bridge.py`
-- `venv/teleop` 负责 Pico / XR retarget、realtime viewer，以及 motion recording
+- `venv/teleop` 负责 Pico / XR retarget、内置 mjviser viewing，以及 motion recording
 
 当前支持两种硬件布局：
 

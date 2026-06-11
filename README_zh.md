@@ -23,7 +23,7 @@ uv run sim2real/rl_policy/tracking.py \
   --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
 ```
 
-两个进程都启动后，在 policy 终端按 `]` 开始跟踪，然后在 MuJoCo viewer 里按 `9` 关闭虚拟 gantry。
+两个进程都启动后，在 policy 终端按 `]` 开始跟踪，然后打开 `base_sim.py` 打印出来的 mjviser URL。虚拟 gantry / elastic band 的开关和长度在 viewer UI 里调。
 
 ## 录制和回放 Motion
 

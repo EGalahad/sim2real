@@ -72,7 +72,6 @@ slug: /reference/teleop-implementation
 
 - `--actual_human_height`
 - `--publish_hz`
-- `--viewer_hz`
 - `--min_link_height`
 - `--min_link_height_align_strategy`
 - `--min_link_height_bootstrap_frames`
@@ -81,7 +80,7 @@ slug: /reference/teleop-implementation
 
 - `--actual_human_height` 会传给 GMR，影响人体尺度匹配。
 - `--publish_hz` 是 publisher 主循环频率。
-- `--viewer_hz` 是 viewer 刷新频率。
+- viewer 会跟随每个 publish payload 更新一次。
 - `--min_link_height` 用于控制目标最小 link 高度。
 - `--min_link_height_align_strategy` 支持 `none`、`startup_fixed`、`per_frame`。
 - `--min_link_height_bootstrap_frames` 用于 `startup_fixed` 模式下估计固定高度偏移。

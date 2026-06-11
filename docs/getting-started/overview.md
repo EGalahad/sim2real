@@ -12,7 +12,7 @@ git clone https://github.com/EGalahad/sim2real
 `sim2real` is split into two environments:
 
 - The root project is for policy inference, MuJoCo simulation, and the real bridge.
-- `venv/teleop` is for Pico / XR retargeting, realtime viewing, and motion recording.
+- `venv/teleop` is for Pico / XR retargeting with built-in mjviser viewing, and motion recording.
 
 This project supports two hardware layouts:
 

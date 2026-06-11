@@ -39,4 +39,4 @@ uv run scripts/view_motion.py \
   --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.npz
 ```
 
-`sim2real/teleop/realtime_viewer.py` is only for live ZMQ retarget inspection. It does not replay recorded `.npz` files.
+The live retarget viewer is built into `sim2real/teleop/pico_retarget_pub.py`. It does not replay recorded `.npz` files.

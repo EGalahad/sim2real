@@ -20,27 +20,12 @@ def _apply_runtime_motion_config(
     motion_zmq_hwm: int,
     motion_dt_s: float,
     motion_tolerance_s: float,
-    max_future: Optional[int],
 ):
     policy_config = deepcopy(policy_config)
     motion_cfg = policy_config.setdefault("motion", {})
     motion_cfg["motion_backend"] = motion_backend
     if motion_backend == "npz" and motion_path is not None:
         motion_cfg["motion_path"] = motion_path
-    if max_future is not None and "future_steps" in motion_cfg:
-        max_future = int(max_future)
-        original_future_steps = [int(step) for step in motion_cfg["future_steps"]]
-        trimmed_future_steps = [
-            step for step in original_future_steps if step <= max_future
-        ]
-        if trimmed_future_steps != original_future_steps:
-            motion_cfg["future_steps"] = trimmed_future_steps
-            logger.info(
-                "Trimmed motion.future_steps with max_future={} from {} to {}",
-                max_future,
-                original_future_steps,
-                trimmed_future_steps,
-            )
     if motion_backend == "zmq":
         motion_cfg["motion_zmq_connect"] = motion_zmq_connect
         motion_cfg["motion_zmq_hwm"] = motion_zmq_hwm
@@ -62,7 +47,6 @@ class Tracking(BasePolicy):
             motion_zmq_hwm=self.args.motion_zmq_hwm,
             motion_dt_s=1 / self.args.rl_rate,
             motion_tolerance_s=self.args.motion_tolerance_s,
-            max_future=self.args.max_future,
         )
         if self.args.motion_backend == "zmq":
             logger.info(
@@ -95,7 +79,6 @@ class TrackingArgs(BasePolicyArgs):
 
     motion_backend: Literal["npz", "zmq"] = "npz"
     motion_path: Optional[str] = None
-    max_future: Optional[int] = None
     motion_zmq_connect: str = "tcp://127.0.0.1:28701"
     motion_zmq_hwm: int = 1
     motion_tolerance_s: float = 0.04

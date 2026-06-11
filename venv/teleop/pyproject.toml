@@ -5,6 +5,7 @@ description = "Orin/PC teleop uv environment for HDMI sim2real"
 requires-python = "==3.10.*"
 dependencies = [
     "mujoco",
+    "mjviser",
     "mjhub @ git+https://github.com/EGalahad/mjhub.git@main",
     "loguru",
     "pyyaml",

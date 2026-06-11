@@ -87,15 +87,7 @@ uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
   --actual_human_height 1.80
 ```
 
-In a second terminal, run the realtime viewer and point it at the G1 Orin IP:
-
-```bash
-uv --project venv/teleop run sim2real/teleop/realtime_viewer.py \
-  --connect tcp://<g1-orin-ip>:28701 \
-  --viewer_hz 50
-```
-
-If the viewer updates with live G1 retargeted motion, the onboard teleop stack is ready.
+Open the mjviser URL printed by the publisher. If it updates with live G1 retargeted motion, the onboard teleop stack is ready.
 
 To record and replay a qpos clip after the live publisher is running, use the root project environment:
 
