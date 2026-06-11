@@ -149,15 +149,53 @@ class MotionDataset:
             self._motion_ids = np.arange(int(dataset.num_motions), dtype=np.int64)
         else:
             self._motion_ids = np.asarray(motion_ids, dtype=np.int64)
-        source_starts = _to_numpy(dataset.starts).astype(np.int64, copy=False)
-        source_ends = _to_numpy(dataset.ends).astype(np.int64, copy=False)
-        selected_starts = source_starts[self._motion_ids]
-        selected_ends = source_ends[self._motion_ids]
+        self._source_starts = _to_numpy(dataset.starts).astype(np.int64, copy=True)
+        self._source_ends = _to_numpy(dataset.ends).astype(np.int64, copy=True)
+        self._storage = self._build_numpy_storage(dataset)
+        self._refresh_selected_bounds()
+
+    def _build_numpy_storage(self, dataset: Any4HDMIBaseDataset) -> dict[str, np.ndarray]:
+        storage: dict[str, np.ndarray] = {}
+        for field_name in _MOTION_FIELD_NAMES:
+            if hasattr(dataset.data, field_name):
+                storage[field_name] = _to_numpy(getattr(dataset.data, field_name)).copy()
+
+        storage["joint_pos"] = _reorder_joint_field(
+            storage["joint_pos"],
+            src_joint_indices=self._src_joint_indices,
+            dest_joint_indices=self._dest_joint_indices,
+            joint_dim=len(self.joint_names),
+        )
+        storage["joint_vel"] = _reorder_joint_field(
+            storage["joint_vel"],
+            src_joint_indices=self._src_joint_indices,
+            dest_joint_indices=self._dest_joint_indices,
+            joint_dim=len(self.joint_names),
+        )
+        return storage
+
+    def _refresh_selected_bounds(self) -> None:
+        selected_starts = self._source_starts[self._motion_ids]
+        selected_ends = self._source_ends[self._motion_ids]
         self.starts = np.zeros_like(selected_starts)
         if self.starts.size > 1:
             self.starts[1:] = np.cumsum(selected_ends[:-1] - selected_starts[:-1])
         self.ends = self.starts + (selected_ends - selected_starts)
         self.lengths = self.ends - self.starts
+
+    def select_motions(self, motion_ids: List[int] | np.ndarray) -> "MotionDataset":
+        selected = object.__new__(MotionDataset)
+        selected._dataset = self._dataset
+        selected.body_names = self.body_names
+        selected.joint_names = self.joint_names
+        selected._src_joint_indices = self._src_joint_indices
+        selected._dest_joint_indices = self._dest_joint_indices
+        selected._source_starts = self._source_starts
+        selected._source_ends = self._source_ends
+        selected._storage = self._storage
+        selected._motion_ids = self._motion_ids[np.asarray(motion_ids, dtype=np.int64)]
+        selected._refresh_selected_bounds()
+        return selected
 
     @classmethod
     def create_from_path(
@@ -206,17 +244,27 @@ class MotionDataset:
         return int(self.lengths.sum())
 
     def get_slice(self, motion_ids: np.ndarray, starts: np.ndarray, steps: np.ndarray) -> MotionData:
-        source_motion_ids = self._motion_ids[np.asarray(motion_ids, dtype=np.int64)]
-        motion = self._dataset.get_slice(
-            torch.as_tensor(source_motion_ids, device=self._dataset.device, dtype=torch.long),
-            torch.as_tensor(starts, device=self._dataset.device, dtype=torch.long),
-            torch.as_tensor(steps, device=self._dataset.device, dtype=torch.long),
-        )
-        return _motion_data_to_numpy(
-            motion,
-            src_joint_indices=self._src_joint_indices,
-            dest_joint_indices=self._dest_joint_indices,
-            joint_dim=len(self.joint_names),
+        motion_ids_arr = np.asarray(motion_ids, dtype=np.int64).reshape(-1)
+        starts_arr = np.asarray(starts, dtype=np.int64).reshape(-1)
+        steps_arr = np.asarray(steps, dtype=np.int64).reshape(-1)
+        if starts_arr.shape[0] != motion_ids_arr.shape[0]:
+            raise ValueError(
+                "starts must have the same length as motion_ids, got "
+                f"{starts_arr.shape[0]} and {motion_ids_arr.shape[0]}"
+            )
+
+        source_motion_ids = self._motion_ids[motion_ids_arr]
+        source_starts = self._source_starts[source_motion_ids]
+        source_ends = self._source_ends[source_motion_ids]
+        idx = (source_starts + starts_arr)[:, None] + steps_arr[None, :]
+        idx = np.minimum(idx, (source_ends - 1)[:, None])
+        idx = np.maximum(idx, source_starts[:, None])
+
+        return MotionData(
+            **{
+                field_name: field[idx]
+                for field_name, field in self._storage.items()
+            }
         )
 
     def find_joints(self, joint_names: List[str], preserve_order: bool = False) -> List[int]:
@@ -229,11 +277,4 @@ class MotionDataset:
 def motion_dataset_first_motion(dataset: MotionDataset) -> MotionDataset:
     if dataset.num_motions <= 0:
         raise ValueError("Cannot extract the first motion from an empty MotionDataset")
-    return MotionDataset(
-        dataset=dataset._dataset,
-        body_names=dataset.body_names,
-        joint_names=dataset.joint_names,
-        src_joint_indices=dataset._src_joint_indices.tolist(),
-        dest_joint_indices=dataset._dest_joint_indices.tolist(),
-        motion_ids=[int(dataset._motion_ids[0])],
-    )
+    return dataset.select_motions([0])

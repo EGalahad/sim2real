@@ -217,21 +217,17 @@ class ref_body_pos_future_local(_motion_body_obs):
         ref_anchor_pos_w: np.ndarray = self.ref_anchor_pos_w[:, None, None, :].copy()
         ref_anchor_quat_w: np.ndarray = self.ref_anchor_quat_w[:, None, None, :]
 
-        ref_anchor_pos_w = np.tile(
-            ref_anchor_pos_w,
-            (1, self.n_selected_future_steps, self.n_selected_bodies, 1),
-        )
-        ref_anchor_quat_w = np.tile(
-            ref_anchor_quat_w,
-            (1, self.n_selected_future_steps, self.n_selected_bodies, 1),
-        )
-
         ref_anchor_pos_w[..., 2] = 0.0
         ref_anchor_quat_w = projected_yaw_quat(ref_anchor_quat_w)
-
-        ref_body_pos_future_local = quat_rotate_inverse_numpy(
-            ref_anchor_quat_w, ref_body_pos_future_w - ref_anchor_pos_w
-        )
+        delta = ref_body_pos_future_w - ref_anchor_pos_w
+        qw = ref_anchor_quat_w[..., 0:1]
+        qz = ref_anchor_quat_w[..., 3:4]
+        cos_yaw = qw * qw - qz * qz
+        sin_yaw = 2.0 * qw * qz
+        ref_body_pos_future_local = np.empty_like(delta)
+        ref_body_pos_future_local[..., 0:1] = cos_yaw * delta[..., 0:1] + sin_yaw * delta[..., 1:2]
+        ref_body_pos_future_local[..., 1:2] = -sin_yaw * delta[..., 0:1] + cos_yaw * delta[..., 1:2]
+        ref_body_pos_future_local[..., 2:3] = delta[..., 2:3]
         self.ref_body_pos_future_local = ref_body_pos_future_local
     
     def compute(self):
@@ -246,11 +242,11 @@ class ref_body_ori_future_local(_motion_body_obs):
         ref_body_quat_future_w = self._select(self.ref_body_quat_future_w)
         ref_anchor_quat_w = self.ref_anchor_quat_w[:, None, None, :]
 
-        ref_anchor_quat_w = np.tile(
-            ref_anchor_quat_w,
-            (1, self.n_selected_future_steps, self.n_selected_bodies, 1),
-        )
         ref_anchor_quat_w = projected_yaw_quat(ref_anchor_quat_w)
+        ref_anchor_quat_w = np.broadcast_to(
+            ref_anchor_quat_w,
+            ref_body_quat_future_w.shape,
+        )
 
         ref_body_quat_future_local = quat_mul(
             quat_conjugate(ref_anchor_quat_w),
@@ -281,7 +277,10 @@ class ref_root_ori_future_b(_motion_obs):
         robot_root_quat_w = self.state_processor.root_quat_w
         robot_root_quat_w = quat_mul(self.root_quat_offset, robot_root_quat_w)
 
-        robot_root_quat_w = np.tile(robot_root_quat_w, (1, self.n_future_steps, 1))
+        robot_root_quat_w = np.broadcast_to(
+            robot_root_quat_w.reshape(1, 1, 4),
+            ref_root_quat_future_w.shape,
+        )
 
         ref_root_quat_future_b = quat_mul(
             quat_conjugate(robot_root_quat_w),
