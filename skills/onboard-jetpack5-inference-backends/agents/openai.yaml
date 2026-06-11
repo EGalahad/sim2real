@@ -1,0 +1,4 @@
+interface:
+  display_name: "Onboard JetPack 5 Inference Backends"
+  short_description: "JetPack 5 ONNX GPU and TRT setup"
+  default_prompt: "Use $onboard-jetpack5-inference-backends to install, convert, and test sim2real ONNX GPU or TensorRT inference on JetPack 5."

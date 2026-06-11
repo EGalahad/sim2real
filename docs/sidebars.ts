@@ -75,6 +75,11 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'doc',
+          id: 'onboard_jetpack5_inference_backends',
+          label: 'Onboard JetPack 5 Inference Backends',
+        },
+        {
+          type: 'doc',
           id: 'xrobotoolkit_pc_service_arm64_build',
           label: 'XRoboToolkit PC Service ARM64 Build',
         },
