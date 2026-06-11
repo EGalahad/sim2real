@@ -50,6 +50,9 @@ skills/adapt-policy-to-sim2real
 已经转好的 SONIC checkpoints 放在 Google Drive：
 [SONIC checkpoints](https://drive.google.com/drive/folders/1KgkLnfRzth2ZHMq8I49qpCSbY977iUAK)。
 
+已经转好的 TWIST2 checkpoints 放在 Google Drive：
+[TWIST2 checkpoints](https://drive.google.com/drive/folders/14vXXgymYgnh2pXcaCzJQtcxm0FI3ez3j)。
+
 安装到本机 Codex skills 目录：
 
 ```bash

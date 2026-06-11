@@ -47,6 +47,9 @@ skills/adapt-policy-to-sim2real
 Converted SONIC checkpoints are available on Google Drive:
 [SONIC checkpoints](https://drive.google.com/drive/folders/1KgkLnfRzth2ZHMq8I49qpCSbY977iUAK).
 
+Converted TWIST2 checkpoints are available on Google Drive:
+[TWIST2 checkpoints](https://drive.google.com/drive/folders/14vXXgymYgnh2pXcaCzJQtcxm0FI3ez3j).
+
 Install it into your local Codex skills directory:
 
 ```bash
