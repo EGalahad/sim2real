@@ -5,7 +5,7 @@ Chinese docs: [https://egalahad.github.io/sim2real/zh-Hans/getting-started/overv
 `sim2real` is split into two environments:
 
 - The root project is for inference, tracking policy, MuJoCo simulation, and the real bridge.
-- `venv/teleop` is for Pico / XR retargeting, realtime viewing, and motion recording.
+- `venv/teleop` is for Pico / XR retargeting with built-in mjviser viewing, and motion recording.
 
 This project supports two hardware layouts:
 

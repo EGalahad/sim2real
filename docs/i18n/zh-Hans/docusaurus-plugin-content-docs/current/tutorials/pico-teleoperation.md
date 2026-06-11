@@ -11,11 +11,9 @@ uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
   --actual_human_height 1.80
 ```
 
-## 2. 用 mjviser 检查 retarget
-
 打开 publisher 打印出来的 mjviser URL。先确认 viewer 里的 G1 retarget 动作是对的，再继续执行。
 
-## 3. 选择执行后端
+## 2. 选择执行后端
 
 ### Sim2Sim
 

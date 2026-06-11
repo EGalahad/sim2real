@@ -14,11 +14,9 @@ uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
   --actual_human_height 1.80
 ```
 
-## 2. Inspect the retarget in realtime
-
 Open the mjviser URL printed by the publisher and keep it open until the retargeted G1 motion looks correct.
 
-## 3. Choose the execution backend
+## 2. Choose the execution backend
 
 ### Sim2Sim
 
