@@ -8,7 +8,7 @@ from loguru import logger
 from typing import Any, Dict, Optional
 from sim2real.config.robots.base import RobotCfg
 from sim2real.rl_policy.utils.motion import MotionDataset, MotionData, motion_dataset_first_motion
-from sim2real.rl_policy.utils.motion_buffer import RealtimeMotionBuffer
+from sim2real.rl_policy.utils.motion_buffer import RealtimeMotionBuffer, RealtimeSmplMotionBuffer
 from sim2real.utils.common import ZMQSubscriber, PORTS, LowStateMessage
 
 class StateProcessor:
@@ -122,6 +122,17 @@ class StateProcessor:
 
             self.motion_joint_names = list(self.motion_buffer.joint_names)
             self.motion_body_names = list(self.motion_buffer.body_names)
+        elif self.motion_backend == "smpl_zmq":
+            self.motion_buffer = RealtimeSmplMotionBuffer(
+                robot_cfg=self.robot_cfg,
+                future_steps=self.motion_future_steps,
+                motion_zmq_connect=self.motion_config.get("motion_zmq_connect", "tcp://127.0.0.1:28702"),
+                motion_zmq_hwm=int(self.motion_config.get("motion_zmq_hwm", 1)),
+                dt_s=float(self.motion_config.get("motion_dt_s", 0.02)),
+                tolerance_s=float(self.motion_config.get("motion_tolerance_s", 0.04)),
+            )
+            self.motion_joint_names = self.motion_buffer.joint_names
+            self.motion_body_names = []
         else:
             raise ValueError(f"Unsupported motion_backend: {motion_backend}")
 
@@ -133,6 +144,8 @@ class StateProcessor:
                 self.motion_future_steps,
             )
         elif self.motion_backend == "zmq":
+            self.motion_data = self.motion_buffer.get_obs()
+        elif self.motion_backend == "smpl_zmq":
             self.motion_data = self.motion_buffer.get_obs()
 
     def register_subscriber(self, object_name: str, port: Optional[int] = None):

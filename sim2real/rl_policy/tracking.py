@@ -26,7 +26,8 @@ def _apply_runtime_motion_config(
     motion_cfg["motion_backend"] = motion_backend
     if motion_backend == "npz" and motion_path is not None:
         motion_cfg["motion_path"] = motion_path
-    if motion_backend == "zmq":
+        motion_cfg["motion_dt_s"] = motion_dt_s
+    if motion_backend in {"zmq", "smpl_zmq"}:
         motion_cfg["motion_zmq_connect"] = motion_zmq_connect
         motion_cfg["motion_zmq_hwm"] = motion_zmq_hwm
         motion_cfg["motion_dt_s"] = motion_dt_s
@@ -48,9 +49,9 @@ class Tracking(BasePolicy):
             motion_dt_s=1 / self.args.rl_rate,
             motion_tolerance_s=self.args.motion_tolerance_s,
         )
-        if self.args.motion_backend == "zmq":
+        if self.args.motion_backend in {"zmq", "smpl_zmq"}:
             logger.info(
-                "Using runtime motion_backend=zmq "
+                f"Using runtime motion_backend={self.args.motion_backend} "
                 f"connect={self.args.motion_zmq_connect}"
             )
         return policy_config
@@ -77,7 +78,7 @@ class Tracking(BasePolicy):
 class TrackingArgs(BasePolicyArgs):
     """Robot."""
 
-    motion_backend: Literal["npz", "zmq"] = "npz"
+    motion_backend: Literal["npz", "zmq", "smpl_zmq"] = "npz"
     motion_path: Optional[str] = None
     motion_zmq_connect: str = "tcp://127.0.0.1:28701"
     motion_zmq_hwm: int = 1

@@ -15,11 +15,41 @@ from sim2real.rl_policy.utils.motion import MotionData, _normalize_quat_batch, _
 from sim2real.utils.math import quat_conjugate, quat_mul
 
 
+class SmplMotionData:
+    def __init__(
+        self,
+        *,
+        timestamps_ns: np.ndarray,
+        step: np.ndarray,
+        smpl_body_pose_aa: np.ndarray,
+        smpl_joint_pos_root: np.ndarray,
+        smpl_root_quat_w: np.ndarray,
+        joint_pos: np.ndarray,
+        joint_vel: np.ndarray,
+    ) -> None:
+        self.timestamps_ns = timestamps_ns
+        self.step = step
+        self.smpl_body_pose_aa = smpl_body_pose_aa
+        self.smpl_joint_pos_root = smpl_joint_pos_root
+        self.smpl_root_quat_w = smpl_root_quat_w
+        self.joint_pos = joint_pos
+        self.joint_vel = joint_vel
+
+
 def _ensure_np(value: Any, ndim: int, dtype=np.float32) -> np.ndarray:
     arr = np.asarray(value, dtype=dtype)
     if arr.ndim != ndim:
         raise ValueError(f"Expected ndim={ndim}, got shape={arr.shape}")
     return arr
+
+
+def _payload_scalar(value: Any, default: Any = None) -> Any:
+    if value is None:
+        return default
+    arr = np.asarray(value)
+    if arr.size == 0:
+        return default
+    return arr.reshape(-1)[0].item()
 
 
 def _quat_pair_ang_vel_w(q0_wxyz: np.ndarray, q1_wxyz: np.ndarray, dt_s: np.ndarray) -> np.ndarray:
@@ -44,7 +74,6 @@ def _quat_pair_ang_vel_w(q0_wxyz: np.ndarray, q1_wxyz: np.ndarray, dt_s: np.ndar
         out=np.zeros_like(rotvec),
         where=dt_s[..., None] > 0.0,
     ).astype(np.float32, copy=False)
-
 
 class RealtimeMotionBuffer:
     def __init__(
@@ -330,3 +359,227 @@ class RealtimeMotionBuffer:
             body_ang_vel_w=body_ang_vel_w,
         )
         return motion_data
+
+
+class RealtimeSmplMotionBuffer:
+    def __init__(
+        self,
+        robot_cfg: RobotCfg,
+        future_steps: Iterable[int],
+        motion_zmq_connect: str | None = None,
+        motion_zmq_hwm: int = 1,
+        dt_s: float = 0.02,
+        tolerance_s: float = 0.04,
+    ) -> None:
+        self.robot_cfg = robot_cfg
+        self.joint_names: list[str] = list(self.robot_cfg.joint_names)
+        self.future_steps = np.asarray(list(future_steps), dtype=int)
+        if self.future_steps.ndim != 1:
+            raise ValueError(f"future_steps must be 1D, got {self.future_steps.shape}")
+        self.dt_s = float(dt_s)
+        if self.dt_s <= 0.0:
+            raise ValueError("dt_s must be positive")
+        self._dt_ns = int(self.dt_s * 1e9)
+        self._tolerance_ns = int(float(tolerance_s) * 1e9)
+        self._future_steps_ns = self.future_steps.astype(np.int64, copy=False) * self._dt_ns
+        self.min_future_step = int(np.min(self.future_steps)) if self.future_steps.size else 0
+        self.max_future_step = int(np.max(self.future_steps)) if self.future_steps.size else 0
+        self._delay_ns = self.max_future_step * self._dt_ns + self._tolerance_ns
+        self.delay_s = float(self._delay_ns / 1e9)
+        self._history_ns = self._delay_ns + abs(self.min_future_step) * self._dt_ns
+        self._identity_quat = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
+
+        self._lock = threading.Lock()
+        self._timestamps_ns: list[int] = []
+        self._smpl_body_pose_aa_frames: list[np.ndarray] = []
+        self._smpl_joint_pos_root_frames: list[np.ndarray] = []
+        self._smpl_root_quat_w_frames: list[np.ndarray] = []
+        self._joint_pos_frames: list[np.ndarray] = []
+        self._step_template = self.future_steps.reshape(1, -1)
+
+        self._zmq_context = zmq.Context.instance()
+        self._motion_zmq_connect = motion_zmq_connect
+        self._motion_zmq_hwm = int(motion_zmq_hwm)
+        self._motion_stream_socket: zmq.Socket | None = None
+        self._motion_stream_thread: threading.Thread | None = None
+        self._motion_stream_stop = threading.Event()
+        if self._motion_zmq_connect:
+            self._start_motion_stream()
+
+    def _start_motion_stream(self) -> None:
+        if self._motion_stream_thread is not None:
+            return
+        sock = self._zmq_context.socket(zmq.SUB)
+        sock.setsockopt(zmq.LINGER, 0)
+        sock.setsockopt(zmq.RCVHWM, self._motion_zmq_hwm)
+        sock.setsockopt(zmq.SUBSCRIBE, b"")
+        sock.connect(self._motion_zmq_connect)
+        self._motion_stream_socket = sock
+
+        def _stream_loop() -> None:
+            while not self._motion_stream_stop.is_set():
+                try:
+                    raw = sock.recv_string(flags=zmq.NOBLOCK)
+                except zmq.Again:
+                    time.sleep(0.001)
+                    continue
+                except Exception as exc:
+                    logger.warning(f"SMPL motion subscriber error: {exc}")
+                    time.sleep(0.01)
+                    continue
+
+                try:
+                    self.__append_payload(raw, recv_time_ns=time.time_ns())
+                except Exception as exc:
+                    logger.warning(f"Failed to decode SMPL motion payload: {exc}")
+
+        self._motion_stream_thread = threading.Thread(target=_stream_loop, daemon=True)
+        self._motion_stream_thread.start()
+
+    def __append_payload(
+        self,
+        payload: dict[str, Any] | str | bytes,
+        recv_time_ns: int | None = None,
+    ) -> None:
+        if isinstance(payload, bytes):
+            payload = payload.decode("utf-8")
+        if isinstance(payload, str):
+            payload = json.loads(payload.strip())
+        if not isinstance(payload, dict):
+            raise TypeError(f"Unsupported payload type: {type(payload)}")
+
+        recv_time_ns = int(recv_time_ns or time.time_ns())
+        timestamp_ns = int(
+            _payload_scalar(payload.get(PICO_RECV_TIME_NS_KEY))
+            or _payload_scalar(payload.get("pico_recv_time_ns"))
+            or _payload_scalar(payload.get(PUBLISH_T_NS_KEY))
+            or recv_time_ns
+        )
+
+        smpl_body_pose_aa = _ensure_np(payload["smpl_body_pose_aa"], 3)
+        smpl_joint_pos_root = _ensure_np(payload["smpl_joint_pos_root"], 3)
+        smpl_root_quat_w = _ensure_np(payload["smpl_root_quat_w"], 2)
+        joint_pos = _ensure_np(payload["joint_pos"], 2)
+        if "joint_vel" in payload:
+            joint_vel = _ensure_np(payload["joint_vel"], 2)
+        else:
+            joint_vel = np.zeros_like(joint_pos, dtype=np.float32)
+
+        num_frames = int(smpl_body_pose_aa.shape[0])
+        if smpl_body_pose_aa.shape != (num_frames, 21, 3):
+            raise ValueError(
+                f"Expected smpl_body_pose_aa [N,21,3], got {smpl_body_pose_aa.shape}"
+            )
+        if smpl_joint_pos_root.shape != (num_frames, 24, 3):
+            raise ValueError(
+                f"Expected smpl_joint_pos_root [N,24,3], got {smpl_joint_pos_root.shape}"
+            )
+        if smpl_root_quat_w.shape != (num_frames, 4):
+            raise ValueError(f"Expected smpl_root_quat_w [N,4], got {smpl_root_quat_w.shape}")
+        if joint_pos.shape[0] != num_frames or joint_vel.shape != joint_pos.shape:
+            raise ValueError(
+                f"joint_pos/joint_vel shape mismatch: {joint_pos.shape} vs {joint_vel.shape}"
+            )
+        if joint_pos.shape[1] != len(self.joint_names):
+            raise ValueError(
+                f"Expected {len(self.joint_names)} joint positions, got {joint_pos.shape[1]}"
+            )
+
+        if "frame_index" in payload:
+            frame_index = np.asarray(payload["frame_index"], dtype=np.int64).reshape(-1)
+            if frame_index.shape[0] == num_frames:
+                timestamps = timestamp_ns + (frame_index - frame_index[-1]) * self._dt_ns
+            else:
+                timestamps = timestamp_ns + (np.arange(num_frames) - (num_frames - 1)) * self._dt_ns
+        else:
+            timestamps = timestamp_ns + (np.arange(num_frames) - (num_frames - 1)) * self._dt_ns
+
+        smpl_root_quat_w = _normalize_quat_batch(
+            smpl_root_quat_w.astype(np.float32, copy=False)
+        )
+        with self._lock:
+            for i in range(num_frames):
+                ts = int(timestamps[i])
+                if self._timestamps_ns and ts <= self._timestamps_ns[-1]:
+                    # Current publisher sends single latest frames; ignore duplicate/out-of-order chunks.
+                    continue
+                self._timestamps_ns.append(ts)
+                self._smpl_body_pose_aa_frames.append(
+                    smpl_body_pose_aa[i].astype(np.float32, copy=True)
+                )
+                self._smpl_joint_pos_root_frames.append(
+                    smpl_joint_pos_root[i].astype(np.float32, copy=True)
+                )
+                self._smpl_root_quat_w_frames.append(
+                    smpl_root_quat_w[i].astype(np.float32, copy=True)
+                )
+                self._joint_pos_frames.append(joint_pos[i].astype(np.float32, copy=True))
+
+    def cleanup(self, cutoff_ns: int) -> None:
+        with self._lock:
+            while len(self._timestamps_ns) > 1 and self._timestamps_ns[1] < cutoff_ns:
+                self._timestamps_ns.pop(0)
+                self._smpl_body_pose_aa_frames.pop(0)
+                self._smpl_joint_pos_root_frames.pop(0)
+                self._smpl_root_quat_w_frames.pop(0)
+                self._joint_pos_frames.pop(0)
+
+    def _sample_array_locked(
+        self,
+        frames: list[np.ndarray],
+        target_times_ns: np.ndarray,
+    ) -> np.ndarray:
+        if not frames:
+            raise ValueError("No SMPL frames buffered")
+        if len(frames) == 1:
+            return np.broadcast_to(frames[0], (target_times_ns.shape[0], *frames[0].shape)).copy()
+        timestamps_ns = np.asarray(self._timestamps_ns, dtype=np.int64)
+        clamped = np.clip(target_times_ns, timestamps_ns[0], timestamps_ns[-1])
+        idx = np.searchsorted(timestamps_ns, clamped, side="left")
+        idx = np.clip(idx, 0, timestamps_ns.shape[0] - 1)
+        return np.stack([frames[int(i)] for i in idx], axis=0)
+
+    def get_obs(self) -> SmplMotionData:
+        current_time_ns = time.time_ns()
+        self.cleanup(current_time_ns - self._history_ns)
+        target_base_ns = current_time_ns - self._delay_ns
+        target_times_ns = target_base_ns + self._future_steps_ns
+        num_steps = self.future_steps.shape[0]
+
+        with self._lock:
+            if not self._timestamps_ns:
+                smpl_body_pose_aa = np.zeros((num_steps, 21, 3), dtype=np.float32)
+                smpl_joint_pos_root = np.zeros((num_steps, 24, 3), dtype=np.float32)
+                smpl_root_quat_w = np.broadcast_to(
+                    self._identity_quat, (num_steps, 4)
+                ).copy()
+                joint_pos = np.zeros((num_steps, len(self.joint_names)), dtype=np.float32)
+            else:
+                smpl_body_pose_aa = self._sample_array_locked(
+                    self._smpl_body_pose_aa_frames,
+                    target_times_ns,
+                )
+                smpl_joint_pos_root = self._sample_array_locked(
+                    self._smpl_joint_pos_root_frames,
+                    target_times_ns,
+                )
+                smpl_root_quat_w = self._sample_array_locked(
+                    self._smpl_root_quat_w_frames,
+                    target_times_ns,
+                )
+                joint_pos = self._sample_array_locked(self._joint_pos_frames, target_times_ns)
+
+        joint_vel = np.zeros_like(joint_pos, dtype=np.float32)
+        if joint_pos.shape[0] > 1:
+            joint_vel[:-1] = (joint_pos[1:] - joint_pos[:-1]) / self.dt_s
+            joint_vel[-1] = joint_vel[-2]
+
+        return SmplMotionData(
+            timestamps_ns=target_times_ns.reshape(1, -1),
+            step=self._step_template,
+            smpl_body_pose_aa=smpl_body_pose_aa.reshape(1, num_steps, 21, 3),
+            smpl_joint_pos_root=smpl_joint_pos_root.reshape(1, num_steps, 24, 3),
+            smpl_root_quat_w=smpl_root_quat_w.reshape(1, num_steps, 4),
+            joint_pos=joint_pos.reshape(1, num_steps, len(self.joint_names)),
+            joint_vel=joint_vel.reshape(1, num_steps, len(self.joint_names)),
+        )

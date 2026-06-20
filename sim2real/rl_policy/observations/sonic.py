@@ -6,6 +6,7 @@ import numpy as np
 
 from sim2real.rl_policy.observations.base import Observation
 from sim2real.rl_policy.observations.common import _get_simulation_joint_selection
+from sim2real.rl_policy.utils.motion import MotionData
 from sim2real.utils.math import (
     matrix_from_quat,
     projected_yaw_quat,
@@ -22,12 +23,84 @@ class sonic_encoder_select(Observation):
 
 
 class sonic_encoder_index(Observation):
-    def __init__(self, width: int = 4, **kwargs):
+    def __init__(self, width: int = 4, mode_id: float = 0.0, **kwargs):
         super().__init__(**kwargs)
         self.width = int(width)
+        self.mode_id = float(mode_id)
 
     def compute(self) -> np.ndarray:
-        return np.zeros(self.width, dtype=np.float32)
+        out = np.zeros(self.width, dtype=np.float32)
+        if self.width:
+            out[0] = self.mode_id
+        return out
+
+
+class sonic_smpl_official_encoder_input(Observation):
+    """Full 1762D official encoder input with SMPL-mode fields populated.
+
+    Official deployment exports one encoder input containing all enabled encoder
+    observations. In SMPL mode only a subset is semantically required; the other
+    encoder fields are left as zero.
+    """
+
+    ENCODER_DIM = 1762
+    SMPL_MODE_ID = 2.0
+    SMPL_JOINT_POS_ROOT_OFFSET = 922
+    SMPL_ANCHOR_OFFSET = 1642
+    WRIST_OFFSET = 1702
+    WRIST_JOINT_NAMES = (
+        "left_wrist_roll_joint",
+        "right_wrist_roll_joint",
+        "left_wrist_pitch_joint",
+        "right_wrist_pitch_joint",
+        "left_wrist_yaw_joint",
+        "right_wrist_yaw_joint",
+    )
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._cached_joint_names: tuple[str, ...] | None = None
+        self._wrist_indices: np.ndarray | None = None
+
+    def _refresh_wrist_indices(self) -> np.ndarray:
+        joint_names = tuple(self.state_processor.motion_joint_names)
+        if self._cached_joint_names == joint_names and self._wrist_indices is not None:
+            return self._wrist_indices
+        missing = [name for name in self.WRIST_JOINT_NAMES if name not in joint_names]
+        if missing:
+            raise ValueError(f"SMPL motion joint_names missing wrist joints: {missing}")
+        self._wrist_indices = np.asarray(
+            [joint_names.index(name) for name in self.WRIST_JOINT_NAMES],
+            dtype=int,
+        )
+        self._cached_joint_names = joint_names
+        return self._wrist_indices
+
+    def compute(self) -> np.ndarray:
+        motion_data = self.state_processor.motion_data
+        out = np.zeros(self.ENCODER_DIM, dtype=np.float32)
+        out[0] = self.SMPL_MODE_ID
+        if motion_data is None:
+            return out
+
+        smpl_joint_pos_root = np.asarray(motion_data.smpl_joint_pos_root[0], dtype=np.float32)
+        out[
+            self.SMPL_JOINT_POS_ROOT_OFFSET : self.SMPL_JOINT_POS_ROOT_OFFSET + 720
+        ] = smpl_joint_pos_root.reshape(-1)
+
+        ref_root_quat_w = np.asarray(motion_data.smpl_root_quat_w[0], dtype=np.float32)
+        robot_root_quat_w = np.broadcast_to(
+            self.state_processor.root_quat_w.reshape(1, 4),
+            ref_root_quat_w.shape,
+        )
+        rel_quat = quat_mul(quat_conjugate(robot_root_quat_w), ref_root_quat_w)
+        anchor_ori = matrix_from_quat(rel_quat)[..., :, :2].reshape(-1)
+        out[self.SMPL_ANCHOR_OFFSET : self.SMPL_ANCHOR_OFFSET + 60] = anchor_ori
+
+        joint_pos = np.asarray(motion_data.joint_pos[0], dtype=np.float32)
+        wrists = joint_pos[:, self._refresh_wrist_indices()]
+        out[self.WRIST_OFFSET : self.WRIST_OFFSET + 60] = wrists.reshape(-1)
+        return out
 
 
 class _SonicMotionObservation(Observation):
@@ -71,13 +144,37 @@ class _SonicMotionObservation(Observation):
         self._cached_motion_layout = layout
 
     def _motion_slice(self, steps: np.ndarray):
-        if self.state_processor.motion_backend != "npz":
-            raise ValueError("SONIC motion observations currently require motion_backend=npz")
         self._refresh_motion_indices()
-        return self.state_processor.motion_dataset.get_slice(
-            self.state_processor.motion_ids,
-            self.state_processor.motion_t,
-            steps,
+        if self.state_processor.motion_backend == "npz":
+            return self.state_processor.motion_dataset.get_slice(
+                self.state_processor.motion_ids,
+                self.state_processor.motion_t,
+                steps,
+            )
+
+        motion_data: MotionData = self.state_processor.motion_data
+        available_steps = [
+            int(step) for step in self.state_processor.motion_future_steps.tolist()
+        ]
+        step_indices = []
+        for step in [int(step) for step in steps.tolist()]:
+            if step not in available_steps:
+                raise ValueError(
+                    f"SONIC requested future step {step}, "
+                    f"but motion source provides {available_steps}"
+                )
+            step_indices.append(available_steps.index(step))
+
+        return MotionData(
+            motion_id=np.take(motion_data.motion_id, step_indices, axis=1),
+            step=np.take(motion_data.step, step_indices, axis=1),
+            timestamps_ns=np.take(motion_data.timestamps_ns, step_indices, axis=1),
+            joint_pos=np.take(motion_data.joint_pos, step_indices, axis=1),
+            joint_vel=np.take(motion_data.joint_vel, step_indices, axis=1),
+            body_pos_w=np.take(motion_data.body_pos_w, step_indices, axis=1),
+            body_lin_vel_w=np.take(motion_data.body_lin_vel_w, step_indices, axis=1),
+            body_quat_w=np.take(motion_data.body_quat_w, step_indices, axis=1),
+            body_ang_vel_w=np.take(motion_data.body_ang_vel_w, step_indices, axis=1),
         )
 
     def _playback_steps(self) -> np.ndarray:
