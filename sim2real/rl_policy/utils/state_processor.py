@@ -8,27 +8,35 @@ from loguru import logger
 from typing import Any, Dict, Optional
 from sim2real.config.robots.base import RobotCfg
 from sim2real.rl_policy.utils.motion import MotionDataset, MotionData, motion_dataset_first_motion
-from sim2real.rl_policy.utils.motion_buffer import RealtimeMotionBuffer
+from sim2real.rl_policy.utils.motion_buffer import RealtimeMotionBuffer, RealtimeSmplMotionBuffer
+from sim2real.rl_policy.utils.upstream_real_io import UpstreamG1IO
 from sim2real.utils.common import ZMQSubscriber, PORTS, LowStateMessage
 
 class StateProcessor:
     """Listens to the unitree sdk channels and converts observation into isaac compatible order.
     Assumes the message in the channel follows the joint order of robot_cfg.joint_names.
     """
-    def __init__(self, robot_cfg: RobotCfg, policy_config):
+    def __init__(
+        self,
+        robot_cfg: RobotCfg,
+        policy_config,
+        real_io_backend: UpstreamG1IO | None = None,
+    ):
         self.robot_cfg = robot_cfg
         self.mocap_ip = self.robot_cfg.mocap_ip
+        self.real_io_backend = real_io_backend
 
         self.low_state_port = self.robot_cfg.low_state_port
-        state_host = self.robot_cfg.low_state_host
-        state_endpoint = f"tcp://{state_host}:{self.low_state_port}"
+        if self.real_io_backend is None:
+            state_host = self.robot_cfg.low_state_host
+            state_endpoint = f"tcp://{state_host}:{self.low_state_port}"
 
-        self.zmq_context = zmq.Context.instance()
-        self.low_state_socket: zmq.Socket = self.zmq_context.socket(zmq.SUB)
-        self.low_state_socket.setsockopt(zmq.SUBSCRIBE, b"")
-        self.low_state_socket.setsockopt(zmq.CONFLATE, 1)
-        self.low_state_socket.setsockopt(zmq.RCVTIMEO, 10)
-        self.low_state_socket.connect(state_endpoint)
+            self.zmq_context = zmq.Context.instance()
+            self.low_state_socket: zmq.Socket = self.zmq_context.socket(zmq.SUB)
+            self.low_state_socket.setsockopt(zmq.SUBSCRIBE, b"")
+            self.low_state_socket.setsockopt(zmq.CONFLATE, 1)
+            self.low_state_socket.setsockopt(zmq.RCVTIMEO, 10)
+            self.low_state_socket.connect(state_endpoint)
         self.latest_low_state: LowStateMessage | None = None
 
         # Initialize joint mapping
@@ -122,6 +130,17 @@ class StateProcessor:
 
             self.motion_joint_names = list(self.motion_buffer.joint_names)
             self.motion_body_names = list(self.motion_buffer.body_names)
+        elif self.motion_backend == "smpl_zmq":
+            self.motion_buffer = RealtimeSmplMotionBuffer(
+                robot_cfg=self.robot_cfg,
+                future_steps=self.motion_future_steps,
+                motion_zmq_connect=self.motion_config.get("motion_zmq_connect", "tcp://127.0.0.1:28702"),
+                motion_zmq_hwm=int(self.motion_config.get("motion_zmq_hwm", 1)),
+                dt_s=float(self.motion_config.get("motion_dt_s", 0.02)),
+                tolerance_s=float(self.motion_config.get("motion_tolerance_s", 0.04)),
+            )
+            self.motion_joint_names = self.motion_buffer.joint_names
+            self.motion_body_names = []
         else:
             raise ValueError(f"Unsupported motion_backend: {motion_backend}")
 
@@ -133,6 +152,8 @@ class StateProcessor:
                 self.motion_future_steps,
             )
         elif self.motion_backend == "zmq":
+            self.motion_data = self.motion_buffer.get_obs()
+        elif self.motion_backend == "smpl_zmq":
             self.motion_data = self.motion_buffer.get_obs()
 
     def register_subscriber(self, object_name: str, port: Optional[int] = None):
@@ -170,6 +191,15 @@ class StateProcessor:
             return self.mocap_data.get(key, None)
 
     def _prepare_low_state(self):
+        if self.real_io_backend is not None:
+            self.latest_low_state = self.real_io_backend.read_low_state()
+            low_state = self.latest_low_state
+            self.root_quat_w[:] = low_state.quaternion
+            self.root_ang_vel_b[:] = low_state.gyroscope
+            self.joint_pos[:] = low_state.joint_positions
+            self.joint_vel[:] = low_state.joint_velocities
+            return True
+
         if hasattr(self, "low_state_socket"):
             self._receive_low_state()
             if not self.latest_low_state:

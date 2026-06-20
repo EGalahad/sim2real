@@ -152,7 +152,7 @@ class twist2_input(Observation):
                 self._robot_proprio_obs({"action": np.zeros(self.env.num_actions, dtype=np.float32)}),
             ]
         ).astype(np.float32)
-        self.history[:] = current
+        self.history.fill(0.0)
         self.input[0, :] = np.concatenate(
             [current, self.history.reshape(-1), self._motion_mimic_obs(future_step_index)]
         )

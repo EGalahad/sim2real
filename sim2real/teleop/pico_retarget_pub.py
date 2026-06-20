@@ -14,6 +14,7 @@ import json
 import time
 from typing import Literal, Optional
 
+import torch  # Import before MuJoCo/GMR native libs on aarch64 to avoid static TLS issues.
 import mujoco
 import numpy as np
 import tyro
@@ -37,6 +38,15 @@ from sim2real.config.robots.base import (
     XROBOT_BODY_POS_W_KEY,
     XROBOT_BODY_QUAT_W_KEY,
 )
+from sim2real.teleop.sonic_smpl_stream import (
+    DEFAULT_STANDING_SMPL_JOINTS,
+    DEFAULT_HUMAN_JOINTS_INFO_PATH,
+    ISAAC_G1_JOINT_NAMES,
+    build_smpl_frame,
+    build_smpl_frame_from_xrobot_raw,
+    json_safe_payload,
+    pack_pose_message,
+)
 from sim2real.utils.mjviser_viewer import MjviserMujocoViewer
 from sim2real.utils.common import PORTS, PicoControllerStateMessage
 from sim2real.utils.math import quat_conjugate, quat_mul, quat_rotate_inverse_numpy, quat_rotate_numpy, yaw_quat
@@ -54,6 +64,7 @@ MIN_HEIGHT_TIMER_NAME = "pico_retarget_pub.apply_min_link_height"
 BUILD_PAYLOAD_TIMER_NAME = "pico_retarget_pub.build_payload"
 SAMPLE_TIMER_NAME = "pico_retarget_pub.sample_and_retarget"
 SEND_TIMER_NAME = "pico_retarget_pub.send_payload"
+SMPL_SEND_TIMER_NAME = "pico_retarget_pub.send_smpl_payload"
 
 
 @dataclass(frozen=True)
@@ -150,7 +161,7 @@ def _xrobot_payload_dict(xrobot_frame: Optional[XRobotBodyFrame]) -> dict[str, o
 
 def _body_pose_dict_from_streamer(
     streamer: XRobotStreamer,
-) -> tuple[dict[str, list[np.ndarray]], int, int]:
+) -> tuple[dict[str, list[np.ndarray]], np.ndarray, int, int]:
     with ScopedTimer(BODY_POSE_TIMER_NAME):
         body_poses, _body_velocities, _body_accelerations, _imu_timestamps, body_timestamp = (
             streamer.get_raw_body_data()
@@ -158,17 +169,18 @@ def _body_pose_dict_from_streamer(
         pico_recv_time_ns = int(time.time_ns())
         if body_poses is None:
             raise RuntimeError("No XR body data available")
+        raw_body_poses = np.asarray(body_poses, dtype=np.float32).copy()
 
         body_pose_dict: dict[str, list[np.ndarray]] = {}
         for i, body_name in enumerate(streamer.body_joint_names):
-            pose = np.asarray(body_poses[i], dtype=np.float32).reshape(-1)
+            pose = raw_body_poses[i].reshape(-1)
             pos = pose[:3].astype(np.float32, copy=False)
             quat = np.asarray([pose[6], pose[3], pose[4], pose[5]], dtype=np.float32)
             body_pose_dict[body_name] = [pos, quat]
 
         # Keep the same coordinate transform that the streamer uses for its live path.
         body_pose_dict = streamer.coordinate_transform_unity_data(body_pose_dict).copy()
-        return body_pose_dict, int(body_timestamp), pico_recv_time_ns
+        return body_pose_dict, raw_body_poses, int(body_timestamp), pico_recv_time_ns
 
 
 def _controller_button_pressed(controller_data: object, controller_name: str, key_name: str) -> bool:
@@ -253,6 +265,19 @@ class LiveRetargetPublisher:
         self._controller_sock.setsockopt(zmq.SNDHWM, int(args.controller_hwm))
         self._controller_sock.setsockopt(zmq.CONFLATE, 1)
         self._controller_sock.bind(args.controller_bind)
+
+        self._smpl_frame_index = 0
+        self._last_smpl_frame: dict[str, np.ndarray] | None = None
+        self._smpl_heading_offset = np.asarray([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
+        self._needs_smpl_heading_init = True
+        self._smpl_sock = None
+        if bool(args.publish_smpl):
+            self._smpl_sock = zmq.Context.instance().socket(zmq.PUB)
+            self._smpl_sock.setsockopt(zmq.LINGER, 0)
+            self._smpl_sock.setsockopt(zmq.SNDHWM, int(args.smpl_hwm))
+            if bool(args.smpl_conflate):
+                self._smpl_sock.setsockopt(zmq.CONFLATE, 1)
+            self._smpl_sock.bind(args.smpl_bind)
 
     def _resolve_joint_qpos_indices(self) -> list[int]:
         model = self.retarget.configuration.model
@@ -431,6 +456,149 @@ class LiveRetargetPublisher:
         except zmq.Again:
             pass
 
+    def _smpl_g1_joint_names(self) -> tuple[str, ...]:
+        if self.args.smpl_joint_order == "isaac":
+            return ISAAC_G1_JOINT_NAMES
+        return tuple(self.robot_cfg.joint_names)
+
+    def _default_smpl_joint_pos(self) -> np.ndarray:
+        qpos = np.asarray(self.robot_cfg.default_qpos, dtype=np.float32).reshape(-1)
+        robot_joint_pos = qpos[7 : 7 + len(self.robot_cfg.joint_names)]
+        robot_joint_by_name = {
+            name: robot_joint_pos[idx]
+            for idx, name in enumerate(self.robot_cfg.joint_names)
+        }
+        return np.asarray(
+            [robot_joint_by_name.get(name, 0.0) for name in self._smpl_g1_joint_names()],
+            dtype=np.float32,
+        )
+
+    def _current_smpl_heading_quat(self) -> np.ndarray:
+        if self._last_smpl_frame is None:
+            return np.asarray([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
+        body_quat_w = np.asarray(self._last_smpl_frame["body_quat_w"], dtype=np.float32).reshape(1, 4)
+        return yaw_quat(body_quat_w).reshape(4).astype(np.float32, copy=False)
+
+    def _neutral_smpl_frame(self) -> dict[str, np.ndarray]:
+        return {
+            "smpl_pose": np.zeros((21, 3), dtype=np.float32),
+            "smpl_joints": DEFAULT_STANDING_SMPL_JOINTS.copy(),
+            "body_quat_w": self._current_smpl_heading_quat(),
+            "joint_pos": self._default_smpl_joint_pos(),
+        }
+
+    def _publish_smpl_frame_data(
+        self,
+        smpl_frame: dict[str, np.ndarray],
+        *,
+        source_smplx_t_ns: int,
+        pico_recv_time_ns: int,
+    ) -> None:
+        if self._smpl_sock is None:
+            return
+
+        fields = {
+            "smpl_pose": smpl_frame["smpl_pose"][None, ...].astype(np.float32, copy=False),
+            "smpl_joints": smpl_frame["smpl_joints"][None, ...].astype(np.float32, copy=False),
+            "body_quat_w": smpl_frame["body_quat_w"][None, ...].astype(np.float32, copy=False),
+            "joint_pos": smpl_frame["joint_pos"][None, ...].astype(np.float32, copy=False),
+            "joint_vel": np.zeros((1, len(self._smpl_g1_joint_names())), dtype=np.float32),
+            "frame_index": np.asarray([self._smpl_frame_index], dtype=np.int64),
+            "source_smplx_t_ns": np.asarray([int(source_smplx_t_ns)], dtype=np.int64),
+            "pico_recv_time_ns": np.asarray([int(pico_recv_time_ns)], dtype=np.int64),
+            "timestamp_monotonic": np.asarray([time.monotonic()], dtype=np.float64),
+            "timestamp_realtime": np.asarray([time.time()], dtype=np.float64),
+        }
+        self._smpl_frame_index += 1
+
+        with ScopedTimer(SMPL_SEND_TIMER_NAME):
+            try:
+                if self.args.smpl_wire_format == "packed":
+                    message = pack_pose_message(
+                        fields,
+                        topic=str(self.args.smpl_topic),
+                        version=int(self.args.smpl_protocol_version),
+                    )
+                    self._smpl_sock.send(message, flags=zmq.NOBLOCK)
+                else:
+                    payload = {
+                        "topic": str(self.args.smpl_topic),
+                        "version": int(self.args.smpl_protocol_version),
+                        "joint_names": list(self._smpl_g1_joint_names()),
+                        **json_safe_payload(fields),
+                    }
+                    self._smpl_sock.send_json(payload, flags=zmq.NOBLOCK)
+            except zmq.Again:
+                pass
+
+    def _publish_paused_smpl_frame(self) -> None:
+        smpl_frame = self._neutral_smpl_frame()
+        self._last_smpl_frame = {
+            key: np.asarray(value, dtype=np.float32).copy()
+            for key, value in smpl_frame.items()
+        }
+        self._publish_smpl_frame_data(
+            smpl_frame,
+            source_smplx_t_ns=int(self._latest_controller_t_ns),
+            pico_recv_time_ns=time.time_ns(),
+        )
+
+    def _publish_smpl_frame(
+        self,
+        body_pose_dict: dict[str, list[np.ndarray]],
+        *,
+        raw_body_poses: np.ndarray | None = None,
+        source_smplx_t_ns: int,
+        pico_recv_time_ns: int,
+    ) -> None:
+        if self._smpl_sock is None:
+            return
+
+        if raw_body_poses is None:
+            smpl_frame = build_smpl_frame(
+                body_pose_dict,
+                self.streamer.body_joint_names,
+                g1_joint_names=self._smpl_g1_joint_names(),
+                waist_yaw_offset_deg=float(self.args.smpl_waist_yaw_offset_deg),
+                wrist_mapping_mode=str(self.args.smpl_wrist_mapping),
+            )
+        else:
+            smpl_frame = build_smpl_frame_from_xrobot_raw(
+                raw_body_poses,
+                body_pose_dict,
+                self.streamer.body_joint_names,
+                g1_joint_names=self._smpl_g1_joint_names(),
+                waist_yaw_offset_deg=float(self.args.smpl_waist_yaw_offset_deg),
+                wrist_mapping_mode=str(self.args.smpl_wrist_mapping),
+                human_joints_info_path=str(self.args.smpl_human_joints_info_path),
+            )
+        body_quat_w = np.asarray(smpl_frame["body_quat_w"], dtype=np.float32).reshape(1, 4)
+        current_heading = yaw_quat(body_quat_w).reshape(4)
+        if self._needs_smpl_heading_init:
+            target_heading = self._current_smpl_heading_quat()
+            self._smpl_heading_offset = quat_mul(
+                target_heading.reshape(1, 4),
+                quat_conjugate(current_heading.reshape(1, 4)),
+            ).reshape(4).astype(np.float32, copy=False)
+            self._needs_smpl_heading_init = False
+        smpl_frame = {
+            key: np.asarray(value, dtype=np.float32).copy()
+            for key, value in smpl_frame.items()
+        }
+        smpl_frame["body_quat_w"] = quat_mul(
+            self._smpl_heading_offset.reshape(1, 4),
+            body_quat_w,
+        ).reshape(4).astype(np.float32, copy=False)
+        self._last_smpl_frame = {
+            key: np.asarray(value, dtype=np.float32).copy()
+            for key, value in smpl_frame.items()
+        }
+        self._publish_smpl_frame_data(
+            smpl_frame,
+            source_smplx_t_ns=source_smplx_t_ns,
+            pico_recv_time_ns=pico_recv_time_ns,
+        )
+
     def _build_payload(
         self,
         *,
@@ -483,6 +651,7 @@ class LiveRetargetPublisher:
             MIN_HEIGHT_TIMER_NAME,
             BUILD_PAYLOAD_TIMER_NAME,
             SEND_TIMER_NAME,
+            SMPL_SEND_TIMER_NAME,
             PAUSE_CAPTURE_TIMER_NAME,
             SAMPLE_TIMER_NAME,
         ):
@@ -538,11 +707,14 @@ class LiveRetargetPublisher:
                     self._capture_paused_qpos()
                 else:
                     self._needs_live_pelvis_init = True
+                    self._needs_smpl_heading_init = True
                 print(f"[Info] paused toggled to {self.paused} via PICO X button")
             self._x_button_was_pressed = x_pressed
 
             self._maybe_print_mode_hint()
             if self.paused:
+                if bool(self.args.publish_smpl):
+                    self._publish_paused_smpl_frame()
                 return self._build_payload(
                     source_smplx_t_ns=self._latest_controller_t_ns,
                     pico_recv_time_ns=time.time_ns(),
@@ -554,7 +726,7 @@ class LiveRetargetPublisher:
                 )
 
             try:
-                smplx_data, source_smplx_t_ns, pico_recv_time_ns = _body_pose_dict_from_streamer(self.streamer)
+                smplx_data, raw_body_poses, source_smplx_t_ns, pico_recv_time_ns = _body_pose_dict_from_streamer(self.streamer)
                 if source_smplx_t_ns > 0:
                     delay_ms = (pico_recv_time_ns - int(source_smplx_t_ns)) / 1e6
                     print(
@@ -585,6 +757,14 @@ class LiveRetargetPublisher:
                 smplx_data = self._apply_min_link_height_offset(
                     smplx_data,
                     raw_min_body_z=raw_min_body_z,
+                )
+
+            if bool(self.args.publish_smpl):
+                self._publish_smpl_frame(
+                    smplx_data,
+                    raw_body_poses=raw_body_poses,
+                    source_smplx_t_ns=int(source_smplx_t_ns),
+                    pico_recv_time_ns=int(pico_recv_time_ns),
                 )
 
             with ScopedTimer(RETARGET_TIMER_NAME):
@@ -631,6 +811,8 @@ class LiveRetargetPublisher:
 
     def close(self) -> None:
         self._controller_sock.close(0)
+        if self._smpl_sock is not None:
+            self._smpl_sock.close(0)
 
 
 class LiveRetargetMjviser:
@@ -739,6 +921,15 @@ def run_publish(args: "PublisherArgs") -> None:
         f"controller_bind={args.controller_bind} "
         f"mjcf={worker.robot_cfg.mjcf_path} resolved={worker.mjcf_path}"
     )
+    if args.publish_smpl:
+        print(
+            f"[publish] smpl_bind={args.smpl_bind} "
+            f"smpl_wire_format={args.smpl_wire_format} "
+            f"smpl_joint_order={args.smpl_joint_order} "
+            f"smpl_waist_yaw_offset_deg={args.smpl_waist_yaw_offset_deg} "
+            f"smpl_wrist_mapping={args.smpl_wrist_mapping} "
+            f"smpl_human_joints_info_path={args.smpl_human_joints_info_path}"
+        )
     if args.startup_sleep_s > 0:
         time.sleep(float(args.startup_sleep_s))
 
@@ -787,6 +978,17 @@ class PublisherArgs:
     min_link_height: float = 0.01
     min_link_height_align_strategy: Literal["none", "per_frame", "bootstrap"] = "bootstrap"
     min_link_height_bootstrap_frames: int = 30
+    publish_smpl: bool = False
+    smpl_bind: str = "tcp://*:28702"
+    smpl_topic: str = "pose"
+    smpl_wire_format: Literal["json", "packed"] = "json"
+    smpl_protocol_version: int = 3
+    smpl_hwm: int = 1
+    smpl_conflate: bool = True
+    smpl_joint_order: Literal["isaac", "robot_cfg"] = "isaac"
+    smpl_waist_yaw_offset_deg: float = 0.0
+    smpl_wrist_mapping: Literal["official", "zero"] = "official"
+    smpl_human_joints_info_path: str = DEFAULT_HUMAN_JOINTS_INFO_PATH
     verbose: bool = False
 
 

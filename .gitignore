@@ -8,6 +8,13 @@ prebuilt
 .cache
 external/
 .venv/
+
+# Local caches / temporary comparison artifacts
+.hf-cache-local/
+.tmp-groot-wbc/
+.tmp-policy-zip-compare-*/
+outputs/*.npz
+
 docs/node_modules/
 docs/.cache/
 docs/.docusaurus/
