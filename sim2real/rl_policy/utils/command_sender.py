@@ -2,13 +2,20 @@ import numpy as np
 import zmq
 
 from sim2real.config.robots.base import RobotCfg
+from sim2real.rl_policy.utils.upstream_real_io import UpstreamG1IO
 from sim2real.utils.common import LowCmdMessage
 from sim2real.utils.strings import resolve_matching_names_values
 
 
 class ActionManager:
-    def __init__(self, robot_cfg: RobotCfg, policy_config):
+    def __init__(
+        self,
+        robot_cfg: RobotCfg,
+        policy_config,
+        real_io_backend: UpstreamG1IO | None = None,
+    ):
         self.robot_cfg = robot_cfg
+        self.real_io_backend = real_io_backend
 
         self.policy_config = policy_config
         joint_kp_dict = self.policy_config["joint_kp"]
@@ -49,15 +56,18 @@ class ActionManager:
         # ]
 
         # init low cmd publisher
-        self.zmq_context = zmq.Context.instance()
-        self.low_cmd_port = self.robot_cfg.low_cmd_port
-        bind_addr = self.robot_cfg.low_cmd_bind_addr
-        bind_endpoint = f"tcp://{bind_addr}:{self.low_cmd_port}"
+        if self.real_io_backend is None:
+            self.zmq_context = zmq.Context.instance()
+            self.low_cmd_port = self.robot_cfg.low_cmd_port
+            bind_addr = self.robot_cfg.low_cmd_bind_addr
+            bind_endpoint = f"tcp://{bind_addr}:{self.low_cmd_port}"
 
-        self.lowcmd_socket: zmq.Socket = self.zmq_context.socket(zmq.PUB)
-        self.lowcmd_socket.setsockopt(zmq.SNDHWM, 1)
-        self.lowcmd_socket.setsockopt(zmq.LINGER, 0)
-        self.lowcmd_socket.bind(bind_endpoint)
+            self.lowcmd_socket: zmq.Socket = self.zmq_context.socket(zmq.PUB)
+            self.lowcmd_socket.setsockopt(zmq.SNDHWM, 1)
+            self.lowcmd_socket.setsockopt(zmq.LINGER, 0)
+            self.lowcmd_socket.bind(bind_endpoint)
+        else:
+            self.lowcmd_socket = None
 
         self.InitLowCmd()
 
@@ -72,7 +82,17 @@ class ActionManager:
         self.cmd_q[:] = cmd_q
         self.cmd_dq[:] = cmd_dq
         self.cmd_tau[:] = cmd_tau
-        
+
+        if self.real_io_backend is not None:
+            self.real_io_backend.send_command(
+                cmd_q=self.cmd_q,
+                cmd_dq=self.cmd_dq,
+                cmd_tau=self.cmd_tau,
+                kp=self.joint_kp_unitree,
+                kd=self.joint_kd_unitree,
+            )
+            return
+
         message = LowCmdMessage(
             q_target=self.cmd_q,
             dq_target=self.cmd_dq,

@@ -87,7 +87,7 @@ def _temp_scene_with_floor(mjcf_path: Path) -> Path:
         if temp_path is not None:
             try:
                 temp_path.unlink()
-            except FileNotFoundError:
+            except (FileNotFoundError, PermissionError):
                 pass
         if staging_dir is not None:
             shutil.rmtree(staging_dir, ignore_errors=True)
