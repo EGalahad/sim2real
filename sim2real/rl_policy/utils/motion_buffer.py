@@ -12,6 +12,7 @@ import zmq
 from loguru import logger
 from sim2real.config.robots.base import PICO_RECV_TIME_NS_KEY, PUBLISH_T_NS_KEY, RobotCfg
 from sim2real.rl_policy.utils.motion import MotionData, _normalize_quat_batch, _quat_slerp_batch
+from sim2real.utils.math import quat_conjugate, quat_mul
 
 
 def _ensure_np(value: Any, ndim: int, dtype=np.float32) -> np.ndarray:
@@ -19,6 +20,31 @@ def _ensure_np(value: Any, ndim: int, dtype=np.float32) -> np.ndarray:
     if arr.ndim != ndim:
         raise ValueError(f"Expected ndim={ndim}, got shape={arr.shape}")
     return arr
+
+
+def _quat_pair_ang_vel_w(q0_wxyz: np.ndarray, q1_wxyz: np.ndarray, dt_s: np.ndarray) -> np.ndarray:
+    q_delta = quat_mul(q1_wxyz, quat_conjugate(q0_wxyz))
+    q_delta = _normalize_quat_batch(q_delta, eps=1e-8)
+    q_delta = np.where(q_delta[..., :1] < 0.0, -q_delta, q_delta)
+
+    w = np.clip(q_delta[..., :1], -1.0, 1.0)
+    xyz = q_delta[..., 1:]
+    sin_half = np.linalg.norm(xyz, axis=-1, keepdims=True)
+    angle = 2.0 * np.arctan2(sin_half, w)
+    axis = np.divide(
+        xyz,
+        sin_half,
+        out=np.zeros_like(xyz),
+        where=sin_half > 1e-8,
+    )
+    rotvec = axis * angle
+    return np.divide(
+        rotvec,
+        dt_s[..., None],
+        out=np.zeros_like(rotvec),
+        where=dt_s[..., None] > 0.0,
+    ).astype(np.float32, copy=False)
+
 
 class RealtimeMotionBuffer:
     def __init__(
@@ -179,19 +205,28 @@ class RealtimeMotionBuffer:
         self,
         target_times_ns: np.ndarray,
         joint_pos_out: np.ndarray,
+        joint_vel_out: np.ndarray,
         body_pos_w_out: np.ndarray,
+        body_lin_vel_w_out: np.ndarray,
         body_quat_w_out: np.ndarray,
+        body_ang_vel_w_out: np.ndarray,
     ) -> None:
         if not self._timestamps_ns:
             joint_pos_out.fill(0.0)
+            joint_vel_out.fill(0.0)
             body_pos_w_out.fill(0.0)
+            body_lin_vel_w_out.fill(0.0)
             body_quat_w_out[:] = self._identity_quat
+            body_ang_vel_w_out.fill(0.0)
             return
 
         if len(self._timestamps_ns) == 1:
             joint_pos_out[:] = self._joint_pos_frames[0]
+            joint_vel_out.fill(0.0)
             body_pos_w_out[:] = self._body_pos_w_frames[0]
+            body_lin_vel_w_out.fill(0.0)
             body_quat_w_out[:] = self._body_quat_w_frames[0]
+            body_ang_vel_w_out.fill(0.0)
             return
 
         timestamps_ns = np.asarray(self._timestamps_ns, dtype=np.int64)
@@ -212,11 +247,25 @@ class RealtimeMotionBuffer:
         joint_pos_right = np.stack([self._joint_pos_frames[idx] for idx in right], axis=0)
         alpha_joint = alpha[:, None]
         joint_pos_out[:] = joint_pos_left + alpha_joint * (joint_pos_right - joint_pos_left)
+        dt_s = (t1 - t0).astype(np.float32, copy=False)[:, None] / 1e9
+        joint_vel_out[:] = np.divide(
+            joint_pos_right - joint_pos_left,
+            dt_s,
+            out=np.zeros_like(joint_vel_out),
+            where=dt_s > 0.0,
+        )
 
         body_pos_left = np.stack([self._body_pos_w_frames[idx] for idx in left], axis=0)
         body_pos_right = np.stack([self._body_pos_w_frames[idx] for idx in right], axis=0)
         alpha_body = alpha[:, None, None]
         body_pos_w_out[:] = body_pos_left + alpha_body * (body_pos_right - body_pos_left)
+        dt_body_s = (t1 - t0).astype(np.float32, copy=False)[:, None, None] / 1e9
+        body_lin_vel_w_out[:] = np.divide(
+            body_pos_right - body_pos_left,
+            dt_body_s,
+            out=np.zeros_like(body_lin_vel_w_out),
+            where=dt_body_s > 0.0,
+        )
 
         body_quat_left = np.stack([self._body_quat_w_frames[idx] for idx in left], axis=0)
         body_quat_right = np.stack([self._body_quat_w_frames[idx] for idx in right], axis=0)
@@ -227,6 +276,11 @@ class RealtimeMotionBuffer:
             normalize_inputs=False,
             eps=1e-8,
         ).astype(np.float32, copy=False)
+        body_ang_vel_w_out[:] = _quat_pair_ang_vel_w(
+            body_quat_left,
+            body_quat_right,
+            (t1 - t0).astype(np.float32, copy=False)[:, None] / 1e9,
+        )
 
     def cleanup(self, cutoff_ns: int) -> None:
         with self._lock:
@@ -257,8 +311,11 @@ class RealtimeMotionBuffer:
             self._fill_sample_frames_locked(
                 target_times_ns,
                 joint_pos[0],
+                joint_vel[0],
                 body_pos_w[0],
+                body_lin_vel_w[0],
                 body_quat_w[0],
+                body_ang_vel_w[0],
             )
 
         motion_data = MotionData(

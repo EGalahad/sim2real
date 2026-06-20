@@ -53,6 +53,67 @@ class RealtimeMotionBufferTest(unittest.TestCase):
 
         self.assertEqual(buffer.latest_timestamp_ns, publish_time_ns)
 
+    def test_estimates_reference_velocities_from_neighbor_frames(self) -> None:
+        buffer = RealtimeMotionBuffer(DummyRobotCfg(), future_steps=[0])
+        t0_ns = 1_000_000_000
+        t1_ns = 1_100_000_000
+        yaw_delta_rad = 0.2
+        body_quat_right = [
+            float(np.cos(yaw_delta_rad / 2.0)),
+            0.0,
+            0.0,
+            float(np.sin(yaw_delta_rad / 2.0)),
+        ]
+
+        buffer._RealtimeMotionBuffer__append_payload(
+            {
+                PUBLISH_T_NS_KEY: t0_ns,
+                "joint_pos": [0.0, 0.0],
+                "body_pos_w": [[0.0, 0.0, 0.5], [0.0, 0.0, 0.8]],
+                "body_quat_w": [[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]],
+            },
+            recv_time_ns=t0_ns,
+        )
+        buffer._RealtimeMotionBuffer__append_payload(
+            {
+                PUBLISH_T_NS_KEY: t1_ns,
+                "joint_pos": [0.2, -0.4],
+                "body_pos_w": [[0.2, 0.0, 0.5], [0.0, 0.3, 0.8]],
+                "body_quat_w": [body_quat_right, [1.0, 0.0, 0.0, 0.0]],
+            },
+            recv_time_ns=t1_ns,
+        )
+
+        joint_pos = np.zeros((1, 2), dtype=np.float32)
+        joint_vel = np.zeros_like(joint_pos)
+        body_pos_w = np.zeros((1, 2, 3), dtype=np.float32)
+        body_lin_vel_w = np.zeros_like(body_pos_w)
+        body_quat_w = np.zeros((1, 2, 4), dtype=np.float32)
+        body_ang_vel_w = np.zeros_like(body_pos_w)
+
+        buffer._fill_sample_frames_locked(
+            np.asarray([t0_ns + 50_000_000], dtype=np.int64),
+            joint_pos,
+            joint_vel,
+            body_pos_w,
+            body_lin_vel_w,
+            body_quat_w,
+            body_ang_vel_w,
+        )
+
+        np.testing.assert_allclose(joint_pos[0], [0.1, -0.2], atol=1e-6)
+        np.testing.assert_allclose(joint_vel[0], [2.0, -4.0], atol=1e-6)
+        np.testing.assert_allclose(
+            body_lin_vel_w[0],
+            [[2.0, 0.0, 0.0], [0.0, 3.0, 0.0]],
+            atol=1e-6,
+        )
+        np.testing.assert_allclose(
+            body_ang_vel_w[0],
+            [[0.0, 0.0, 2.0], [0.0, 0.0, 0.0]],
+            atol=1e-6,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
