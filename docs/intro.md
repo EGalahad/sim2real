@@ -27,5 +27,6 @@ slug: /
 - [Pico To G1](/reference/pico-to-g1)
 - [Teleop Implementation](/reference/teleop-implementation)
 - [Motion Buffer](/reference/motion-buffer)
+- [SONIC SMPL Input](/reference/sonic-smpl-input)
 - [XRobot gRPC JetPack 5](/reference/xrobot-grpc-jetpack5)
 - [XRoboToolkit PC Service ARM64 Build](/reference/xrobotoolkit-pc-service-arm64-build)

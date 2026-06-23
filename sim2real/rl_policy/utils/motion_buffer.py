@@ -120,6 +120,7 @@ class RealtimeMotionBuffer:
         self._motion_stream_socket: zmq.Socket | None = None
         self._motion_stream_thread: threading.Thread | None = None
         self._motion_stream_stop = threading.Event()
+        self._last_decode_warning_monotonic = 0.0
         if self._motion_zmq_connect:
             self._start_motion_stream()
 
@@ -431,7 +432,10 @@ class RealtimeSmplMotionBuffer:
                 try:
                     self.__append_payload(raw, recv_time_ns=time.time_ns())
                 except Exception as exc:
-                    logger.warning(f"Failed to decode SMPL motion payload: {exc}")
+                    now = time.monotonic()
+                    if now - self._last_decode_warning_monotonic > 2.0:
+                        self._last_decode_warning_monotonic = now
+                        logger.warning(f"Failed to decode SMPL motion payload: {exc}")
 
         self._motion_stream_thread = threading.Thread(target=_stream_loop, daemon=True)
         self._motion_stream_thread.start()
@@ -455,6 +459,24 @@ class RealtimeSmplMotionBuffer:
             or _payload_scalar(payload.get(PUBLISH_T_NS_KEY))
             or recv_time_ns
         )
+
+        required_keys = (
+            "smpl_body_pose_aa",
+            "smpl_joint_pos_root",
+            "smpl_root_quat_w",
+            "joint_pos",
+        )
+        missing_keys = [key for key in required_keys if key not in payload]
+        if missing_keys:
+            available_keys = ", ".join(sorted(str(key) for key in payload.keys()))
+            raise ValueError(
+                "SMPL motion payload missing keys "
+                f"{missing_keys}. This usually means motion_backend=smpl_zmq is "
+                "connected to the normal retarget motion stream instead of the "
+                f"SMPL stream. Use --motion_zmq_connect tcp://127.0.0.1:28702 "
+                f"with pico_retarget_pub.py --publish_smpl. "
+                f"connect={self._motion_zmq_connect}, available_keys=[{available_keys}]"
+            )
 
         smpl_body_pose_aa = _ensure_np(payload["smpl_body_pose_aa"], 3)
         smpl_joint_pos_root = _ensure_np(payload["smpl_joint_pos_root"], 3)

@@ -70,6 +70,11 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'doc',
+          id: 'sonic_smpl_input',
+          label: 'SONIC SMPL Input',
+        },
+        {
+          type: 'doc',
           id: 'xrobot_grpc_jetpack5',
           label: 'XRobot gRPC JetPack 5',
         },
