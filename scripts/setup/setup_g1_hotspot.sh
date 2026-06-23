@@ -7,6 +7,8 @@ usage() {
 Usage: bash scripts/setup/setup_g1_hotspot.sh [options]
 
 Create and start a NetworkManager Wi-Fi hotspot on a G1.
+This changes G1 network interfaces. Keep an Ethernet cable connected to G1
+before running it so you do not lose access if Wi-Fi setup fails.
 
 Defaults:
   SSID:       hdmi-deploy
@@ -114,6 +116,9 @@ done
 if [[ $EUID -ne 0 ]]; then
   exec sudo --preserve-env=PATH bash "$0" "${ORIGINAL_ARGS[@]}"
 fi
+
+echo "[setup_g1_hotspot] WARNING: this changes G1 network interfaces."
+echo "[setup_g1_hotspot] Keep an Ethernet cable connected to G1 before continuing."
 
 if ! ip link show "$WIFI_IFACE" >/dev/null 2>&1; then
   echo "Missing Wi-Fi interface: $WIFI_IFACE" >&2
