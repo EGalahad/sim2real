@@ -18,6 +18,7 @@ from sim2real.rl_policy.inference import Timer, build_inference_module
 from sim2real.rl_policy.observations import Observation, ObsGroup
 from sim2real.rl_policy.utils.command_sender import ActionManager
 from sim2real.rl_policy.utils.state_processor import StateProcessor
+from sim2real.rl_policy.utils.upstream_real_io import UpstreamG1IO
 from sim2real.utils.common import PORTS
 from sim2real.utils.profiling import ScopedTimer
 from sim2real.utils.strings import resolve_matching_names_values
@@ -66,8 +67,26 @@ class BasePolicy:
         # initialize robot related processes
         self.joint_names_simulation = list(policy_config["joint_names_simulation"])
         self.body_names_simulation = list(policy_config["body_names_simulation"])
-        self.state_processor = StateProcessor(self.robot_cfg, policy_config)
-        self.action_manager = ActionManager(self.robot_cfg, policy_config)
+        self.real_io_backend = None
+        if args.real_io_backend == "upstream":
+            if args.robot != "g1":
+                raise NotImplementedError(
+                    "real_io_backend='upstream' is currently implemented only for robot='g1'."
+                )
+            self.real_io_backend = UpstreamG1IO(
+                interface=args.robot_interface,
+                joint_count=len(self.robot_cfg.joint_names),
+            )
+        self.state_processor = StateProcessor(
+            self.robot_cfg,
+            policy_config,
+            real_io_backend=self.real_io_backend,
+        )
+        self.action_manager = ActionManager(
+            self.robot_cfg,
+            policy_config,
+            real_io_backend=self.real_io_backend,
+        )
         self.rl_dt = 1.0 / float(args.rl_rate)
         self.inference_backend = args.inference_backend
 
@@ -490,6 +509,8 @@ class BasePolicy:
         finally:
             self._save_recording()
             self.controller.close()
+            if self.real_io_backend is not None:
+                self.real_io_backend.close()
 
     def step(self):
         with ScopedTimer("rl_policy.step") as step_timer:
@@ -609,6 +630,8 @@ class BasePolicyArgs:
     robot: str = "g1"
     rl_rate: float = 50.0
     inference_backend: Literal["onnx-gpu", "onnx-cpu", "tensorrt"] = "onnx-cpu"
+    real_io_backend: Literal["zmq", "upstream"] = "zmq"
+    robot_interface: str = "eth0"
     controller: Literal["keyboard", "joystick", "pico"] = "keyboard"
     pico_zmq_connect: str = f"tcp://127.0.0.1:{PORTS['pico_controller']}"
     record: bool = False

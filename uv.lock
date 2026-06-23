@@ -329,6 +329,11 @@ dependencies = [
     { name = "unitree-sdk2py" },
 ]
 
+[package.dev-dependencies]
+g1 = [
+    { name = "unitree-interface", marker = "platform_machine == 'aarch64' and sys_platform == 'linux'" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "any4hdmi", git = "https://github.com/EGalahad/any4hdmi.git?rev=main" },
@@ -346,6 +351,9 @@ requires-dist = [
     { name = "tyro" },
     { name = "unitree-sdk2py", git = "https://github.com/EGalahad/unitree_sdk2_python.git" },
 ]
+
+[package.metadata.requires-dev]
+g1 = [{ name = "unitree-interface", marker = "platform_machine == 'aarch64' and sys_platform == 'linux'", specifier = "==0.1.0" }]
 
 [[package]]
 name = "hf-xet"
@@ -1153,6 +1161,13 @@ dependencies = [
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/24/d6/7126f9e7de139632134d59b5d1972e93c610ee2cb13829e8f4f48f6613cb/tyro-1.0.13.tar.gz", hash = "sha256:731a90c9836b77fffe7c3fa0477ef2d3b6fa91252ddc0bb4d32dadd4fcc143d4", size = 489479, upload-time = "2026-04-14T18:21:52.888Z" }
 wheels = [
     { url = "https://pypi.tuna.tsinghua.edu.cn/packages/93/4f/c43a0a8f0c66fd40a1d6cc47332a5a1d1043e9b331f7070ea701b91a7598/tyro-1.0.13-py3-none-any.whl", hash = "sha256:a0bdb8462c551dd84fc00a76916ce4d37e879c84eefaf34e2165312407cc6c09", size = 185221, upload-time = "2026-04-14T18:21:54.328Z" },
+[[package]]
+name = "unitree-interface"
+version = "0.1.0"
+source = { registry = "third_party/wheels" }
+wheels = [
+    { path = "unitree_interface-0.1.0-cp310-cp310-linux_aarch64.whl" },
+]
 ]
 
 [[package]]

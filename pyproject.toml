@@ -24,6 +24,11 @@ dependencies = [
     "any4hdmi @ git+https://github.com/EGalahad/any4hdmi.git@main",
 ]
 
+[dependency-groups]
+g1 = [
+    "unitree-interface==0.1.0; sys_platform == 'linux' and platform_machine == 'aarch64'",
+]
+
 # [project.optional-dependencies]
 # tensorrt = [
     # "tensorrt ; sys_platform == 'linux' and platform_machine == 'x86_64'",
@@ -38,6 +43,7 @@ include = ["sim2real*"]
 
 [tool.uv]
 package = true
+find-links = ["third_party/wheels"]
 
 [[tool.uv.index]]
 name = "nvidia-pypi"
