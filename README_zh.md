@@ -53,6 +53,9 @@ skills/adapt-policy-to-sim2real
 已经转好的 TWIST2 checkpoints 放在 Google Drive：
 [TWIST2 checkpoints](https://drive.google.com/drive/folders/14vXXgymYgnh2pXcaCzJQtcxm0FI3ez3j)。
 
+已经转好的 TeleopIT 和 AXELL checkpoints 放在 Google Drive：
+[TeleopIT / AXELL checkpoints](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e)。
+
 安装到本机 Codex skills 目录：
 
 ```bash

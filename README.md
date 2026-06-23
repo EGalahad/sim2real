@@ -50,6 +50,9 @@ Converted SONIC checkpoints are available on Google Drive:
 Converted TWIST2 checkpoints are available on Google Drive:
 [TWIST2 checkpoints](https://drive.google.com/drive/folders/14vXXgymYgnh2pXcaCzJQtcxm0FI3ez3j).
 
+Converted TeleopIT and AXELL checkpoints are available on Google Drive:
+[TeleopIT / AXELL checkpoints](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e).
+
 Install it into your local Codex skills directory:
 
 ```bash
