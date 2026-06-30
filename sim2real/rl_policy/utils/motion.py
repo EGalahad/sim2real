@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import errno
+import hashlib
+import json
+import os
+import shutil
 from pathlib import Path
 from typing import Any, List
 
@@ -111,6 +116,127 @@ def _motion_data_to_numpy(
     return MotionData(**result)
 
 
+def _find_any4hdmi_manifest_root(path: Path) -> Path:
+    current = path if path.is_dir() else path.parent
+    for candidate in (current, *current.parents):
+        if (candidate / "manifest.json").is_file():
+            return candidate
+    raise RuntimeError(f"Could not find any4hdmi manifest.json above {path}")
+
+
+def _materialize_manifest_override_file(source_path: Path, target_path: Path) -> None:
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    if target_path.exists():
+        if os.path.samefile(target_path, source_path):
+            return
+        source_stat = source_path.stat()
+        target_stat = target_path.stat()
+        if (
+            target_stat.st_size == source_stat.st_size
+            and target_stat.st_mtime_ns == source_stat.st_mtime_ns
+        ):
+            return
+        shutil.copy2(source_path, target_path)
+        return
+
+    try:
+        os.link(source_path, target_path)
+    except OSError as exc:
+        if exc.errno != errno.EXDEV:
+            raise
+        shutil.copy2(source_path, target_path)
+
+
+def _any4hdmi_manifest_override_view(
+    *,
+    root_path: str | Path,
+    base_dir: Path,
+    mjcf_path: str | Path,
+) -> str:
+    input_path = Path(root_path).expanduser()
+    if not input_path.is_absolute():
+        input_path = (base_dir / input_path).resolve()
+    else:
+        input_path = input_path.resolve()
+
+    source_root = _find_any4hdmi_manifest_root(input_path)
+    manifest_path = source_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    motions_subdir = str(manifest.get("motions_subdir", "motions"))
+    source_motions = source_root / motions_subdir
+    if not source_motions.is_dir():
+        raise FileNotFoundError(f"any4hdmi motions dir not found: {source_motions}")
+
+    resolved_mjcf = Path(mjcf_path).expanduser()
+    if not resolved_mjcf.is_absolute():
+        resolved_mjcf = (base_dir / resolved_mjcf).resolve()
+    else:
+        resolved_mjcf = resolved_mjcf.resolve()
+    if not resolved_mjcf.is_file():
+        raise FileNotFoundError(f"any4hdmi MJCF override not found: {resolved_mjcf}")
+
+    manifest["mjcf"] = str(resolved_mjcf)
+    manifest.pop("mjcf_path", None)
+
+    key_payload = {
+        "view_mode": "hardlink-v1",
+        "source_root": str(source_root),
+        "manifest": manifest,
+        "mjcf_sha256": hashlib.sha256(resolved_mjcf.read_bytes()).hexdigest(),
+    }
+    key = hashlib.sha256(
+        json.dumps(key_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()[:16]
+    view_root = base_dir / ".cache" / "motion" / "manifest_overrides" / key
+    view_root.mkdir(parents=True, exist_ok=True)
+
+    view_manifest_path = view_root / "manifest.json"
+    next_manifest_text = json.dumps(manifest, indent=2, sort_keys=False) + "\n"
+    if (
+        not view_manifest_path.exists()
+        or view_manifest_path.read_text(encoding="utf-8") != next_manifest_text
+    ):
+        view_manifest_path.write_text(next_manifest_text, encoding="utf-8")
+
+    try:
+        relative_input = input_path.relative_to(source_root)
+    except ValueError as exc:
+        raise ValueError(f"root_path {input_path} is not under any4hdmi root {source_root}") from exc
+
+    view_motions = view_root / motions_subdir
+    if view_motions.is_symlink():
+        raise FileExistsError(
+            f"Manifest override motions path must not be a symlink: {view_motions}"
+        )
+    view_motions.mkdir(parents=True, exist_ok=True)
+
+    if input_path.is_file():
+        source_motion_paths = [input_path]
+    else:
+        scan_root = source_motions if input_path == source_root else input_path
+        source_motion_paths = sorted(scan_root.rglob("*.npz"))
+    if not source_motion_paths:
+        raise RuntimeError(f"No any4hdmi motion .npz files found under {input_path}")
+
+    for source_motion_path in source_motion_paths:
+        source_motion_path = source_motion_path.resolve()
+        try:
+            motion_relative_path = source_motion_path.relative_to(source_motions)
+        except ValueError as exc:
+            raise ValueError(
+                f"Motion path {source_motion_path} is not under any4hdmi motions dir {source_motions}"
+            ) from exc
+        target_motion_path = view_motions / motion_relative_path
+        _materialize_manifest_override_file(source_motion_path, target_motion_path)
+
+        source_sidecar = source_motion_path.with_suffix(".json")
+        if source_sidecar.is_file():
+            target_sidecar = target_motion_path.with_suffix(".json")
+            _materialize_manifest_override_file(source_sidecar, target_sidecar)
+
+    return str(view_root / relative_input)
+
+
 class MotionData:
     """Container for motion data arrays."""
 
@@ -203,10 +329,17 @@ class MotionDataset:
         root_path: str,
         robot_cfg: RobotCfg,
         target_fps: int = 50,
+        mjcf_path: str | Path | None = None,
     ) -> "MotionDataset":
         import sim2real
 
         base_dir = Path(sim2real.__file__).parent.parent
+        if mjcf_path is not None:
+            root_path = _any4hdmi_manifest_override_view(
+                root_path=root_path,
+                base_dir=base_dir,
+                mjcf_path=mjcf_path,
+            )
         dataset = load_any4hdmi_dataset(
             root_path=root_path,
             target_fps=target_fps,

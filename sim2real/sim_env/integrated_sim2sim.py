@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import Event
 from typing import Any, Callable, Dict, Literal, Type
 
-import torch  # Import torch before MuJoCo/ONNX native libs on aarch64 to avoid static TLS issues.
+import torch  # noqa: F401  # Import torch before MuJoCo/ONNX native libs on aarch64 to avoid static TLS issues.
 import mujoco
 import numpy as np
 import tyro
@@ -135,6 +135,7 @@ class IntegratedMotionState:
         self.motion_dataset = MotionDataset.create_from_path(
             motion_path,
             robot_cfg=self.robot_cfg,
+            mjcf_path=self.motion_config.get("mjcf_path"),
         )
         self.motion_dataset = motion_dataset_first_motion(self.motion_dataset)
         if self.motion_dataset.num_motions != 1:
@@ -757,6 +758,10 @@ class IntegratedSimRuntime:
             [actuator_names_mujoco.index(name) for name in joint_names_matched],
             dtype=int,
         )
+        for act_idx, effort_limit in zip(self.joint_idx_in_ctrl, self.joint_effort_limit_mjc):
+            effort_limit = float(effort_limit)
+            self.mj_model.actuator_ctrlrange[act_idx] = (-effort_limit, effort_limit)
+            self.mj_model.actuator_forcerange[act_idx] = (-effort_limit, effort_limit)
 
     def _resolve_body_id(self, body_names: tuple[str, ...]) -> int:
         for body_name in body_names:

@@ -109,6 +109,7 @@ class StateProcessor:
             self.motion_dataset = MotionDataset.create_from_path(
                 motion_path,
                 robot_cfg=self.robot_cfg,
+                mjcf_path=self.motion_config.get("mjcf_path"),
             )
             self.motion_dataset = motion_dataset_first_motion(self.motion_dataset)
             assert self.motion_dataset.num_motions == 1, "Only one motion is supported"
