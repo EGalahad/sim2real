@@ -50,10 +50,7 @@ bash scripts/setup/setup_xrobot_pybind.sh
 先启动 live retarget publisher：
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
-  --bind tcp://*:28701 \
-  --publish_hz 50 \
-  --actual_human_height 1.80
+uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py
 ```
 
 打开 publisher 打印出来的 mjviser URL。如果 viewer 里能看到实时更新的 G1 retarget 动作，teleop 环境就通了。
@@ -61,7 +58,7 @@ uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
 live publisher 跑起来之后，如果要录制并回放 qpos clip，切到 root project 环境：
 
 ```bash
-uv run scripts/record_motion.py --connect tcp://127.0.0.1:28701
+uv run scripts/record_motion.py
 uv run scripts/view_motion.py --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.npz
 ```
 

@@ -81,10 +81,7 @@ bash scripts/setup/setup_xrobot_pybind.sh --arch aarch64
 Start the live retarget publisher on the G1 onboard Orin:
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
-  --bind tcp://*:28701 \
-  --publish_hz 50 \
-  --actual_human_height 1.80
+uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py
 ```
 
 Open the mjviser URL printed by the publisher. If it updates with live G1 retargeted motion, the onboard teleop stack is ready.
@@ -92,13 +89,14 @@ Open the mjviser URL printed by the publisher. If it updates with live G1 retarg
 To record and replay a qpos clip after the live publisher is running, use the root project environment:
 
 ```bash
-uv run scripts/record_motion.py --connect tcp://<g1-orin-ip>:28701
+uv run scripts/record_motion.py
 uv run scripts/view_motion.py --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.npz
 ```
 
 ## Notes
 
 - Run `uv sync` in the repo root as well when the onboard machine also runs the policy and bridge processes.
+- Use `uv sync --group g1` in the repo root when the onboard machine runs `--robot-io inline` or `scripts/real_bridge_cpp.py`.
 - When the Pico publisher runs on a separate PC, point policy-side ZMQ arguments at that machine's IP.
 
 ## Next Steps

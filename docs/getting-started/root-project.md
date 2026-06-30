@@ -3,12 +3,19 @@ title: Root Project
 sidebar_position: 2
 ---
 
-Use the root project for inference, tracking policy, MuJoCo simulation, and `scripts/real_bridge.py`.
+Use the root project for inference, tracking policy, MuJoCo simulation, and robot I/O.
 
 ## Setup
 
 ```bash
 uv sync
+```
+
+If this machine will run `--robot-io inline` or `scripts/real_bridge_cpp.py`,
+install the G1 dependency group as well:
+
+```bash
+uv sync --group g1
 ```
 
 If `unitree_sdk2py` setup cannot locate `cyclonedds`, refer to the upstream
@@ -54,3 +61,4 @@ uv run scripts/test_policy_inference.py \
 ## Next Steps
 
 - [Offline Motion Tracking](/tutorials/offline-motion-tracking)
+- [Robot I/O](/reference/robot-io)

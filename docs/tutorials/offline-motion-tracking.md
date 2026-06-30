@@ -17,8 +17,7 @@ In a second terminal, start the tracking policy:
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --robot g1 \
-  --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
+  --policy-config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
 ```
 
 Process roles:
@@ -47,24 +46,14 @@ under `scripts/tracking_experiment/`.
 
 ## Sim2Real
 
-Replace the MuJoCo execution process with the real bridge:
-
-```bash
-uv run scripts/real_bridge.py
-```
-
-In a second terminal, run the same tracking policy:
+For hardware, first choose the deployment path in [Robot I/O](/reference/robot-io). For example, the tracking policy still starts with:
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --robot g1 \
-  --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
+  --policy-config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
 ```
 
-Process roles:
-
-- `scripts/real_bridge.py` bridges Unitree DDS `low_state` / `low_cmd` to the shared ZMQ runtime.
-- `sim2real/rl_policy/tracking.py` stays unchanged between sim2sim and sim2real.
+Add only the robot I/O flag or bridge process required by the mode you chose.
 
 ## Next Steps
 

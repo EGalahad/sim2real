@@ -5,17 +5,13 @@
 ## 1. 启动 live publisher
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
-  --bind tcp://*:28701 \
-  --publish_hz 50 \
-  --actual_human_height 1.80
+uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py
 ```
 
 ## 2. 录制 motion stream
 
 ```bash
-uv run scripts/record_motion.py \
-  --connect tcp://127.0.0.1:28701
+uv run scripts/record_motion.py
 ```
 
 用 `Ctrl-C` 停止录制并写出数据。

@@ -14,8 +14,7 @@ uv run sim2real/sim_env/base_sim.py --robot g1
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --robot g1 \
-  --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
+  --policy-config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
 ```
 
 两个进程各自负责：
@@ -43,24 +42,14 @@ uv run sim2real/sim_env/integrated_sim2sim.py \
 
 ## Sim2Real
 
-把 MuJoCo 执行进程换成 real bridge：
-
-```bash
-uv run scripts/real_bridge.py
-```
-
-在第二个终端运行同一个 tracking policy：
+上真机前，先在 [Robot I/O](../reference/robot-io.md) 里选择部署路径。例如 tracking policy 仍然这样启动：
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --robot g1 \
-  --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
+  --policy-config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
 ```
 
-两个进程各自负责：
-
-- `scripts/real_bridge.py` 把 Unitree DDS 的 `low_state` / `low_cmd` 接到统一 ZMQ runtime
-- `sim2real/rl_policy/tracking.py` 在 sim2sim 和 sim2real 两种模式下保持不变
+只额外加你选择的 robot I/O 模式真正需要的 flag 或 bridge 进程。
 
 ## Next Steps
 

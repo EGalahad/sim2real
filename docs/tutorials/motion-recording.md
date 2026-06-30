@@ -8,17 +8,13 @@ This tutorial records the retargeted G1 motion stream published by `sim2real/tel
 ## 1. Start the live publisher
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
-  --bind tcp://*:28701 \
-  --publish_hz 50 \
-  --actual_human_height 1.80
+uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py
 ```
 
 ## 2. Record the motion stream
 
 ```bash
-uv run scripts/record_motion.py \
-  --connect tcp://127.0.0.1:28701
+uv run scripts/record_motion.py
 ```
 
 Press `Ctrl-C` to stop recording and write the dataset.

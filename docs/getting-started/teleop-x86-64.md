@@ -52,10 +52,7 @@ The script expects the two repos above to exist under `external/`.
 Start the live retarget publisher:
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
-  --bind tcp://*:28701 \
-  --publish_hz 50 \
-  --actual_human_height 1.80
+uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py
 ```
 
 Open the mjviser URL printed by the publisher. If it updates with live G1 retargeted motion, the teleop stack is ready.
@@ -63,7 +60,7 @@ Open the mjviser URL printed by the publisher. If it updates with live G1 retarg
 To record and replay a qpos clip after the live publisher is running, switch to the root project environment:
 
 ```bash
-uv run scripts/record_motion.py --connect tcp://127.0.0.1:28701
+uv run scripts/record_motion.py
 uv run scripts/view_motion.py --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.npz
 ```
 

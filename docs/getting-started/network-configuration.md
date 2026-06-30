@@ -26,13 +26,16 @@ flowchart LR
   style Runtime fill:transparent,stroke:transparent,color:transparent
 ```
 
-Run `scripts/real_bridge.py` on the laptop and point it at the Ethernet interface connected to G1:
+If you choose a ZMQ bridge mode from [Robot I/O](/reference/robot-io), run the bridge on the laptop:
 
 ```bash
-uv run scripts/real_bridge.py --robot g1 --interface <laptop_ethernet_interface>
+uv run scripts/real_bridge.py
 ```
 
-Use `ip -br link` to find the interface name. Pico should stay on the lab Wi-Fi so the laptop and Pico can communicate through the lab network.
+Use `ip -br link` to find the interface name, and add
+`--interface <laptop_ethernet_interface>` only when the Ethernet interface is
+not the default `eth0`. Pico should stay on the lab Wi-Fi so the laptop and Pico
+can communicate through the lab network.
 
 ## External Wi-Fi Deployment
 

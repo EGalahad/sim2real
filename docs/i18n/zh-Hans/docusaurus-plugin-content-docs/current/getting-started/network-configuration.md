@@ -23,13 +23,15 @@ flowchart LR
   style Runtime fill:transparent,stroke:transparent,color:transparent
 ```
 
-在 laptop 上运行 `scripts/real_bridge.py`，并指定连接 G1 的本机有线网卡：
+如果你在 [Robot I/O](../reference/robot-io.md) 里选择了 ZMQ bridge 模式，就在 laptop 上运行 bridge：
 
 ```bash
-uv run scripts/real_bridge.py --robot g1 --interface <laptop_ethernet_interface>
+uv run scripts/real_bridge.py
 ```
 
-可以用 `ip -br link` 查看网卡名。Pico 连接实验室 Wi-Fi，Laptop 和 Pico 之间通过实验室 Wi-Fi 通信。
+可以用 `ip -br link` 查看网卡名。只有有线网卡不是默认 `eth0` 时，才加
+`--interface <laptop_ethernet_interface>`。Pico 连接实验室 Wi-Fi，Laptop 和 Pico
+之间通过实验室 Wi-Fi 通信。
 
 ## 外置 Wi-Fi 部署
 

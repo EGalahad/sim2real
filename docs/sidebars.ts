@@ -50,6 +50,11 @@ const sidebars: SidebarsConfig = {
       items: [
         {
           type: 'doc',
+          id: 'robot_io',
+          label: 'Robot I/O',
+        },
+        {
+          type: 'doc',
           id: 'tracking_framework',
           label: 'Tracking Framework',
         },
