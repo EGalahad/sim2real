@@ -10,15 +10,20 @@ import sched
 import time
 from dataclasses import dataclass
 
+import numpy as np
 import tyro
 import zmq
 from loguru import logger
 
 from sim2real.config.robots import get_robot_cfg
 from sim2real.config.robots.base import RobotCfg
-from sim2real.rl_policy.utils.upstream_real_io import UpstreamG1IO
 from sim2real.utils.common import LowCmdMessage, LowStateMessage
 from sim2real.utils.profiling import ScopedTimer
+
+try:
+    import unitree_interface
+except ImportError:
+    unitree_interface = None
 
 
 UNITREE_INTERFACE = "eth0"
@@ -51,9 +56,22 @@ class RealBridgeCpp:
         self.has_received_command = False
 
     def _init_unitree_interface(self) -> None:
-        self.real_io = UpstreamG1IO(
-            interface=self.interface,
-            joint_count=self.joint_count,
+        if unitree_interface is None:
+            raise ImportError(
+                "unitree_interface is required for real_bridge_cpp.py but is not installed."
+            )
+
+        self.robot = unitree_interface.create_robot(
+            self.interface,
+            unitree_interface.RobotType.G1,
+            unitree_interface.MessageType.HG,
+        )
+        self.robot.set_control_mode(unitree_interface.ControlMode.PR)
+        self.robot.read_low_state()
+        logger.info(
+            "Initialized real bridge cpp robot on {} with {} joints",
+            self.interface,
+            self.joint_count,
         )
 
     def _init_zmq(self) -> None:
@@ -80,16 +98,25 @@ class RealBridgeCpp:
     def _low_state_unitree_to_zmq(self) -> dict[str, float]:
         with ScopedTimer("real_bridge_cpp.low_state") as total_timer:
             with ScopedTimer("real_bridge_cpp.low_state.read") as read_timer:
-                low_state = self.real_io.read_low_state()
+                low_state = self.robot.read_low_state()
 
             with ScopedTimer("real_bridge_cpp.low_state.pack") as pack_timer:
                 low_state_msg = LowStateMessage(
-                    quaternion=low_state.quaternion,
-                    gyroscope=low_state.gyroscope,
-                    joint_positions=low_state.joint_positions,
-                    joint_velocities=low_state.joint_velocities,
-                    joint_torques=low_state.joint_torques,
-                    tick=int(low_state.tick) & UINT32_MASK,
+                    quaternion=np.asarray(low_state.imu.quat, dtype=np.float32).copy(),
+                    gyroscope=np.asarray(low_state.imu.omega, dtype=np.float32).copy(),
+                    joint_positions=np.asarray(
+                        low_state.motor.q[: self.joint_count],
+                        dtype=np.float32,
+                    ).copy(),
+                    joint_velocities=np.asarray(
+                        low_state.motor.dq[: self.joint_count],
+                        dtype=np.float32,
+                    ).copy(),
+                    joint_torques=np.asarray(
+                        low_state.motor.tau_est[: self.joint_count],
+                        dtype=np.float32,
+                    ).copy(),
+                    tick=int(time.time_ns() // 1_000_000) & UINT32_MASK,
                 )
 
             with ScopedTimer("real_bridge_cpp.low_state.publish") as publish_timer:
@@ -145,13 +172,22 @@ class RealBridgeCpp:
                     continue
 
                 with ScopedTimer("real_bridge_cpp.low_cmd.publish") as publish_timer:
-                    self.real_io.send_command(
-                        cmd_q=low_cmd.q_target,
-                        cmd_dq=low_cmd.dq_target,
-                        cmd_tau=low_cmd.tau_ff,
-                        kp=low_cmd.kp,
-                        kd=low_cmd.kd,
-                    )
+                    cmd = self.robot.create_zero_command()
+                    cmd.q_target = np.asarray(
+                        low_cmd.q_target,
+                        dtype=np.float32,
+                    ).copy()
+                    cmd.dq_target = np.asarray(
+                        low_cmd.dq_target,
+                        dtype=np.float32,
+                    ).copy()
+                    cmd.tau_ff = np.asarray(
+                        low_cmd.tau_ff,
+                        dtype=np.float32,
+                    ).copy()
+                    cmd.kp = np.asarray(low_cmd.kp, dtype=np.float32).copy().tolist()
+                    cmd.kd = np.asarray(low_cmd.kd, dtype=np.float32).copy().tolist()
+                    self.robot.write_low_command(cmd)
                 publish_s += publish_timer.last_time
 
                 self.has_received_command = True
@@ -184,7 +220,8 @@ class RealBridgeCpp:
         except KeyboardInterrupt:
             logger.info("Real bridge cpp stopped.")
         finally:
-            self.real_io.close()
+            if hasattr(self.robot, "close"):
+                self.robot.close()
 
     def _step(self) -> None:
         with ScopedTimer("real_bridge_cpp.step") as step_timer:

@@ -5,11 +5,10 @@ import time
 
 
 from loguru import logger
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 from sim2real.config.robots.base import RobotCfg
 from sim2real.rl_policy.utils.motion import MotionDataset, MotionData, motion_dataset_first_motion
 from sim2real.rl_policy.utils.motion_buffer import RealtimeMotionBuffer, RealtimeSmplMotionBuffer
-from sim2real.rl_policy.utils.upstream_real_io import UpstreamG1IO
 from sim2real.utils.common import ZMQSubscriber, PORTS, LowStateMessage
 
 class StateProcessor:
@@ -20,23 +19,31 @@ class StateProcessor:
         self,
         robot_cfg: RobotCfg,
         policy_config,
-        real_io_backend: UpstreamG1IO | None = None,
+        robot_io: Literal["inline", "zmq"] = "zmq",
+        robot: Any | None = None,
     ):
         self.robot_cfg = robot_cfg
         self.mocap_ip = self.robot_cfg.mocap_ip
-        self.real_io_backend = real_io_backend
+        self.robot_io = robot_io
+        self.robot = robot
 
         self.low_state_port = self.robot_cfg.low_state_port
-        if self.real_io_backend is None:
+        self.low_state_socket: zmq.Socket | None = None
+        if self.robot_io == "inline":
+            if self.robot is None:
+                raise ValueError("robot is required when robot_io='inline'")
+        elif self.robot_io == "zmq":
             state_host = self.robot_cfg.low_state_host
             state_endpoint = f"tcp://{state_host}:{self.low_state_port}"
 
             self.zmq_context = zmq.Context.instance()
-            self.low_state_socket: zmq.Socket = self.zmq_context.socket(zmq.SUB)
+            self.low_state_socket = self.zmq_context.socket(zmq.SUB)
             self.low_state_socket.setsockopt(zmq.SUBSCRIBE, b"")
             self.low_state_socket.setsockopt(zmq.CONFLATE, 1)
             self.low_state_socket.setsockopt(zmq.RCVTIMEO, 10)
             self.low_state_socket.connect(state_endpoint)
+        else:
+            raise ValueError(f"Unsupported robot_io: {self.robot_io}")
         self.latest_low_state: LowStateMessage | None = None
 
         # Initialize joint mapping
@@ -192,32 +199,53 @@ class StateProcessor:
             return self.mocap_data.get(key, None)
 
     def _prepare_low_state(self):
-        if self.real_io_backend is not None:
-            self.latest_low_state = self.real_io_backend.read_low_state()
-            low_state = self.latest_low_state
-            self.root_quat_w[:] = low_state.quaternion
-            self.root_ang_vel_b[:] = low_state.gyroscope
-            self.joint_pos[:] = low_state.joint_positions
-            self.joint_vel[:] = low_state.joint_velocities
-            return True
-
-        if hasattr(self, "low_state_socket"):
+        if self.robot_io == "inline":
+            low_state = self._read_inline_low_state()
+        elif self.robot_io == "zmq":
             self._receive_low_state()
-            if not self.latest_low_state:
-                return False
-
             low_state = self.latest_low_state
-            self.root_quat_w[:] = low_state.quaternion
-            self.root_ang_vel_b[:] = low_state.gyroscope
+            if low_state is None:
+                return False
+        else:
+            raise ValueError(f"Unsupported robot_io: {self.robot_io}")
 
-            self.joint_pos[:] = low_state.joint_positions
-            self.joint_vel[:] = low_state.joint_velocities
+        self.latest_low_state = low_state
+        self._apply_low_state(low_state)
+        return True
 
-            return True
+    def _read_inline_low_state(self) -> LowStateMessage:
+        if self.robot is None:
+            raise RuntimeError("Inline robot is not initialized")
+
+        low_state = self.robot.read_low_state()
+        joint_count = self.num_dof
+        return LowStateMessage(
+            quaternion=np.asarray(low_state.imu.quat, dtype=np.float32).copy(),
+            gyroscope=np.asarray(low_state.imu.omega, dtype=np.float32).copy(),
+            joint_positions=np.asarray(
+                low_state.motor.q[:joint_count],
+                dtype=np.float32,
+            ).copy(),
+            joint_velocities=np.asarray(
+                low_state.motor.dq[:joint_count],
+                dtype=np.float32,
+            ).copy(),
+            joint_torques=np.asarray(
+                low_state.motor.tau_est[:joint_count],
+                dtype=np.float32,
+            ).copy(),
+            tick=int(time.time_ns() // 1_000_000),
+        )
+
+    def _apply_low_state(self, low_state: LowStateMessage) -> None:
+        self.root_quat_w[:] = low_state.quaternion
+        self.root_ang_vel_b[:] = low_state.gyroscope
+        self.joint_pos[:] = low_state.joint_positions
+        self.joint_vel[:] = low_state.joint_velocities
 
     def _receive_low_state(self):
         """Fetch the most recent low state message from the ZMQ socket."""
-        if not hasattr(self, "low_state_socket"):
+        if self.low_state_socket is None:
             return
 
         while True:

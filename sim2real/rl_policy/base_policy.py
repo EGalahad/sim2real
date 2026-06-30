@@ -18,7 +18,6 @@ from sim2real.rl_policy.inference import Timer, build_inference_module
 from sim2real.rl_policy.observations import Observation, ObsGroup
 from sim2real.rl_policy.utils.command_sender import ActionManager
 from sim2real.rl_policy.utils.state_processor import StateProcessor
-from sim2real.rl_policy.utils.upstream_real_io import UpstreamG1IO
 from sim2real.utils.common import PORTS
 from sim2real.utils.profiling import ScopedTimer
 from sim2real.utils.strings import resolve_matching_names_values
@@ -67,25 +66,47 @@ class BasePolicy:
         # initialize robot related processes
         self.joint_names_simulation = list(policy_config["joint_names_simulation"])
         self.body_names_simulation = list(policy_config["body_names_simulation"])
-        self.real_io_backend = None
-        if args.real_io_backend == "upstream":
+
+        self.robot_io = args.robot_io
+        if self.robot_io == "inline":
             if args.robot != "g1":
                 raise NotImplementedError(
-                    "real_io_backend='upstream' is currently implemented only for robot='g1'."
+                    "robot_io='inline' is currently implemented only for robot='g1'."
                 )
-            self.real_io_backend = UpstreamG1IO(
-                interface=args.robot_interface,
-                joint_count=len(self.robot_cfg.joint_names),
+            try:
+                import unitree_interface
+            except ImportError as exc:
+                raise ImportError(
+                    "unitree_interface is required for robot_io='inline' but is not installed."
+                ) from exc
+            self.robot = unitree_interface.create_robot(
+                args.robot_interface,
+                unitree_interface.RobotType.G1,
+                unitree_interface.MessageType.HG,
             )
+            self.robot.set_control_mode(unitree_interface.ControlMode.PR)
+            self.robot.read_low_state()
+            logger.info(
+                "Initialized inline robot I/O on {} with {} joints",
+                args.robot_interface,
+                len(self.robot_cfg.joint_names),
+            )
+        elif self.robot_io == "zmq":
+            self.robot = None
+        else:
+            raise ValueError(f"Unsupported robot_io: {self.robot_io}")
+
         self.state_processor = StateProcessor(
             self.robot_cfg,
             policy_config,
-            real_io_backend=self.real_io_backend,
+            robot_io=self.robot_io,
+            robot=self.robot,
         )
         self.action_manager = ActionManager(
             self.robot_cfg,
             policy_config,
-            real_io_backend=self.real_io_backend,
+            robot_io=self.robot_io,
+            robot=self.robot,
         )
         self.rl_dt = 1.0 / float(args.rl_rate)
         self.inference_backend = args.inference_backend
@@ -509,8 +530,8 @@ class BasePolicy:
         finally:
             self._save_recording()
             self.controller.close()
-            if self.real_io_backend is not None:
-                self.real_io_backend.close()
+            if self.robot is not None and hasattr(self.robot, "close"):
+                self.robot.close()
 
     def step(self):
         with ScopedTimer("rl_policy.step") as step_timer:
@@ -630,7 +651,7 @@ class BasePolicyArgs:
     robot: str = "g1"
     rl_rate: float = 50.0
     inference_backend: Literal["onnx-gpu", "onnx-cpu", "tensorrt"] = "onnx-cpu"
-    real_io_backend: Literal["zmq", "upstream"] = "zmq"
+    robot_io: Literal["inline", "zmq"] = "zmq"
     robot_interface: str = "eth0"
     controller: Literal["keyboard", "joystick", "pico"] = "keyboard"
     pico_zmq_connect: str = f"tcp://127.0.0.1:{PORTS['pico_controller']}"
