@@ -23,7 +23,7 @@ flowchart LR
   style Runtime fill:transparent,stroke:transparent,color:transparent
 ```
 
-如果你在 [Robot I/O](../reference/robot-io.md) 里选择了 ZMQ bridge 模式，就在 laptop 上运行 bridge：
+如果你在 [Robot I/O](/reference/robot-io) 里选择了 ZMQ bridge 模式，就在 laptop 上运行 bridge：
 
 ```bash
 uv run scripts/real_bridge.py

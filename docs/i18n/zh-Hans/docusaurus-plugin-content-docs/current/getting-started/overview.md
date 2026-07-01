@@ -19,7 +19,7 @@ git clone https://github.com/EGalahad/sim2real
 ## Runtime Architecture
 
 policy runtime 和执行 backend 是解耦的。sim2sim 里 backend 是 MuJoCo；
-sim2real 上真机时，在 [Robot I/O](../reference/robot-io.md) 里选择硬件通信方式。
+sim2real 上真机时，在 [Robot I/O](/reference/robot-io) 里选择硬件通信方式。
 
 ### Sim2Sim
 
@@ -71,6 +71,6 @@ flowchart LR
 
 - 上硬件前先选择 [Network Configuration](./network-configuration.md)
 - 只需要 policy、sim2sim 或 robot I/O runtime 时，看 [Root Project](./root-project.md)
-- 真机部署路径在 [Robot I/O](../reference/robot-io.md) 里选择
+- 真机部署路径在 [Robot I/O](/reference/robot-io) 里选择
 - Pico / XR 工具跑在 laptop / desktop 上时，看 [Teleop Project (x86_64 PC)](./teleop-x86-64.md)
 - Pico / XR 工具跑在机载 Orin 上时，看 [Teleop Project (Onboard Orin)](./teleop-onboard-orin.md)

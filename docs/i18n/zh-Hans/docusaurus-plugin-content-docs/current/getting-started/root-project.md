@@ -57,4 +57,4 @@ uv run scripts/test_policy_inference.py \
 ## Next Steps
 
 - [Offline Motion Tracking](../tutorials/offline-motion-tracking.md)
-- [Robot I/O](../reference/robot-io.md)
+- [Robot I/O](/reference/robot-io)

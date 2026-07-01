@@ -31,7 +31,7 @@ uv run sim2real/rl_policy/tracking.py \
 
 ### Sim2Real
 
-上真机前，先在 [Robot I/O](../reference/robot-io.md) 里选择部署路径。Pico 相关的 policy 参数保持一样：
+上真机前，先在 [Robot I/O](/reference/robot-io) 里选择部署路径。Pico 相关的 policy 参数保持一样：
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
@@ -52,7 +52,7 @@ uv run sim2real/rl_policy/tracking.py \
 
 - `pico_retarget_pub.py` 发布实时 motion stream 给 tracking policy 使用，并自己创建 retarget mjviser server
 - `sim2real/sim_env/base_sim.py` 是 sim2sim 的执行后端
-- 真机部署时，[Robot I/O](../reference/robot-io.md) 里列出了 inline 和 bridge 两类方式
+- 真机部署时，[Robot I/O](/reference/robot-io) 里列出了 inline 和 bridge 两类方式
 - 如果 publisher 和 policy 跑在不同机器上，再加 `--motion-zmq-connect tcp://<publisher_ip>:28701`
 
 ## Next Steps

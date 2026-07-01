@@ -42,7 +42,7 @@ uv run sim2real/sim_env/integrated_sim2sim.py \
 
 ## Sim2Real
 
-上真机前，先在 [Robot I/O](../reference/robot-io.md) 里选择部署路径。例如 tracking policy 仍然这样启动：
+上真机前，先在 [Robot I/O](/reference/robot-io) 里选择部署路径。例如 tracking policy 仍然这样启动：
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
