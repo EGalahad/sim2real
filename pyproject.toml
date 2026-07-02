@@ -13,8 +13,6 @@ dependencies = [
     "pyyaml",
     "scipy",
     "torch",
-    "onnxruntime",
-    # "onnxruntime-gpu",
     "onnx==1.17.0",
     "sshkeyboard",
     "pyzmq",
@@ -25,7 +23,15 @@ dependencies = [
 ]
 
 [dependency-groups]
+cpu = [
+    "onnxruntime",
+]
 g1 = [
+    "unitree-interface==0.1.0; sys_platform == 'linux' and platform_machine == 'aarch64'",
+]
+g1-gpu = [
+    "numpy<2",
+    "onnxruntime-gpu==1.16.0; sys_platform == 'linux' and platform_machine == 'aarch64'",
     "unitree-interface==0.1.0; sys_platform == 'linux' and platform_machine == 'aarch64'",
 ]
 
@@ -57,4 +63,4 @@ explicit = true
 
 [tool.uv.sources]
 tensorrt = { index = "nvidia-pypi" }
-onnxruntime-gpu = { index = "jetson-ai-lab-jp6-cu126" }
+onnxruntime-gpu = { path = "tmp_wheels/onnxruntime_gpu-1.16.0-cp310-cp310-linux_aarch64.whl" }
