@@ -84,6 +84,7 @@ class RealtimeMotionBuffer:
         motion_zmq_hwm: int = 1,
         dt_s: float = 0.02,
         tolerance_s: float = 0.04,
+        reconnect_timeout_s: float = 0.5,
     ):
         self.robot_cfg = robot_cfg
         if dt_s <= 0.0:
@@ -97,6 +98,7 @@ class RealtimeMotionBuffer:
             raise ValueError(f"future_steps must be 1D, got {self.future_steps.shape}")
         self.dt_s = float(dt_s)
         self.tolerance_s = float(tolerance_s)
+        self.reconnect_timeout_s = float(reconnect_timeout_s)
         self.min_future_step = int(np.min(self.future_steps)) if self.future_steps.size else 0
         self.max_future_step = int(np.max(self.future_steps)) if self.future_steps.size else 0
         self._dt_ns = int(self.dt_s * 1e9)
@@ -110,8 +112,13 @@ class RealtimeMotionBuffer:
         self._lock = threading.Lock()
         self._timestamps_ns: list[int] = []
         self._joint_pos_frames: list[np.ndarray] = []
+        self._joint_vel_frames: list[np.ndarray | None] = []
         self._body_pos_w_frames: list[np.ndarray] = []
+        self._body_lin_vel_w_frames: list[np.ndarray | None] = []
         self._body_quat_w_frames: list[np.ndarray] = []
+        self._body_ang_vel_w_frames: list[np.ndarray | None] = []
+        self._last_payload_recv_monotonic: float | None = None
+        self._stream_reconnected = False
         self._motion_id_template = np.zeros((1, self.future_steps.shape[0]), dtype=np.int64)
         self._step_template = self.future_steps.reshape(1, -1)
         self._zmq_context = zmq.Context.instance()
@@ -212,24 +219,69 @@ class RealtimeMotionBuffer:
             body_quat_w.astype(np.float32, copy=False),
             eps=1e-8,
         ).astype(np.float32, copy=True)
+        joint_vel_frame: np.ndarray | None = None
+        body_lin_vel_w_frame: np.ndarray | None = None
+        body_ang_vel_w_frame: np.ndarray | None = None
+        has_velocity_payload = all(
+            key in payload for key in ("joint_vel", "body_lin_vel_w", "body_ang_vel_w")
+        )
+        if has_velocity_payload:
+            joint_vel = _ensure_np(payload["joint_vel"], 1)
+            body_lin_vel_w = _ensure_np(payload["body_lin_vel_w"], 2)
+            body_ang_vel_w = _ensure_np(payload["body_ang_vel_w"], 2)
+            if joint_vel.shape != (self._num_joints,):
+                raise ValueError(f"Expected joint_vel ({self._num_joints},), got {joint_vel.shape}")
+            if body_lin_vel_w.shape != (self._num_bodies, 3):
+                raise ValueError(
+                    f"Expected body_lin_vel_w ({self._num_bodies}, 3), got {body_lin_vel_w.shape}"
+                )
+            if body_ang_vel_w.shape != (self._num_bodies, 3):
+                raise ValueError(
+                    f"Expected body_ang_vel_w ({self._num_bodies}, 3), got {body_ang_vel_w.shape}"
+                )
+            joint_vel_frame = joint_vel.astype(np.float32, copy=True)
+            body_lin_vel_w_frame = body_lin_vel_w.astype(np.float32, copy=True)
+            body_ang_vel_w_frame = body_ang_vel_w.astype(np.float32, copy=True)
 
+        recv_monotonic = time.monotonic()
         with self._lock:
+            if (
+                self._last_payload_recv_monotonic is not None
+                and self.reconnect_timeout_s > 0.0
+                and recv_monotonic - self._last_payload_recv_monotonic
+                > self.reconnect_timeout_s
+            ):
+                self._stream_reconnected = True
+            self._last_payload_recv_monotonic = recv_monotonic
+
             if not self._timestamps_ns or timestamp_ns >= self._timestamps_ns[-1]:
                 self._timestamps_ns.append(timestamp_ns)
                 self._joint_pos_frames.append(joint_pos_frame)
+                self._joint_vel_frames.append(joint_vel_frame)
                 self._body_pos_w_frames.append(body_pos_w_frame)
+                self._body_lin_vel_w_frames.append(body_lin_vel_w_frame)
                 self._body_quat_w_frames.append(body_quat_w_frame)
+                self._body_ang_vel_w_frames.append(body_ang_vel_w_frame)
             else:
                 insert_idx = bisect_right(self._timestamps_ns, timestamp_ns)
                 self._timestamps_ns.insert(insert_idx, timestamp_ns)
                 self._joint_pos_frames.insert(insert_idx, joint_pos_frame)
+                self._joint_vel_frames.insert(insert_idx, joint_vel_frame)
                 self._body_pos_w_frames.insert(insert_idx, body_pos_w_frame)
+                self._body_lin_vel_w_frames.insert(insert_idx, body_lin_vel_w_frame)
                 self._body_quat_w_frames.insert(insert_idx, body_quat_w_frame)
+                self._body_ang_vel_w_frames.insert(insert_idx, body_ang_vel_w_frame)
 
     @property
     def latest_timestamp_ns(self) -> int | None:
         with self._lock:
             return self._timestamps_ns[-1] if self._timestamps_ns else None
+
+    def consume_stream_reconnected(self) -> bool:
+        with self._lock:
+            reconnected = self._stream_reconnected
+            self._stream_reconnected = False
+        return reconnected
 
     def _fill_sample_frames_locked(
         self,
@@ -252,11 +304,20 @@ class RealtimeMotionBuffer:
 
         if len(self._timestamps_ns) == 1:
             joint_pos_out[:] = self._joint_pos_frames[0]
-            joint_vel_out.fill(0.0)
+            if self._joint_vel_frames[0] is not None:
+                joint_vel_out[:] = self._joint_vel_frames[0]
+            else:
+                joint_vel_out.fill(0.0)
             body_pos_w_out[:] = self._body_pos_w_frames[0]
-            body_lin_vel_w_out.fill(0.0)
+            if self._body_lin_vel_w_frames[0] is not None:
+                body_lin_vel_w_out[:] = self._body_lin_vel_w_frames[0]
+            else:
+                body_lin_vel_w_out.fill(0.0)
             body_quat_w_out[:] = self._body_quat_w_frames[0]
-            body_ang_vel_w_out.fill(0.0)
+            if self._body_ang_vel_w_frames[0] is not None:
+                body_ang_vel_w_out[:] = self._body_ang_vel_w_frames[0]
+            else:
+                body_ang_vel_w_out.fill(0.0)
             return
 
         timestamps_ns = np.asarray(self._timestamps_ns, dtype=np.int64)
@@ -284,6 +345,33 @@ class RealtimeMotionBuffer:
             out=np.zeros_like(joint_vel_out),
             where=dt_s > 0.0,
         )
+        joint_vel_available = [
+            self._joint_vel_frames[left_idx] is not None
+            and self._joint_vel_frames[right_idx] is not None
+            for left_idx, right_idx in zip(left, right, strict=True)
+        ]
+        if any(joint_vel_available):
+            joint_vel_left = np.stack(
+                [
+                    self._joint_vel_frames[idx]
+                    if self._joint_vel_frames[idx] is not None
+                    else np.zeros(self._num_joints, dtype=np.float32)
+                    for idx in left
+                ],
+                axis=0,
+            )
+            joint_vel_right = np.stack(
+                [
+                    self._joint_vel_frames[idx]
+                    if self._joint_vel_frames[idx] is not None
+                    else np.zeros(self._num_joints, dtype=np.float32)
+                    for idx in right
+                ],
+                axis=0,
+            )
+            mask = np.asarray(joint_vel_available, dtype=bool)
+            joint_vel_lerp = joint_vel_left + alpha_joint * (joint_vel_right - joint_vel_left)
+            joint_vel_out[mask] = joint_vel_lerp[mask]
 
         body_pos_left = np.stack([self._body_pos_w_frames[idx] for idx in left], axis=0)
         body_pos_right = np.stack([self._body_pos_w_frames[idx] for idx in right], axis=0)
@@ -296,6 +384,35 @@ class RealtimeMotionBuffer:
             out=np.zeros_like(body_lin_vel_w_out),
             where=dt_body_s > 0.0,
         )
+        body_lin_vel_available = [
+            self._body_lin_vel_w_frames[left_idx] is not None
+            and self._body_lin_vel_w_frames[right_idx] is not None
+            for left_idx, right_idx in zip(left, right, strict=True)
+        ]
+        if any(body_lin_vel_available):
+            body_lin_vel_left = np.stack(
+                [
+                    self._body_lin_vel_w_frames[idx]
+                    if self._body_lin_vel_w_frames[idx] is not None
+                    else np.zeros((self._num_bodies, 3), dtype=np.float32)
+                    for idx in left
+                ],
+                axis=0,
+            )
+            body_lin_vel_right = np.stack(
+                [
+                    self._body_lin_vel_w_frames[idx]
+                    if self._body_lin_vel_w_frames[idx] is not None
+                    else np.zeros((self._num_bodies, 3), dtype=np.float32)
+                    for idx in right
+                ],
+                axis=0,
+            )
+            mask = np.asarray(body_lin_vel_available, dtype=bool)
+            body_lin_vel_lerp = body_lin_vel_left + alpha_body * (
+                body_lin_vel_right - body_lin_vel_left
+            )
+            body_lin_vel_w_out[mask] = body_lin_vel_lerp[mask]
 
         body_quat_left = np.stack([self._body_quat_w_frames[idx] for idx in left], axis=0)
         body_quat_right = np.stack([self._body_quat_w_frames[idx] for idx in right], axis=0)
@@ -311,6 +428,35 @@ class RealtimeMotionBuffer:
             body_quat_right,
             (t1 - t0).astype(np.float32, copy=False)[:, None] / 1e9,
         )
+        body_ang_vel_available = [
+            self._body_ang_vel_w_frames[left_idx] is not None
+            and self._body_ang_vel_w_frames[right_idx] is not None
+            for left_idx, right_idx in zip(left, right, strict=True)
+        ]
+        if any(body_ang_vel_available):
+            body_ang_vel_left = np.stack(
+                [
+                    self._body_ang_vel_w_frames[idx]
+                    if self._body_ang_vel_w_frames[idx] is not None
+                    else np.zeros((self._num_bodies, 3), dtype=np.float32)
+                    for idx in left
+                ],
+                axis=0,
+            )
+            body_ang_vel_right = np.stack(
+                [
+                    self._body_ang_vel_w_frames[idx]
+                    if self._body_ang_vel_w_frames[idx] is not None
+                    else np.zeros((self._num_bodies, 3), dtype=np.float32)
+                    for idx in right
+                ],
+                axis=0,
+            )
+            mask = np.asarray(body_ang_vel_available, dtype=bool)
+            body_ang_vel_lerp = body_ang_vel_left + alpha_body * (
+                body_ang_vel_right - body_ang_vel_left
+            )
+            body_ang_vel_w_out[mask] = body_ang_vel_lerp[mask]
 
     def cleanup(self, cutoff_ns: int) -> None:
         with self._lock:
@@ -318,8 +464,11 @@ class RealtimeMotionBuffer:
             while len(self._timestamps_ns) > 1 and self._timestamps_ns[1] < cutoff_ns:
                 self._timestamps_ns.pop(0)
                 self._joint_pos_frames.pop(0)
+                self._joint_vel_frames.pop(0)
                 self._body_pos_w_frames.pop(0)
+                self._body_lin_vel_w_frames.pop(0)
                 self._body_quat_w_frames.pop(0)
+                self._body_ang_vel_w_frames.pop(0)
 
     def get_obs(self) -> MotionData:
         current_time_ns = time.time_ns()
