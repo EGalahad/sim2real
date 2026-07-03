@@ -1,6 +1,6 @@
 from .base import Observation, ObsGroup
 
-from .axell_motion_tracking import *
+from .heft import *
 from .bfm_zero import *
 from .common import *
 from .humanoid_gpt import *

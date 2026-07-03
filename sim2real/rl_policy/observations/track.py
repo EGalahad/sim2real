@@ -262,14 +262,17 @@ class ref_root_ori_future_b(_motion_obs):
         super().__init__(**kwargs)
         self.root_quat_offset = np.array([1.0, 0.0, 0.0, 0.0])  # identity quaternion
 
-    def reset(self):
-        super().reset()
+    def _align_root_yaw(self) -> None:
         motion_root_quat_w = self.ref_root_quat_w[0]
         robot_root_quat_w = self.state_processor.root_quat_w
 
         motion_root_quat_w = projected_yaw_quat(motion_root_quat_w)
         robot_root_quat_w = projected_yaw_quat(robot_root_quat_w)
         self.root_quat_offset = quat_mul(motion_root_quat_w, quat_conjugate(robot_root_quat_w))
+
+    def reset(self):
+        super().reset()
+        self._align_root_yaw()
 
     def update(self, data: Dict[str, Any]) -> None:
         super().update(data)

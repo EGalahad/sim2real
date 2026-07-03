@@ -9,15 +9,18 @@ from sim2real.rl_policy.utils.motion import MotionData
 from sim2real.utils.math import matrix_from_quat, quat_conjugate, quat_mul, quat_rotate_inverse_numpy
 
 
-class axell_g1tracking_policy_obs(Observation):
-    """Axellwppr/motion_tracking G1TRACKING-03-16_14-15_0315.2 policy input.
+class heft_policy_obs(Observation):
+    """HEFT G1 PMG policy input from the motion_tracking sim2real branch.
 
     Mirrors upstream ``TrackingPolicyRaw._build_obs_modules()`` order:
-    boot, command, compliance flag, target joints/root/gravity, robot histories,
-    and previous raw actions.
+    boot indicator, command, target joints/root/gravity, robot histories, and
+    previous raw actions. This adaptation is G1-only.
     """
 
-    OBS_DIM = 1590
+    OBS_DIM = 1729
+    INCLUDE_COMPLIANCE_FLAG = False
+    COMPLIANCE_FLAG = False
+    COMPLIANCE_FLAG_THRESHOLD = 10.0
 
     def __init__(
         self,
@@ -29,10 +32,7 @@ class axell_g1tracking_policy_obs(Observation):
         prev_action_steps: int,
         joint_names: Sequence[str] | None = None,
         root_body_name: str = "pelvis",
-        compliance_flag: bool | None = None,
-        compliance_flag_value: float = 0.0,
-        compliance_flag_threshold: float = 10.0,
-        target_root_z_offset: float = 0.035,
+        boot_indicator_max: int = 25,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -42,6 +42,16 @@ class axell_g1tracking_policy_obs(Observation):
         if int(self.future_steps[0]) != 0:
             raise ValueError(f"future_steps[0] must be 0, got {self.future_steps.tolist()}")
 
+        seen_negative = False
+        for step in self.future_steps[1:].tolist():
+            if int(step) < 0:
+                seen_negative = True
+            elif seen_negative:
+                raise ValueError(
+                    "future_steps format must be [0, ...positive/non-negative, ...negative], "
+                    f"got {self.future_steps.tolist()}"
+                )
+
         self.root_angvel_history_steps = [int(step) for step in root_angvel_history_steps]
         self.projected_gravity_history_steps = [int(step) for step in projected_gravity_history_steps]
         self.joint_pos_history_steps = [int(step) for step in joint_pos_history_steps]
@@ -50,17 +60,16 @@ class axell_g1tracking_policy_obs(Observation):
         if self.prev_action_steps <= 0:
             raise ValueError("prev_action_steps must be positive")
 
+        self.boot_indicator_max = int(boot_indicator_max)
+        if self.boot_indicator_max <= 0:
+            raise ValueError(f"boot_indicator_max must be positive, got {self.boot_indicator_max}")
+        self._boot_indicator_value = self.boot_indicator_max
+
         self.joint_names = list(joint_names or self.env.policy_joint_names)
         self.root_body_name = str(root_body_name)
-        self.target_root_z_offset = float(target_root_z_offset)
-        self.compliance_flag_value = (
-            1.0 if bool(compliance_flag) else 0.0
-        ) if compliance_flag is not None else float(compliance_flag_value)
-        self.compliance_flag_threshold = float(compliance_flag_threshold)
-        self.compliance_kp = self.compliance_flag_threshold / 0.05
 
         if len(self.joint_names) != 29:
-            raise ValueError(f"Axell G1 tracking expects 29 joints, got {len(self.joint_names)}")
+            raise ValueError(f"HEFT G1 tracking expects 29 joints, got {len(self.joint_names)}")
 
         self._state_joint_indices = [
             self.state_processor.joint_names.index(name) for name in self.joint_names
@@ -91,19 +100,13 @@ class axell_g1tracking_policy_obs(Observation):
 
     def reset(self) -> None:
         self._cached_motion_layout = None
-        self._fill_histories_from_current()
+        self._boot_indicator_value = self.boot_indicator_max
+        self._root_angvel_history[:] = 0.0
+        self._projected_gravity_history[:] = 0.0
+        self._joint_pos_history[:] = 0.0
+        self._joint_vel_history[:] = 0.0
         self._prev_actions[:] = 0.0
         self._obs[:] = 0.0
-
-    def _fill_histories_from_current(self) -> None:
-        root_angvel = np.asarray(self.state_processor.root_ang_vel_b, dtype=np.float32)
-        gravity = self._current_projected_gravity()
-        joint_pos = self._current_joint_pos()
-        joint_vel = self._current_joint_vel()
-        self._root_angvel_history[:] = root_angvel.reshape(1, 3)
-        self._projected_gravity_history[:] = gravity.reshape(1, 3)
-        self._joint_pos_history[:] = joint_pos.reshape(1, -1)
-        self._joint_vel_history[:] = joint_vel.reshape(1, -1)
 
     def _refresh_motion_indices(self) -> None:
         joint_names = tuple(self.state_processor.motion_joint_names)
@@ -114,7 +117,7 @@ class axell_g1tracking_policy_obs(Observation):
 
         missing_joints = [name for name in self.joint_names if name not in joint_names]
         if missing_joints:
-            raise ValueError(f"Motion source missing Axell policy joints: {missing_joints}")
+            raise ValueError(f"Motion source missing HEFT policy joints: {missing_joints}")
         if self.root_body_name not in body_names:
             raise ValueError(f"Motion source missing root body {self.root_body_name!r}")
 
@@ -138,7 +141,7 @@ class axell_g1tracking_policy_obs(Observation):
         for step in [int(step) for step in self.future_steps.tolist()]:
             if step not in available_steps:
                 raise ValueError(
-                    f"Axell obs requested future step {step}, "
+                    f"HEFT obs requested future step {step}, "
                     f"but motion source provides {available_steps}"
                 )
             step_indices.append(available_steps.index(step))
@@ -179,7 +182,14 @@ class axell_g1tracking_policy_obs(Observation):
         history[:] = np.roll(history, 1, axis=0)
         history[0] = value
 
+    def _compliance_obs(self) -> np.ndarray:
+        value = 1.0 if self.COMPLIANCE_FLAG else 0.0
+        threshold = float(self.COMPLIANCE_FLAG_THRESHOLD)
+        kp = threshold / 0.05
+        return np.asarray([value, value * threshold, value * kp], dtype=np.float32)
+
     def update(self, data: Dict[str, Any]) -> None:
+        self._boot_indicator_value = max(self._boot_indicator_value - 1, 0)
         self._append_history(
             self._root_angvel_history,
             np.asarray(self.state_processor.root_ang_vel_b, dtype=np.float32),
@@ -237,38 +247,45 @@ class axell_g1tracking_policy_obs(Observation):
             axis=0,
         ).astype(np.float32)
 
-        target_root_z = (ref_root_pos_w[:, 2] + self.target_root_z_offset).astype(np.float32)
         down = np.broadcast_to(
             np.asarray([[0.0, 0.0, -1.0]], dtype=np.float32),
             (ref_root_quat_w.shape[0], 3),
         )
         target_projected_gravity = quat_rotate_inverse_numpy(ref_root_quat_w, down).reshape(-1)
 
-        v = self.compliance_flag_value
-        compliance = np.asarray(
-            [v, v * self.compliance_flag_threshold, v * self.compliance_kp],
-            dtype=np.float32,
-        )
-
-        obs = np.concatenate(
+        obs_parts = [
+            np.asarray(
+                [self._boot_indicator_value / self.boot_indicator_max],
+                dtype=np.float32,
+            ),
+            command,
+        ]
+        if self.INCLUDE_COMPLIANCE_FLAG:
+            obs_parts.append(self._compliance_obs())
+        obs_parts.extend(
             [
-                np.asarray([0.0], dtype=np.float32),
-                command,
-                compliance,
                 target_joint,
-                target_root_z,
+                ref_root_pos_w[:, 2].astype(np.float32),
                 target_projected_gravity.astype(np.float32),
                 self._root_angvel_history[self.root_angvel_history_steps].reshape(-1),
                 self._projected_gravity_history[self.projected_gravity_history_steps].reshape(-1),
                 self._joint_pos_history[self.joint_pos_history_steps].reshape(-1),
                 self._joint_vel_history[self.joint_vel_history_steps].reshape(-1),
                 self._prev_actions.reshape(-1),
-            ],
-            axis=0,
-        ).astype(np.float32)
+            ]
+        )
+        obs = np.concatenate(obs_parts, axis=0).astype(np.float32)
         if obs.shape[0] != self.OBS_DIM:
-            raise ValueError(f"Axell G1 tracking obs dim mismatch: {obs.shape[0]} != {self.OBS_DIM}")
+            raise ValueError(f"HEFT G1 tracking obs dim mismatch: {obs.shape[0]} != {self.OBS_DIM}")
         return obs
 
     def compute(self) -> np.ndarray:
         return self._obs
+
+
+class heft_compliance_policy_obs(heft_policy_obs):
+    """HEFT G1 Compliance policy input with compliance flag forced off."""
+
+    OBS_DIM = 1590
+    INCLUDE_COMPLIANCE_FLAG = True
+    COMPLIANCE_FLAG = False
