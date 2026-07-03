@@ -134,7 +134,7 @@ class StateProcessor:
                 motion_zmq_hwm=int(self.motion_config.get("motion_zmq_hwm", 1)),
                 dt_s=float(self.motion_config.get("motion_dt_s", 0.02)),
                 tolerance_s=float(self.motion_config.get("motion_tolerance_s", 0.04)),
-                reconnect_timeout_s=float(self.motion_config.get("motion_reconnect_reset_s", 0.5)),
+                root_body_name=str(self.motion_config.get("root_body_name", "pelvis")),
             )
 
             self.motion_joint_names = list(self.motion_buffer.joint_names)
@@ -164,11 +164,6 @@ class StateProcessor:
             self.motion_data = self.motion_buffer.get_obs()
         elif self.motion_backend == "smpl_zmq":
             self.motion_data = self.motion_buffer.get_obs()
-
-    def consume_motion_stream_reconnected(self) -> bool:
-        if self.motion_backend != "zmq":
-            return False
-        return bool(self.motion_buffer.consume_stream_reconnected())
 
     def register_subscriber(self, object_name: str, port: Optional[int] = None):
         if object_name in self.mocap_subscribers:

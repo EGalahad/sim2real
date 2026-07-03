@@ -14,6 +14,7 @@ import json
 import time
 from typing import Literal, Optional
 
+import cv2
 import torch  # Import before MuJoCo/GMR native libs on aarch64 to avoid static TLS issues.
 import mujoco
 import numpy as np
@@ -30,6 +31,7 @@ from sim2real.config.robots.base import (
     BODY_POS_W_KEY,
     BODY_QUAT_W_KEY,
     JOINT_POS_KEY,
+    MOTION_FIRST_FRAME_KEY,
     PICO_RECV_TIME_NS_KEY,
     PUBLISH_T_NS_KEY,
     SEQ_KEY,
@@ -255,6 +257,8 @@ class LiveRetargetPublisher:
         self.paused = True
         self._needs_live_pelvis_init = False
         self._x_button_was_pressed = False
+        self._next_live_payload_is_first_frame = True
+        self._live_stream_disconnected = False
         self._latest_controller_t_ns = 0
         self._last_mode_hint_monotonic = 0.0
 
@@ -477,6 +481,7 @@ class LiveRetargetPublisher:
         *,
         source_smplx_t_ns: int,
         pico_recv_time_ns: int,
+        motion_first_frame: bool = False,
     ) -> None:
         if self._smpl_sock is None:
             return
@@ -506,6 +511,7 @@ class LiveRetargetPublisher:
             "frame_index": np.asarray([self._smpl_frame_index], dtype=np.int64),
             "source_smplx_t_ns": np.asarray([int(source_smplx_t_ns)], dtype=np.int64),
             "pico_recv_time_ns": np.asarray([int(pico_recv_time_ns)], dtype=np.int64),
+            MOTION_FIRST_FRAME_KEY: np.asarray([bool(motion_first_frame)], dtype=np.bool_),
             "timestamp_monotonic": np.asarray([time.monotonic()], dtype=np.float64),
             "timestamp_realtime": np.asarray([time.time()], dtype=np.float64),
         }
@@ -542,6 +548,7 @@ class LiveRetargetPublisher:
             self.paused_joint_pos,
             source_smplx_t_ns=int(self._latest_controller_t_ns),
             pico_recv_time_ns=time.time_ns(),
+            motion_first_frame=False,
         )
 
     def _publish_smpl_frame(
@@ -551,6 +558,7 @@ class LiveRetargetPublisher:
         *,
         source_smplx_t_ns: int,
         pico_recv_time_ns: int,
+        motion_first_frame: bool = False,
     ) -> None:
         if self._smpl_sock is None:
             return
@@ -590,6 +598,7 @@ class LiveRetargetPublisher:
             robot_joint_pos,
             source_smplx_t_ns=source_smplx_t_ns,
             pico_recv_time_ns=pico_recv_time_ns,
+            motion_first_frame=motion_first_frame,
         )
 
     def _build_payload(
@@ -602,6 +611,7 @@ class LiveRetargetPublisher:
         joint_pos: np.ndarray,
         qpos: Optional[np.ndarray] = None,
         xrobot_frame: Optional[XRobotBodyFrame] = None,
+        motion_first_frame: bool = False,
     ) -> dict[str, object]:
         with ScopedTimer(BUILD_PAYLOAD_TIMER_NAME):
             publish_t_ns = int(time.time_ns())
@@ -611,6 +621,7 @@ class LiveRetargetPublisher:
                 SMPLX_T_NS_KEY: int(source_smplx_t_ns),
                 PICO_RECV_TIME_NS_KEY: int(pico_recv_time_ns),
                 "paused": self.paused,
+                MOTION_FIRST_FRAME_KEY: bool(motion_first_frame),
                 JOINT_POS_KEY: np.asarray(joint_pos, dtype=np.float32).tolist(),
                 BODY_POS_W_KEY: np.asarray(body_pos_w, dtype=np.float32).tolist(),
                 BODY_QUAT_W_KEY: np.asarray(body_quat_w, dtype=np.float32).tolist(),
@@ -690,6 +701,12 @@ class LiveRetargetPublisher:
             f"{retarget_label}={retarget_avg_ms:.3f} ms"
         )
 
+    def _consume_live_first_frame_flag(self) -> bool:
+        if self.paused or not self._next_live_payload_is_first_frame:
+            return False
+        self._next_live_payload_is_first_frame = False
+        return True
+
     def sample_and_retarget(self) -> Optional[dict[str, object]]:
         with ScopedTimer(SAMPLE_TIMER_NAME):
             x_pressed = self._poll_pause_toggle()
@@ -716,6 +733,7 @@ class LiveRetargetPublisher:
                     joint_pos=self.paused_joint_pos,
                     qpos=self.paused_qpos,
                     xrobot_frame=None,
+                    motion_first_frame=False,
                 )
 
             try:
@@ -738,13 +756,22 @@ class LiveRetargetPublisher:
                         flush=True,
                     )
             except RuntimeError:
+                self._live_stream_disconnected = True
                 now = time.monotonic()
                 if now - self.last_stream_wait_log_monotonic > 2.0:
                     print("[Info] Waiting for XR body data from PICO...")
                     self.last_stream_wait_log_monotonic = now
                 return None
 
+            if self._live_stream_disconnected:
+                self._live_stream_disconnected = False
+                self._needs_live_pelvis_init = True
+                self._needs_smpl_heading_init = True
+                self._next_live_payload_is_first_frame = True
+                print("[Info] XR body data reconnected; marking next motion payload as first frame")
+
             raw_min_body_z = float(min(np.asarray(pose[0], dtype=np.float32)[2] for pose in smplx_data.values()))
+            motion_first_frame = self._consume_live_first_frame_flag()
             smplx_data = self._transform_live_body_pose_dict(smplx_data)
             with ScopedTimer(MIN_HEIGHT_TIMER_NAME):
                 smplx_data = self._apply_min_link_height_offset(
@@ -776,6 +803,7 @@ class LiveRetargetPublisher:
                         joint_pos,
                         source_smplx_t_ns=int(source_smplx_t_ns),
                         pico_recv_time_ns=int(pico_recv_time_ns),
+                        motion_first_frame=motion_first_frame,
                     )
                 return self._build_payload(
                     source_smplx_t_ns=int(source_smplx_t_ns),
@@ -785,6 +813,7 @@ class LiveRetargetPublisher:
                     joint_pos=joint_pos,
                     qpos=qpos,
                     xrobot_frame=xrobot_frame,
+                    motion_first_frame=motion_first_frame,
                 )
             else:
                 configuration_data = self.retarget.configuration.data
@@ -797,6 +826,7 @@ class LiveRetargetPublisher:
                         joint_pos,
                         source_smplx_t_ns=int(source_smplx_t_ns),
                         pico_recv_time_ns=int(pico_recv_time_ns),
+                        motion_first_frame=motion_first_frame,
                     )
                 return self._build_payload(
                     source_smplx_t_ns=int(source_smplx_t_ns),
@@ -806,6 +836,7 @@ class LiveRetargetPublisher:
                     joint_pos=joint_pos,
                     qpos=np.asarray(configuration_data.qpos, dtype=np.float32),
                     xrobot_frame=xrobot_frame,
+                    motion_first_frame=motion_first_frame,
                 )
 
     def close(self) -> None:

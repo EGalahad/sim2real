@@ -10,9 +10,14 @@ import numpy as np
 import zmq
 
 from loguru import logger
-from sim2real.config.robots.base import PICO_RECV_TIME_NS_KEY, PUBLISH_T_NS_KEY, RobotCfg
+from sim2real.config.robots.base import (
+    MOTION_FIRST_FRAME_KEY,
+    PICO_RECV_TIME_NS_KEY,
+    PUBLISH_T_NS_KEY,
+    RobotCfg,
+)
 from sim2real.rl_policy.utils.motion import MotionData, _normalize_quat_batch, _quat_slerp_batch
-from sim2real.utils.math import quat_conjugate, quat_mul
+from sim2real.utils.math import quat_conjugate, quat_mul, quat_rotate_numpy, yaw_quat
 
 
 class SmplMotionData:
@@ -52,6 +57,51 @@ def _payload_scalar(value: Any, default: Any = None) -> Any:
     return arr.reshape(-1)[0].item()
 
 
+def _payload_bool(value: Any, default: bool = False) -> bool:
+    scalar = _payload_scalar(value, default)
+    if isinstance(scalar, str):
+        return scalar.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(scalar)
+
+
+def _pos_no_z(pos: np.ndarray) -> np.ndarray:
+    pos_no_z = np.zeros(3, dtype=np.float32)
+    pos_no_z[:2] = np.asarray(pos, dtype=np.float32).reshape(3)[:2]
+    return pos_no_z
+
+
+def _rotate_vectors_by_quat(vectors: np.ndarray, quat_wxyz: np.ndarray) -> np.ndarray:
+    vectors = np.asarray(vectors, dtype=np.float32)
+    quat = np.broadcast_to(
+        np.asarray(quat_wxyz, dtype=np.float32).reshape(1, 4),
+        vectors.shape[:-1] + (4,),
+    )
+    return quat_rotate_numpy(quat, vectors).astype(np.float32, copy=False)
+
+
+def _transform_body_pose_by_xy_yaw(
+    body_pos_w: np.ndarray,
+    body_quat_w: np.ndarray,
+    *,
+    yaw_offset_quat_wxyz: np.ndarray,
+    src_root_pos_no_z: np.ndarray,
+    dst_root_pos_no_z: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    body_pos_w = np.asarray(body_pos_w, dtype=np.float32)
+    body_quat_w = np.asarray(body_quat_w, dtype=np.float32)
+    yaw_offset = np.asarray(yaw_offset_quat_wxyz, dtype=np.float32).reshape(1, 4)
+    src_root = np.asarray(src_root_pos_no_z, dtype=np.float32).reshape(1, 3)
+    dst_root = np.asarray(dst_root_pos_no_z, dtype=np.float32).reshape(1, 3)
+    quat = np.broadcast_to(yaw_offset, body_quat_w.shape)
+
+    transformed_pos = quat_rotate_numpy(quat, body_pos_w - src_root) + dst_root
+    transformed_quat = quat_mul(quat, body_quat_w)
+    return (
+        transformed_pos.astype(np.float32, copy=False),
+        _normalize_quat_batch(transformed_quat.astype(np.float32, copy=False)),
+    )
+
+
 def _quat_pair_ang_vel_w(q0_wxyz: np.ndarray, q1_wxyz: np.ndarray, dt_s: np.ndarray) -> np.ndarray:
     q_delta = quat_mul(q1_wxyz, quat_conjugate(q0_wxyz))
     q_delta = _normalize_quat_batch(q_delta, eps=1e-8)
@@ -84,13 +134,19 @@ class RealtimeMotionBuffer:
         motion_zmq_hwm: int = 1,
         dt_s: float = 0.02,
         tolerance_s: float = 0.04,
-        reconnect_timeout_s: float = 0.5,
+        root_body_name: str = "pelvis",
     ):
         self.robot_cfg = robot_cfg
         if dt_s <= 0.0:
             raise ValueError("dt_s must be positive")
         self.joint_names: list[str] = list(self.robot_cfg.joint_names)
         self.body_names: list[str] = list(self.robot_cfg.body_names)
+        self.root_body_name = str(root_body_name)
+        if self.root_body_name not in self.body_names:
+            raise ValueError(
+                f"Root body {self.root_body_name!r} is not in robot body names"
+            )
+        self._root_body_idx = self.body_names.index(self.root_body_name)
         self._num_joints = len(self.joint_names)
         self._num_bodies = len(self.body_names)
         self.future_steps = np.asarray(list(future_steps), dtype=int)
@@ -98,9 +154,10 @@ class RealtimeMotionBuffer:
             raise ValueError(f"future_steps must be 1D, got {self.future_steps.shape}")
         self.dt_s = float(dt_s)
         self.tolerance_s = float(tolerance_s)
-        self.reconnect_timeout_s = float(reconnect_timeout_s)
         self.min_future_step = int(np.min(self.future_steps)) if self.future_steps.size else 0
         self.max_future_step = int(np.max(self.future_steps)) if self.future_steps.size else 0
+        current_step_indices = np.flatnonzero(self.future_steps == 0)
+        self._current_step_index = int(current_step_indices[0]) if current_step_indices.size else 0
         self._dt_ns = int(self.dt_s * 1e9)
         self._tolerance_ns = int(self.tolerance_s * 1e9)
         self._future_steps_ns = self.future_steps.astype(np.int64, copy=False) * self._dt_ns
@@ -117,8 +174,13 @@ class RealtimeMotionBuffer:
         self._body_lin_vel_w_frames: list[np.ndarray | None] = []
         self._body_quat_w_frames: list[np.ndarray] = []
         self._body_ang_vel_w_frames: list[np.ndarray | None] = []
-        self._last_payload_recv_monotonic: float | None = None
-        self._stream_reconnected = False
+        self._segment_yaw_offset_quat = self._identity_quat.copy()
+        self._segment_src_root_pos_no_z = np.zeros(3, dtype=np.float32)
+        self._segment_dst_root_pos_no_z = np.zeros(3, dtype=np.float32)
+        self._last_frame_timestamp_ns: int | None = None
+        self._last_joint_pos_frame: np.ndarray | None = None
+        self._last_body_pos_w_frame: np.ndarray | None = None
+        self._last_body_quat_w_frame: np.ndarray | None = None
         self._motion_id_template = np.zeros((1, self.future_steps.shape[0]), dtype=np.int64)
         self._step_template = self.future_steps.reshape(1, -1)
         self._zmq_context = zmq.Context.instance()
@@ -138,6 +200,7 @@ class RealtimeMotionBuffer:
         sock = self._zmq_context.socket(zmq.SUB)
         sock.setsockopt(zmq.LINGER, 0)
         sock.setsockopt(zmq.RCVHWM, self._motion_zmq_hwm)
+        sock.setsockopt(zmq.RCVTIMEO, 0)
         sock.setsockopt(zmq.SUBSCRIBE, b"")
         sock.connect(self._motion_zmq_connect)
         self._motion_stream_socket = sock
@@ -162,6 +225,105 @@ class RealtimeMotionBuffer:
         self._motion_stream_thread = threading.Thread(target=_stream_loop, daemon=True)
         self._motion_stream_thread.start()
 
+    def _update_segment_transform_locked(
+        self,
+        *,
+        raw_root_pos_w: np.ndarray,
+        raw_root_quat_w: np.ndarray,
+    ) -> None:
+        if self._last_body_pos_w_frame is None or self._last_body_quat_w_frame is None:
+            self._segment_yaw_offset_quat = self._identity_quat.copy()
+            self._segment_src_root_pos_no_z = np.zeros(3, dtype=np.float32)
+            self._segment_dst_root_pos_no_z = np.zeros(3, dtype=np.float32)
+            return
+
+        src_root_yaw = yaw_quat(np.asarray(raw_root_quat_w, dtype=np.float32).reshape(1, 4))
+        dst_root_quat = self._last_body_quat_w_frame[self._root_body_idx]
+        dst_root_yaw = yaw_quat(dst_root_quat.reshape(1, 4))
+        self._segment_yaw_offset_quat = quat_mul(
+            dst_root_yaw,
+            quat_conjugate(src_root_yaw),
+        ).reshape(4).astype(np.float32, copy=False)
+        self._segment_src_root_pos_no_z = _pos_no_z(raw_root_pos_w)
+        self._segment_dst_root_pos_no_z = _pos_no_z(
+            self._last_body_pos_w_frame[self._root_body_idx]
+        )
+
+    def _apply_segment_transform(
+        self,
+        *,
+        body_pos_w_frame: np.ndarray,
+        body_quat_w_frame: np.ndarray,
+        body_lin_vel_w_frame: np.ndarray | None,
+        body_ang_vel_w_frame: np.ndarray | None,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, np.ndarray | None]:
+        if (
+            np.array_equal(self._segment_yaw_offset_quat, self._identity_quat)
+            and not np.any(self._segment_src_root_pos_no_z)
+            and not np.any(self._segment_dst_root_pos_no_z)
+        ):
+            return body_pos_w_frame, body_quat_w_frame, body_lin_vel_w_frame, body_ang_vel_w_frame
+
+        body_pos_w_frame, body_quat_w_frame = _transform_body_pose_by_xy_yaw(
+            body_pos_w_frame,
+            body_quat_w_frame,
+            yaw_offset_quat_wxyz=self._segment_yaw_offset_quat,
+            src_root_pos_no_z=self._segment_src_root_pos_no_z,
+            dst_root_pos_no_z=self._segment_dst_root_pos_no_z,
+        )
+        if body_lin_vel_w_frame is not None:
+            body_lin_vel_w_frame = _rotate_vectors_by_quat(
+                body_lin_vel_w_frame,
+                self._segment_yaw_offset_quat,
+            ).copy()
+        if body_ang_vel_w_frame is not None:
+            body_ang_vel_w_frame = _rotate_vectors_by_quat(
+                body_ang_vel_w_frame,
+                self._segment_yaw_offset_quat,
+            ).copy()
+        return body_pos_w_frame, body_quat_w_frame, body_lin_vel_w_frame, body_ang_vel_w_frame
+
+    def _update_last_frame_cache_locked(
+        self,
+        *,
+        timestamp_ns: int,
+        joint_pos_frame: np.ndarray,
+        body_pos_w_frame: np.ndarray,
+        body_quat_w_frame: np.ndarray,
+    ) -> None:
+        if (
+            self._last_frame_timestamp_ns is not None
+            and timestamp_ns < self._last_frame_timestamp_ns
+        ):
+            return
+        self._last_frame_timestamp_ns = int(timestamp_ns)
+        self._last_joint_pos_frame = joint_pos_frame.copy()
+        self._last_body_pos_w_frame = body_pos_w_frame.copy()
+        self._last_body_quat_w_frame = body_quat_w_frame.copy()
+
+    def _fill_from_last_frame_locked(
+        self,
+        joint_pos_out: np.ndarray,
+        joint_vel_out: np.ndarray,
+        body_pos_w_out: np.ndarray,
+        body_lin_vel_w_out: np.ndarray,
+        body_quat_w_out: np.ndarray,
+        body_ang_vel_w_out: np.ndarray,
+    ) -> bool:
+        if (
+            self._last_joint_pos_frame is None
+            or self._last_body_pos_w_frame is None
+            or self._last_body_quat_w_frame is None
+        ):
+            return False
+        joint_pos_out[:] = self._last_joint_pos_frame
+        joint_vel_out.fill(0.0)
+        body_pos_w_out[:] = self._last_body_pos_w_frame
+        body_lin_vel_w_out.fill(0.0)
+        body_quat_w_out[:] = self._last_body_quat_w_frame
+        body_ang_vel_w_out.fill(0.0)
+        return True
+
     def __append_payload(
         self,
         payload: dict[str, Any] | str | bytes,
@@ -179,6 +341,10 @@ class RealtimeMotionBuffer:
             payload.get(PICO_RECV_TIME_NS_KEY)
             or payload.get(PUBLISH_T_NS_KEY)
             or recv_time_ns
+        )
+        motion_first_frame = _payload_bool(
+            payload.get(MOTION_FIRST_FRAME_KEY, payload.get("first_frame")),
+            False,
         )
 
         joint_pos = payload.get("joint_pos", payload.get("dof_pos", payload.get("qpos", None)))
@@ -243,16 +409,24 @@ class RealtimeMotionBuffer:
             body_lin_vel_w_frame = body_lin_vel_w.astype(np.float32, copy=True)
             body_ang_vel_w_frame = body_ang_vel_w.astype(np.float32, copy=True)
 
-        recv_monotonic = time.monotonic()
         with self._lock:
-            if (
-                self._last_payload_recv_monotonic is not None
-                and self.reconnect_timeout_s > 0.0
-                and recv_monotonic - self._last_payload_recv_monotonic
-                > self.reconnect_timeout_s
-            ):
-                self._stream_reconnected = True
-            self._last_payload_recv_monotonic = recv_monotonic
+            if motion_first_frame:
+                self._update_segment_transform_locked(
+                    raw_root_pos_w=body_pos_w_frame[self._root_body_idx],
+                    raw_root_quat_w=body_quat_w_frame[self._root_body_idx],
+                )
+
+            (
+                body_pos_w_frame,
+                body_quat_w_frame,
+                body_lin_vel_w_frame,
+                body_ang_vel_w_frame,
+            ) = self._apply_segment_transform(
+                body_pos_w_frame=body_pos_w_frame,
+                body_quat_w_frame=body_quat_w_frame,
+                body_lin_vel_w_frame=body_lin_vel_w_frame,
+                body_ang_vel_w_frame=body_ang_vel_w_frame,
+            )
 
             if not self._timestamps_ns or timestamp_ns >= self._timestamps_ns[-1]:
                 self._timestamps_ns.append(timestamp_ns)
@@ -272,16 +446,17 @@ class RealtimeMotionBuffer:
                 self._body_quat_w_frames.insert(insert_idx, body_quat_w_frame)
                 self._body_ang_vel_w_frames.insert(insert_idx, body_ang_vel_w_frame)
 
+            self._update_last_frame_cache_locked(
+                timestamp_ns=timestamp_ns,
+                joint_pos_frame=joint_pos_frame,
+                body_pos_w_frame=body_pos_w_frame,
+                body_quat_w_frame=body_quat_w_frame,
+            )
+
     @property
     def latest_timestamp_ns(self) -> int | None:
         with self._lock:
             return self._timestamps_ns[-1] if self._timestamps_ns else None
-
-    def consume_stream_reconnected(self) -> bool:
-        with self._lock:
-            reconnected = self._stream_reconnected
-            self._stream_reconnected = False
-        return reconnected
 
     def _fill_sample_frames_locked(
         self,
@@ -294,6 +469,15 @@ class RealtimeMotionBuffer:
         body_ang_vel_w_out: np.ndarray,
     ) -> None:
         if not self._timestamps_ns:
+            if self._fill_from_last_frame_locked(
+                joint_pos_out,
+                joint_vel_out,
+                body_pos_w_out,
+                body_lin_vel_w_out,
+                body_quat_w_out,
+                body_ang_vel_w_out,
+            ):
+                return
             joint_pos_out.fill(0.0)
             joint_vel_out.fill(0.0)
             body_pos_w_out.fill(0.0)
@@ -304,23 +488,16 @@ class RealtimeMotionBuffer:
 
         if len(self._timestamps_ns) == 1:
             joint_pos_out[:] = self._joint_pos_frames[0]
-            if self._joint_vel_frames[0] is not None:
-                joint_vel_out[:] = self._joint_vel_frames[0]
-            else:
-                joint_vel_out.fill(0.0)
+            joint_vel_out.fill(0.0)
             body_pos_w_out[:] = self._body_pos_w_frames[0]
-            if self._body_lin_vel_w_frames[0] is not None:
-                body_lin_vel_w_out[:] = self._body_lin_vel_w_frames[0]
-            else:
-                body_lin_vel_w_out.fill(0.0)
+            body_lin_vel_w_out.fill(0.0)
             body_quat_w_out[:] = self._body_quat_w_frames[0]
-            if self._body_ang_vel_w_frames[0] is not None:
-                body_ang_vel_w_out[:] = self._body_ang_vel_w_frames[0]
-            else:
-                body_ang_vel_w_out.fill(0.0)
+            body_ang_vel_w_out.fill(0.0)
             return
 
         timestamps_ns = np.asarray(self._timestamps_ns, dtype=np.int64)
+        before_first = target_times_ns <= timestamps_ns[0]
+        after_last = target_times_ns >= timestamps_ns[-1]
         clamped_times_ns = np.clip(target_times_ns, timestamps_ns[0], timestamps_ns[-1])
         right = np.searchsorted(timestamps_ns, clamped_times_ns, side="right")
         right = np.clip(right, 1, timestamps_ns.shape[0] - 1)
@@ -458,10 +635,25 @@ class RealtimeMotionBuffer:
             )
             body_ang_vel_w_out[mask] = body_ang_vel_lerp[mask]
 
+        if np.any(before_first):
+            joint_pos_out[before_first] = self._joint_pos_frames[0]
+            joint_vel_out[before_first] = 0.0
+            body_pos_w_out[before_first] = self._body_pos_w_frames[0]
+            body_lin_vel_w_out[before_first] = 0.0
+            body_quat_w_out[before_first] = self._body_quat_w_frames[0]
+            body_ang_vel_w_out[before_first] = 0.0
+
+        if np.any(after_last):
+            joint_pos_out[after_last] = self._joint_pos_frames[-1]
+            joint_vel_out[after_last] = 0.0
+            body_pos_w_out[after_last] = self._body_pos_w_frames[-1]
+            body_lin_vel_w_out[after_last] = 0.0
+            body_quat_w_out[after_last] = self._body_quat_w_frames[-1]
+            body_ang_vel_w_out[after_last] = 0.0
+
     def cleanup(self, cutoff_ns: int) -> None:
         with self._lock:
-            # Keep one frame before the cutoff so interpolation still has a left endpoint.
-            while len(self._timestamps_ns) > 1 and self._timestamps_ns[1] < cutoff_ns:
+            while self._timestamps_ns and self._timestamps_ns[0] < cutoff_ns:
                 self._timestamps_ns.pop(0)
                 self._joint_pos_frames.pop(0)
                 self._joint_vel_frames.pop(0)
@@ -534,6 +726,8 @@ class RealtimeSmplMotionBuffer:
         self._future_steps_ns = self.future_steps.astype(np.int64, copy=False) * self._dt_ns
         self.min_future_step = int(np.min(self.future_steps)) if self.future_steps.size else 0
         self.max_future_step = int(np.max(self.future_steps)) if self.future_steps.size else 0
+        current_step_indices = np.flatnonzero(self.future_steps == 0)
+        self._current_step_index = int(current_step_indices[0]) if current_step_indices.size else 0
         self._delay_ns = self.max_future_step * self._dt_ns + self._tolerance_ns
         self.delay_s = float(self._delay_ns / 1e9)
         self._history_ns = self._delay_ns + abs(self.min_future_step) * self._dt_ns
@@ -553,6 +747,7 @@ class RealtimeSmplMotionBuffer:
         self._motion_stream_socket: zmq.Socket | None = None
         self._motion_stream_thread: threading.Thread | None = None
         self._motion_stream_stop = threading.Event()
+        self._last_decode_warning_monotonic = 0.0
         if self._motion_zmq_connect:
             self._start_motion_stream()
 

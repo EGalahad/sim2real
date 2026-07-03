@@ -70,8 +70,18 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'doc',
-          id: 'motion_buffer',
-          label: 'Motion Buffer',
+          id: 'policy_yaw_alignment',
+          label: 'Yaw Alignment',
+        },
+        {
+          type: 'doc',
+          id: 'motion_stream_disconnects',
+          label: 'Motion Stream Disconnects',
+        },
+        {
+          type: 'doc',
+          id: 'npz_motion_publisher',
+          label: 'NPZ Motion Publisher',
         },
         {
           type: 'doc',

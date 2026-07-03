@@ -9,10 +9,12 @@ normal stream published by pico_retarget_pub.py.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 import json
 import threading
 import time
 
+import torch
 import mujoco
 import numpy as np
 import tyro
@@ -25,6 +27,7 @@ from sim2real.config.robots.base import (
     BODY_QUAT_W_KEY,
     JOINT_NAMES_KEY,
     JOINT_POS_KEY,
+    MOTION_FIRST_FRAME_KEY,
     PUBLISH_T_NS_KEY,
     SEQ_KEY,
 )
@@ -35,6 +38,12 @@ from sim2real.utils.profiling import ScopedTimer
 
 SEND_TIMER_NAME = "npz_pub.send_payload"
 SAMPLE_TIMER_NAME = "npz_pub.sample_motion"
+
+
+class PlaybackState(str, Enum):
+    DEFAULT = "default"
+    MOTION_PAUSED = "motion_paused"
+    MOTION_PLAYING = "motion_playing"
 
 
 def _array_payload(array: np.ndarray) -> list:
@@ -104,8 +113,14 @@ class NpzMotionPublisher:
         self.frame = int(args.start_frame)
         self.frame = min(max(self.frame, 0), self.motion_length - 1)
         self.seq = 0
-        self.source = str(args.initial_source)
-        self.paused = True
+        self.state = (
+            PlaybackState.MOTION_PAUSED
+            if str(args.initial_source).lower() == "motion"
+            else PlaybackState.DEFAULT
+        )
+        self._segment_first_frame = True
+        self._stop_after_terminal_payload = False
+        self.motion_joint_indices = self._resolve_motion_joint_indices()
         self.motion_body_indices = self._resolve_motion_body_indices()
         self.root_body_index = tuple(self.robot_cfg.body_names).index("pelvis")
 
@@ -134,6 +149,13 @@ class NpzMotionPublisher:
             raise ValueError(f"Motion dataset missing robot bodies: {missing}")
         return [motion_body_names.index(name) for name in self.robot_cfg.body_names]
 
+    def _resolve_motion_joint_indices(self) -> list[int]:
+        motion_joint_names = list(self.motion_dataset.joint_names)
+        missing = [name for name in self.robot_cfg.joint_names if name not in motion_joint_names]
+        if missing:
+            raise ValueError(f"Motion dataset missing robot joints: {missing}")
+        return [motion_joint_names.index(name) for name in self.robot_cfg.joint_names]
+
     def _resolve_joint_qpos_indices(self) -> list[int]:
         indices: list[int] = []
         for joint_name in self.robot_cfg.joint_names:
@@ -161,46 +183,84 @@ class NpzMotionPublisher:
         body_quat_w = np.asarray(data.xquat[self.body_ids], dtype=np.float32)
         return joint_pos, body_pos_w, body_quat_w
 
+    @property
+    def source(self) -> str:
+        return "default" if self.state == PlaybackState.DEFAULT else "motion"
+
+    @property
+    def paused(self) -> bool:
+        return self.state != PlaybackState.MOTION_PLAYING
+
+    @property
+    def motion_finished(self) -> bool:
+        return self.state == PlaybackState.MOTION_PAUSED and self.frame == self.motion_length - 1
+
+    def _mark_segment_boundary(self) -> None:
+        self._segment_first_frame = True
+
+    def _enter_motion_first_frame(self) -> None:
+        self.frame = 0
+        self.state = PlaybackState.MOTION_PAUSED
+        self._stop_after_terminal_payload = False
+        self._mark_segment_boundary()
+
+    def _enter_default_pose(self) -> None:
+        self.state = PlaybackState.DEFAULT
+        self._stop_after_terminal_payload = False
+        self._capture_aligned_default_pose()
+        self._mark_segment_boundary()
+
     def process_controls(self) -> None:
         if self.keyboard is None:
             return
         for key in self.keyboard.pop_keys():
-            if key == "x":
-                if self.source == "default":
-                    self.source = "motion"
-                    print("[npz-publish] source=motion, press space to play/pause")
-                else:
-                    self.source = "default"
-                    self.paused = True
-                    self._capture_aligned_default_pose()
-                    print("[npz-publish] source=default, motion paused")
+            if key == "]":
+                self._enter_motion_first_frame()
+                print("[npz-publish] motion frame=0 paused; press space to play")
             elif key == "space":
-                if self.source != "motion":
-                    print("[npz-publish] source=default; press x before playing motion")
+                if self.state == PlaybackState.DEFAULT:
+                    print("[npz-publish] source=default; press ] before playing motion")
                     continue
-                self.paused = not self.paused
+                if self.state == PlaybackState.MOTION_PLAYING:
+                    self.state = PlaybackState.MOTION_PAUSED
+                else:
+                    self.state = PlaybackState.MOTION_PLAYING
+                    self._stop_after_terminal_payload = False
                 print(f"[npz-publish] motion paused={self.paused}")
+            elif key == "x":
+                if self.state != PlaybackState.DEFAULT:
+                    self._enter_default_pose()
+                    print("[npz-publish] source=default, motion t paused")
 
-    def _next_frame(self) -> int:
-        frame = self.frame
-        if self.paused:
-            return frame
-        if self.frame < self.motion_length - 1:
-            self.frame += 1
-        elif self.args.loop:
+    def _advance_after_motion_payload(self, frame: int) -> None:
+        if self.state != PlaybackState.MOTION_PLAYING:
+            return
+
+        if self._segment_first_frame:
+            self._segment_first_frame = False
+
+        if frame < self.motion_length - 1:
+            self.frame = frame + 1
+            return
+
+        if self.args.loop:
             self.frame = 0
-        elif self.args.hold_last:
-            self.paused = True
+            self._mark_segment_boundary()
+            return
+
+        if self.args.hold_last:
+            self.state = PlaybackState.MOTION_PAUSED
             print("[npz-publish] reached end of motion; holding last frame")
-        else:
-            raise StopIteration
-        return frame
+            return
+
+        self._stop_after_terminal_payload = True
 
     def _base_payload(self, source: str) -> dict[str, object]:
         return {
             "source": source,
             "motion_path": str(self.args.motion_path),
-            "paused": bool(self.paused or source == "default"),
+            "paused": bool(self.state != PlaybackState.MOTION_PLAYING),
+            MOTION_FIRST_FRAME_KEY: False,
             PUBLISH_T_NS_KEY: int(time.time_ns()),
             SEQ_KEY: int(self.seq),
         }
@@ -223,6 +283,7 @@ class NpzMotionPublisher:
 
     def _default_payload(self) -> dict[str, object]:
         payload = self._base_payload("default")
+        payload[MOTION_FIRST_FRAME_KEY] = bool(self._segment_first_frame)
         payload.update(
             {
                 "frame": -1,
@@ -249,11 +310,14 @@ class NpzMotionPublisher:
 
     def sample_payload(self) -> dict[str, object]:
         with ScopedTimer(SAMPLE_TIMER_NAME):
+            if self._stop_after_terminal_payload:
+                raise StopIteration
+
             self.process_controls()
-            if self.source == "default":
+            if self.state == PlaybackState.DEFAULT:
                 return self._default_payload()
 
-            frame = self._next_frame()
+            frame = int(self.frame)
             motion = self.motion_dataset.get_slice(
                 self.motion_ids,
                 np.array([frame], dtype=np.int64),
@@ -261,16 +325,18 @@ class NpzMotionPublisher:
             )
 
             payload = self._base_payload("npz")
+            joint_pos = motion.joint_pos[0, 0, self.motion_joint_indices]
             body_pos_w = motion.body_pos_w[0, 0, self.motion_body_indices]
             body_quat_w = motion.body_quat_w[0, 0, self.motion_body_indices]
             self.latest_root_pos_w = np.asarray(body_pos_w[self.root_body_index], dtype=np.float32).copy()
             self.latest_root_quat_w = np.asarray(body_quat_w[self.root_body_index], dtype=np.float32).copy()
+            payload[MOTION_FIRST_FRAME_KEY] = bool(self._segment_first_frame)
             payload.update(
                 {
                     "frame": int(frame),
-                    JOINT_NAMES_KEY: list(self.motion_dataset.joint_names),
+                    JOINT_NAMES_KEY: list(self.robot_cfg.joint_names),
                     BODY_NAMES_KEY: list(self.robot_cfg.body_names),
-                    JOINT_POS_KEY: _array_payload(motion.joint_pos[0, 0]),
+                    JOINT_POS_KEY: _array_payload(joint_pos),
                     BODY_POS_W_KEY: _array_payload(body_pos_w),
                     BODY_QUAT_W_KEY: _array_payload(body_quat_w),
                 }
@@ -278,7 +344,7 @@ class NpzMotionPublisher:
             if self.args.pub_vel:
                 payload.update(
                     {
-                        "joint_vel": _array_payload(motion.joint_vel[0, 0]),
+                        "joint_vel": _array_payload(motion.joint_vel[0, 0, self.motion_joint_indices]),
                         "body_lin_vel_w": _array_payload(
                             motion.body_lin_vel_w[0, 0, self.motion_body_indices]
                         ),
@@ -287,6 +353,7 @@ class NpzMotionPublisher:
                         ),
                     }
                 )
+            self._advance_after_motion_payload(frame)
             self.seq += 1
             return payload
 
@@ -332,7 +399,10 @@ def run_publish(args: PublisherArgs) -> None:
         f"initial_source={args.initial_source}"
     )
     if args.keyboard:
-        print("[npz-publish] keys: x toggles default/motion, space plays/pauses motion")
+        print(
+            "[npz-publish] keys: ] resets to motion frame=0 and pauses; "
+            "space plays/pauses motion; x returns to default pose"
+        )
     if args.startup_sleep_s > 0:
         time.sleep(float(args.startup_sleep_s))
 

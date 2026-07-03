@@ -65,7 +65,6 @@ def _apply_runtime_motion_config(
     motion_zmq_hwm: int,
     motion_dt_s: float,
     motion_tolerance_s: float,
-    motion_reconnect_reset_s: float,
 ):
     policy_config = deepcopy(policy_config)
     motion_cfg = policy_config.setdefault("motion", {})
@@ -96,7 +95,6 @@ def _apply_runtime_motion_config(
         motion_cfg["motion_zmq_hwm"] = motion_zmq_hwm
         motion_cfg["motion_dt_s"] = motion_dt_s
         motion_cfg["motion_tolerance_s"] = motion_tolerance_s
-        motion_cfg["motion_reconnect_reset_s"] = motion_reconnect_reset_s
 
     return policy_config
 
@@ -113,7 +111,6 @@ class Tracking(BasePolicy):
             motion_zmq_hwm=self.args.motion_zmq_hwm,
             motion_dt_s=1 / self.args.rl_rate,
             motion_tolerance_s=self.args.motion_tolerance_s,
-            motion_reconnect_reset_s=self.args.motion_reconnect_reset_s,
         )
         motion_cfg = policy_config.get("motion", {})
         resolved_backend = str(motion_cfg.get("motion_backend", ""))
@@ -129,16 +126,8 @@ class Tracking(BasePolicy):
         self.state_dict["paused"] = paused
         logger.info(f"Paused state toggled to {paused} via {source}")
 
-    def _reset_observations_after_motion_reconnect(self) -> None:
-        logger.info("Resetting tracking observations after motion stream reconnect")
-        for obs_group in self.observations.values():
-            for obs_func in obs_group.funcs.values():
-                obs_func.reset()
-
     def update(self):
         self.state_processor.update(self.state_dict)
-        if self.state_processor.consume_motion_stream_reconnected():
-            self._reset_observations_after_motion_reconnect()
         for obs_group in self.observations.values():
             for obs_func in obs_group.funcs.values():
                 obs_func.update(self.state_dict)
@@ -165,7 +154,6 @@ class TrackingArgs(BasePolicyArgs):
     motion_zmq_connect: Optional[str] = None
     motion_zmq_hwm: int = 1
     motion_tolerance_s: float = 0.04
-    motion_reconnect_reset_s: float = 0.5
 
 
 if __name__ == "__main__":
