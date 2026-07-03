@@ -73,6 +73,7 @@ flowchart LR
 
 ## Next Steps
 
+- Download runtime files from [Download Artifacts](/reference/artifacts).
 - Choose a [Network Configuration](/getting-started/network-configuration) before running on hardware.
 - Use [Root Project](/getting-started/root-project) if you only need policy, sim2sim, or robot I/O runtime.
 - Choose the real-robot deploy path in [Robot I/O](/reference/robot-io).

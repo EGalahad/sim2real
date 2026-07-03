@@ -101,8 +101,9 @@ tar -xzf /tmp/xrobot-grpc-jetpack5-aarch64.tar.gz \
   -C /tmp/xrobot-grpc-jetpack5-aarch64/grpc
 ```
 
-You can keep this extracted directory anywhere convenient; do not assume a
-`prebuilt/` path is versioned in git.
+Place this extracted package under `third_party/prebuilt/` if you want to use
+the repo setup commands. This directory is a downloaded artifact location and
+is not versioned in git.
 
 ## Use The Prepared Package
 
@@ -112,7 +113,7 @@ JetPack 5.
 ```bash
 export xrobot_root=external/XRoboToolkit-PC-Service
 export sdk_grpc="$xrobot_root/RoboticsService/Redistributable/linux_aarch64/grpc"
-export local_grpc="prebuilt/jetpack5-aarch64/xrobot-grpc"
+export local_grpc="third_party/prebuilt/jetpack5-aarch64/xrobot-grpc"
 ```
 
 ```bash

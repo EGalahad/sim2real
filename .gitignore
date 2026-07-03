@@ -1,3 +1,5 @@
+outputs*
+
 checkpoints
 .vscode
 stubs
@@ -7,6 +9,7 @@ stubs
 prebuilt
 .cache
 external/
+third_party/prebuilt/
 .venv/
 docs/node_modules/
 docs/.cache/
@@ -36,7 +39,8 @@ sdist/
 var/
 wheels/
 !third_party/wheels/
-!third_party/wheels/**
+third_party/wheels/*.whl
+!third_party/wheels/README.md
 share/python-wheels/
 *.egg-info/
 .installed.cfg

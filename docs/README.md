@@ -22,6 +22,7 @@ Chinese docs: [https://egalahad.github.io/sim2real/zh-Hans/](https://egalahad.gi
 
 ## Reference
 
+- [Download Artifacts](./artifacts.md)
 - [Tracking Framework](./tracking_framework.md)
 - [Pico To G1](./pico_to_g1.md)
 - [Teleop Implementation](./teleop_impl.md)

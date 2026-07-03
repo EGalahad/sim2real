@@ -69,6 +69,7 @@ flowchart LR
 
 ## Next Steps
 
+- 先从 [Download Artifacts](/reference/artifacts) 下载 runtime 文件
 - 上硬件前先选择 [Network Configuration](./network-configuration.md)
 - 只需要 policy、sim2sim 或 robot I/O runtime 时，看 [Root Project](./root-project.md)
 - 真机部署路径在 [Robot I/O](/reference/robot-io) 里选择

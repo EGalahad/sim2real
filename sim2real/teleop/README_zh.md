@@ -4,9 +4,9 @@ English version: [README.md](./README.md)
 
 这个目录放的是 `venv/teleop` 使用的 Pico / XR retarget、内置 mjviser viewing，以及 motion recording 工具。
 
-JetPack 5 预编译包：
+Runtime artifacts，包括 JetPack 5 预编译包：
 
-<https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e?usp=sharing>
+<https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e>
 
 ## 文档入口
 

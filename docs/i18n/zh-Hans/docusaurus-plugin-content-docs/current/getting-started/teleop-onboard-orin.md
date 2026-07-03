@@ -12,13 +12,13 @@ uv --project venv/teleop sync
 
 ### JetPack 5
 
-先下载 [JetPack 5 预编译包](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e?usp=sharing) 并解压到 repo 根目录，保证 `prebuilt/` 存在。
+先下载共享的 [sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e)，把 `third_party/` 放到 repo 根目录。JetPack 5 onboard 路径需要 `third_party/prebuilt/jetpack5-aarch64/`。
 
 `XRoboToolkit PC Service` 继续从预编译包里安装：
 
 ```bash
 sudo apt install -y \
-  ./prebuilt/jetpack5-aarch64/xrobotservice/XRoboToolkit-PC-Service_1.0.0.0_arm64_ubuntu20.04.deb
+  ./third_party/prebuilt/jetpack5-aarch64/xrobotservice/XRoboToolkit-PC-Service_1.0.0.0_arm64_ubuntu20.04.deb
 ```
 
 ### JetPack 6
@@ -58,7 +58,7 @@ git -C external/XRoboToolkit-PC-Service checkout orin
 
 ```bash
 export sdk_grpc="external/XRoboToolkit-PC-Service/RoboticsService/Redistributable/linux_aarch64/grpc"
-export local_grpc="prebuilt/jetpack5-aarch64/xrobot-grpc"
+export local_grpc="third_party/prebuilt/jetpack5-aarch64/xrobot-grpc"
 
 rm -rf "$sdk_grpc.upstream"
 mv "$sdk_grpc" "$sdk_grpc.upstream"

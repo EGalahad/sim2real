@@ -8,6 +8,14 @@ Full documentation: [https://egalahad.github.io/sim2real/](https://egalahad.gith
 
 如果你在找 HDMI 的部署栈，请看 [hdmi tag](https://github.com/EGalahad/sim2real/tree/hdmi)。
 
+## Runtime Artifacts
+
+大文件不放在 git 里。先从共享的
+[sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e)
+下载，把 `checkpoints/` 和 `third_party/` 放到 repo 根目录。
+
+目录结构和 onboard 依赖说明见 [Download Artifacts](./docs/artifacts.md)。
+
 ## 快速开始
 
 ```bash
@@ -47,14 +55,9 @@ uv run scripts/view_motion.py --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.
 skills/adapt-policy-to-sim2real
 ```
 
-已经转好的 SONIC checkpoints 放在 Google Drive：
-[SONIC checkpoints](https://drive.google.com/drive/folders/1KgkLnfRzth2ZHMq8I49qpCSbY977iUAK)。
-
-已经转好的 TWIST2 checkpoints 放在 Google Drive：
-[TWIST2 checkpoints](https://drive.google.com/drive/folders/14vXXgymYgnh2pXcaCzJQtcxm0FI3ez3j)。
-
-已经转好的 TeleopIT 和 AXELL checkpoints 放在 Google Drive：
-[TeleopIT / AXELL checkpoints](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e)。
+已经转好的 checkpoints 统一放在共享的
+[sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e)
+目录里。
 
 安装到本机 Codex skills 目录：
 

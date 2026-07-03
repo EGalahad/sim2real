@@ -6,6 +6,15 @@ Full documentation: [https://egalahad.github.io/sim2real/](https://egalahad.gith
 
 If you're looking for the HDMI deployment stack, go to [hdmi tag](https://github.com/EGalahad/sim2real/tree/hdmi).
 
+## Runtime Artifacts
+
+Large runtime artifacts are not stored in git. Download the shared
+[sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e)
+folder and place `checkpoints/` and `third_party/` at the repo root.
+
+See [Download Artifacts](./docs/artifacts.md) for the expected directory
+layout and onboard dependency notes.
+
 ## Quick Start
 
 ```bash
@@ -44,14 +53,9 @@ This repo includes a Codex skill for adapting policies trained in external codeb
 skills/adapt-policy-to-sim2real
 ```
 
-Converted SONIC checkpoints are available on Google Drive:
-[SONIC checkpoints](https://drive.google.com/drive/folders/1KgkLnfRzth2ZHMq8I49qpCSbY977iUAK).
-
-Converted TWIST2 checkpoints are available on Google Drive:
-[TWIST2 checkpoints](https://drive.google.com/drive/folders/14vXXgymYgnh2pXcaCzJQtcxm0FI3ez3j).
-
-Converted TeleopIT and AXELL checkpoints are available on Google Drive:
-[TeleopIT / AXELL checkpoints](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e).
+Converted checkpoints are distributed through the shared
+[sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e)
+folder.
 
 Install it into your local Codex skills directory:
 

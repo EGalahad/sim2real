@@ -22,6 +22,7 @@ slug: /
 
 ## Reference
 
+- [Download Artifacts](/reference/artifacts)
 - [Tracking Framework](/reference/tracking-framework)
 - [Pico To G1](/reference/pico-to-g1)
 - [Teleop Implementation](/reference/teleop-implementation)

@@ -15,18 +15,18 @@ Choose the setup path that matches the onboard Orin image:
 
 ### JetPack 5
 
-Download the [JetPack 5 prebuilt package bundle](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e?usp=sharing) and extract it at the repo root so `prebuilt/` exists.
+Download the shared [sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e) folder and place `third_party/` at the repo root. The JetPack 5 onboard path needs `third_party/prebuilt/jetpack5-aarch64/`.
 
 Install `XRoboToolkit PC Service` from the prebuilt bundle:
 
 ```bash
 sudo apt install -y \
-  ./prebuilt/jetpack5-aarch64/xrobotservice/XRoboToolkit-PC-Service_1.0.0.0_arm64_ubuntu20.04.deb
+  ./third_party/prebuilt/jetpack5-aarch64/xrobotservice/XRoboToolkit-PC-Service_1.0.0.0_arm64_ubuntu20.04.deb
 ```
 
 ### JetPack 6
 
-If the onboard Orin is already on JetPack 6, for example after flashing Sonic, do not download the JetPack 5 prebuilt bundle.
+If the onboard Orin is already on JetPack 6, for example after flashing Sonic, do not use the JetPack 5 prebuilt service bundle.
 
 Download the arm64 `.deb` for `XRoboToolkit PC Service` from:
 
@@ -61,7 +61,7 @@ Build the JetPack 5 compatible package first by following [XRobot gRPC JetPack 5
 
 ```bash
 export sdk_grpc="external/XRoboToolkit-PC-Service/RoboticsService/Redistributable/linux_aarch64/grpc"
-export local_grpc="prebuilt/jetpack5-aarch64/xrobot-grpc"
+export local_grpc="third_party/prebuilt/jetpack5-aarch64/xrobot-grpc"
 
 rm -rf "$sdk_grpc.upstream"
 mv "$sdk_grpc" "$sdk_grpc.upstream"

@@ -50,6 +50,11 @@ const sidebars: SidebarsConfig = {
       items: [
         {
           type: 'doc',
+          id: 'artifacts',
+          label: 'Download Artifacts',
+        },
+        {
+          type: 'doc',
           id: 'robot_io',
           label: 'Robot I/O',
         },
