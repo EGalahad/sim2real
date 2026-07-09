@@ -11,9 +11,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 import json
+from pathlib import Path
 import threading
 import time
 
+from any4hdmi.utils.mjcf import resolve_mjcf_path
 import torch
 import mujoco
 import numpy as np
@@ -48,6 +50,19 @@ class PlaybackState(str, Enum):
 
 def _array_payload(array: np.ndarray) -> list:
     return np.asarray(array, dtype=np.float32).tolist()
+
+
+def _resolve_publisher_mjcf_path(mjcf_path: str | None, robot_cfg) -> Path:
+    if mjcf_path is None:
+        return Path(robot_cfg.resolve_mjcf_path()).expanduser()
+
+    import sim2real
+
+    base_dir = Path(sim2real.__file__).parent.parent
+    resolved = resolve_mjcf_path(mjcf_path, dataset_root=base_dir)
+    if not resolved.is_file():
+        raise FileNotFoundError(f"MJCF override not found: {resolved}")
+    return resolved
 
 
 class KeyboardControls:
@@ -98,16 +113,19 @@ class NpzMotionPublisher:
             raise ValueError("publish_hz must be > 0")
 
         self.period_s = 1.0 / self.publish_hz
+        self.mjcf_path = _resolve_publisher_mjcf_path(args.mjcf_path, self.robot_cfg)
         dataset = MotionDataset.create_from_path(
             args.motion_path,
             self.robot_cfg,
             target_fps=int(round(self.publish_hz)),
-            mjcf_path=args.mjcf_path,
+            mjcf_path=str(self.mjcf_path) if args.mjcf_path is not None else None,
         )
         self.motion_dataset = motion_dataset_first_motion(dataset)
         self.motion_length = int(self.motion_dataset.num_steps)
         if self.motion_length <= 0:
             raise ValueError(f"Motion has no frames: {args.motion_path}")
+        self.publish_joint_names = list(self.robot_cfg.joint_names)
+        self.publish_body_names = list(self.motion_dataset.body_names)
 
         self.motion_ids = np.array([0], dtype=np.int64)
         self.frame = int(args.start_frame)
@@ -122,9 +140,9 @@ class NpzMotionPublisher:
         self._stop_after_terminal_payload = False
         self.motion_joint_indices = self._resolve_motion_joint_indices()
         self.motion_body_indices = self._resolve_motion_body_indices()
-        self.root_body_index = tuple(self.robot_cfg.body_names).index("pelvis")
+        self.root_body_index = self.publish_body_names.index("pelvis")
 
-        self.model = mujoco.MjModel.from_xml_path(str(self.robot_cfg.resolve_mjcf_path()))
+        self.model = mujoco.MjModel.from_xml_path(str(self.mjcf_path))
         self.joint_qpos_indices = self._resolve_joint_qpos_indices()
         self.body_ids = self._resolve_body_ids()
         self.default_qpos = np.asarray(self.robot_cfg.default_qpos, dtype=np.float32).copy()
@@ -144,10 +162,11 @@ class NpzMotionPublisher:
 
     def _resolve_motion_body_indices(self) -> list[int]:
         motion_body_names = list(self.motion_dataset.body_names)
-        missing = [name for name in self.robot_cfg.body_names if name not in motion_body_names]
+        publish_body_names = list(getattr(self, "publish_body_names", self.robot_cfg.body_names))
+        missing = [name for name in publish_body_names if name not in motion_body_names]
         if missing:
             raise ValueError(f"Motion dataset missing robot bodies: {missing}")
-        return [motion_body_names.index(name) for name in self.robot_cfg.body_names]
+        return [motion_body_names.index(name) for name in publish_body_names]
 
     def _resolve_motion_joint_indices(self) -> list[int]:
         motion_joint_names = list(self.motion_dataset.joint_names)
@@ -167,7 +186,8 @@ class NpzMotionPublisher:
 
     def _resolve_body_ids(self) -> list[int]:
         body_ids: list[int] = []
-        for body_name in self.robot_cfg.body_names:
+        publish_body_names = list(getattr(self, "publish_body_names", self.robot_cfg.body_names))
+        for body_name in publish_body_names:
             body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, body_name)
             if body_id < 0:
                 raise ValueError(f"Failed to resolve body name in MJCF: {body_name}")
@@ -287,8 +307,8 @@ class NpzMotionPublisher:
         payload.update(
             {
                 "frame": -1,
-                JOINT_NAMES_KEY: list(self.robot_cfg.joint_names),
-                BODY_NAMES_KEY: list(self.robot_cfg.body_names),
+                JOINT_NAMES_KEY: list(self.publish_joint_names),
+                BODY_NAMES_KEY: list(self.publish_body_names),
                 JOINT_POS_KEY: _array_payload(self.aligned_default_joint_pos),
                 BODY_POS_W_KEY: _array_payload(self.aligned_default_body_pos_w),
                 BODY_QUAT_W_KEY: _array_payload(self.aligned_default_body_quat_w),
@@ -301,7 +321,7 @@ class NpzMotionPublisher:
                     "joint_vel": _array_payload(np.zeros_like(self.aligned_default_joint_pos)),
                     "body_lin_vel_w": _array_payload(np.zeros_like(self.aligned_default_body_pos_w)),
                     "body_ang_vel_w": _array_payload(
-                        np.zeros((len(self.robot_cfg.body_names), 3), dtype=np.float32)
+                        np.zeros((len(self.publish_body_names), 3), dtype=np.float32)
                     ),
                 }
             )
@@ -334,8 +354,8 @@ class NpzMotionPublisher:
             payload.update(
                 {
                     "frame": int(frame),
-                    JOINT_NAMES_KEY: list(self.robot_cfg.joint_names),
-                    BODY_NAMES_KEY: list(self.robot_cfg.body_names),
+                    JOINT_NAMES_KEY: list(self.publish_joint_names),
+                    BODY_NAMES_KEY: list(self.publish_body_names),
                     JOINT_POS_KEY: _array_payload(joint_pos),
                     BODY_POS_W_KEY: _array_payload(body_pos_w),
                     BODY_QUAT_W_KEY: _array_payload(body_quat_w),
@@ -396,7 +416,8 @@ def run_publish(args: PublisherArgs) -> None:
         f"motion_path={args.motion_path} frames={worker.motion_length} "
         f"loop={args.loop} hold_last={args.hold_last} "
         f"pub_vel={args.pub_vel} "
-        f"initial_source={args.initial_source}"
+        f"initial_source={args.initial_source} "
+        f"mjcf={worker.mjcf_path}"
     )
     if args.keyboard:
         print(

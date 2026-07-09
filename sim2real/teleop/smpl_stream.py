@@ -16,7 +16,7 @@ SMPL_NUM_JOINTS = 24
 SMPL_NUM_POSE_JOINTS = 21
 SMPL_WAIST_JOINT_NAMES = ("Spine1", "Spine2", "Spine3")
 DEFAULT_HUMAN_JOINTS_INFO_PATH = (
-    "checkpoints/sonic_official_release/human/human_joints_info.pkl"
+    "checkpoints/sonic/smpl/human_joints_info.pkl"
 )
 _HUMAN_JOINTS_INFO_CACHE: dict[str, tuple[np.ndarray, np.ndarray]] = {}
 

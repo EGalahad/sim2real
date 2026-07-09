@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+from pathlib import Path
 import time
 from typing import Literal, Optional
 
@@ -28,8 +29,10 @@ from mjhub import temp_mjcf_with_floor
 from sim2real.config.robots import get_robot_cfg
 from sim2real.config.robots.base import RobotCfg
 from sim2real.config.robots.base import (
+    BODY_NAMES_KEY,
     BODY_POS_W_KEY,
     BODY_QUAT_W_KEY,
+    JOINT_NAMES_KEY,
     JOINT_POS_KEY,
     MOTION_FIRST_FRAME_KEY,
     PICO_RECV_TIME_NS_KEY,
@@ -41,7 +44,6 @@ from sim2real.config.robots.base import (
     XROBOT_BODY_QUAT_W_KEY,
 )
 from sim2real.teleop.smpl_stream import (
-    DEFAULT_STANDING_SMPL_JOINT_POS_ROOT,
     DEFAULT_HUMAN_JOINTS_INFO_PATH,
     build_smpl_frame_from_xrobot_raw,
     json_safe_payload,
@@ -159,6 +161,20 @@ def _xrobot_payload_dict(xrobot_frame: Optional[XRobotBodyFrame]) -> dict[str, o
     }
 
 
+def _resolve_publisher_mjcf_path(mjcf_path: str | None, robot_cfg: RobotCfg) -> Path:
+    if mjcf_path is None:
+        return Path(robot_cfg.resolve_mjcf_path()).expanduser()
+
+    import sim2real
+
+    base_dir = Path(sim2real.__file__).parent.parent
+    path = Path(mjcf_path).expanduser()
+    resolved = path if path.is_absolute() else base_dir / path
+    if not resolved.is_file():
+        raise FileNotFoundError(f"MJCF override not found: {resolved}")
+    return resolved
+
+
 def _body_pose_dict_from_streamer(
     streamer: XRobotStreamer,
 ) -> tuple[dict[str, list[np.ndarray]], np.ndarray, int, int]:
@@ -223,13 +239,21 @@ class LiveRetargetPublisher:
             verbose=bool(args.verbose),
         )
 
-        self.mjcf_path = self.robot_cfg.resolve_mjcf_path()
+        self.mjcf_path = _resolve_publisher_mjcf_path(args.mjcf_path, self.robot_cfg)
+        self.fk_model = mujoco.MjModel.from_xml_path(str(self.mjcf_path))
+        self.publish_joint_names = list(self.robot_cfg.joint_names)
+        self.publish_body_names = self._resolve_publish_body_names()
         self.joint_qpos_indices = self._resolve_joint_qpos_indices()
         self.body_ids = self._resolve_body_ids()
-        self.root_body_index = tuple(self.robot_cfg.body_names).index(self.retarget.robot_root_name)
+        self.root_body_index = self.publish_body_names.index(self.retarget.robot_root_name)
         self.human_to_robot_body_name = self._resolve_human_to_robot_body_name()
 
         expected_qpos_size = self.robot_cfg.qpos_size
+        if self.fk_model.nq != expected_qpos_size:
+            print(
+                "[publish] warning: FK MJCF qpos size mismatch "
+                f"(model.nq={self.fk_model.nq}, expected={expected_qpos_size})"
+            )
         if self.retarget.configuration.model.nq != expected_qpos_size:
             print(
                 "[publish] warning: G1 MJCF qpos size mismatch "
@@ -282,20 +306,34 @@ class LiveRetargetPublisher:
             self._smpl_sock.bind(args.smpl_bind)
 
     def _resolve_joint_qpos_indices(self) -> list[int]:
-        model = self.retarget.configuration.model
         joint_qpos_indices: list[int] = []
         for joint_name in self.robot_cfg.joint_names:
-            joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+            joint_id = mujoco.mj_name2id(self.fk_model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
             if joint_id < 0:
                 raise ValueError(f"Failed to resolve joint name in MJCF: {joint_name}")
-            joint_qpos_indices.append(int(model.jnt_qposadr[joint_id]))
+            joint_qpos_indices.append(int(self.fk_model.jnt_qposadr[joint_id]))
         return joint_qpos_indices
 
+    def _resolve_publish_body_names(self) -> list[str]:
+        body_names: list[str] = []
+        for body_id in range(self.fk_model.nbody):
+            body_name = mujoco.mj_id2name(
+                self.fk_model,
+                mujoco.mjtObj.mjOBJ_BODY,
+                body_id,
+            )
+            if body_name:
+                body_names.append(str(body_name))
+        if self.retarget.robot_root_name not in body_names:
+            raise ValueError(
+                f"Failed to resolve root body name in FK MJCF: {self.retarget.robot_root_name}"
+            )
+        return body_names
+
     def _resolve_body_ids(self) -> list[int]:
-        model = self.retarget.configuration.model
         body_ids: list[int] = []
-        for body_name in self.robot_cfg.body_names:
-            body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, body_name)
+        for body_name in self.publish_body_names:
+            body_id = mujoco.mj_name2id(self.fk_model, mujoco.mjtObj.mjOBJ_BODY, body_name)
             if body_id < 0:
                 raise ValueError(f"Failed to resolve body name in MJCF: {body_name}")
             body_ids.append(int(body_id))
@@ -309,9 +347,9 @@ class LiveRetargetPublisher:
         return human_to_robot_body_name
 
     def _pose_arrays_from_qpos(self, qpos: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        data = mujoco.MjData(self.retarget.configuration.model)
+        data = mujoco.MjData(self.fk_model)
         data.qpos[:] = np.asarray(qpos, dtype=np.float32).reshape(-1)
-        mujoco.mj_forward(self.retarget.configuration.model, data)
+        mujoco.mj_forward(self.fk_model, data)
         joint_pos = np.asarray(data.qpos[self.joint_qpos_indices], dtype=np.float32)
         body_pos_w = np.asarray(data.xpos[self.body_ids], dtype=np.float32)
         body_quat_w = np.asarray(data.xquat[self.body_ids], dtype=np.float32)
@@ -467,13 +505,6 @@ class LiveRetargetPublisher:
         ).reshape(1, 4)
         return yaw_quat(smpl_root_quat_w).reshape(4).astype(np.float32, copy=False)
 
-    def _neutral_smpl_frame(self) -> dict[str, np.ndarray]:
-        return {
-            "smpl_body_pose_aa": np.zeros((21, 3), dtype=np.float32),
-            "smpl_joint_pos_root": DEFAULT_STANDING_SMPL_JOINT_POS_ROOT.copy(),
-            "smpl_root_quat_w": self._current_smpl_heading_quat(),
-        }
-
     def _publish_smpl_frame_data(
         self,
         smpl_frame: dict[str, np.ndarray],
@@ -538,10 +569,11 @@ class LiveRetargetPublisher:
                 pass
 
     def _publish_paused_smpl_frame(self) -> None:
-        smpl_frame = self._neutral_smpl_frame()
-        self._last_smpl_frame = {
+        if self._last_smpl_frame is None:
+            return
+        smpl_frame = {
             key: np.asarray(value, dtype=np.float32).copy()
-            for key, value in smpl_frame.items()
+            for key, value in self._last_smpl_frame.items()
         }
         self._publish_smpl_frame_data(
             smpl_frame,
@@ -622,6 +654,8 @@ class LiveRetargetPublisher:
                 PICO_RECV_TIME_NS_KEY: int(pico_recv_time_ns),
                 "paused": self.paused,
                 MOTION_FIRST_FRAME_KEY: bool(motion_first_frame),
+                JOINT_NAMES_KEY: list(self.publish_joint_names),
+                BODY_NAMES_KEY: list(self.publish_body_names),
                 JOINT_POS_KEY: np.asarray(joint_pos, dtype=np.float32).tolist(),
                 BODY_POS_W_KEY: np.asarray(body_pos_w, dtype=np.float32).tolist(),
                 BODY_QUAT_W_KEY: np.asarray(body_quat_w, dtype=np.float32).tolist(),
@@ -793,10 +827,8 @@ class LiveRetargetPublisher:
 
             if self.args.skip_retarget:
                 with ScopedTimer(SKIP_MAP_TIMER_NAME):
-                    robot_body_pose_dict = self._robot_body_pose_dict_from_human_pose_dict(processed_human_data)
-                    body_pos_w, body_quat_w = self._canonical_body_arrays_from_pose_dict(robot_body_pose_dict)
-                    joint_pos = np.full((len(self.robot_cfg.joint_names),), np.nan, dtype=np.float32)
                     qpos = self._skip_retarget_qpos_from_scaled_human_data(processed_human_data)
+                    joint_pos, body_pos_w, body_quat_w = self._pose_arrays_from_qpos(qpos)
                 if bool(self.args.publish_smpl):
                     self._publish_smpl_frame(
                         raw_body_poses,
@@ -817,9 +849,8 @@ class LiveRetargetPublisher:
                 )
             else:
                 configuration_data = self.retarget.configuration.data
-                body_pos_w = np.asarray(configuration_data.xpos[self.body_ids], dtype=np.float32)
-                body_quat_w = np.asarray(configuration_data.xquat[self.body_ids], dtype=np.float32)
-                joint_pos = np.asarray(configuration_data.qpos[self.joint_qpos_indices], dtype=np.float32)
+                qpos = np.asarray(configuration_data.qpos, dtype=np.float32)
+                joint_pos, body_pos_w, body_quat_w = self._pose_arrays_from_qpos(qpos)
                 if bool(self.args.publish_smpl):
                     self._publish_smpl_frame(
                         raw_body_poses,
@@ -834,7 +865,7 @@ class LiveRetargetPublisher:
                     body_pos_w=body_pos_w,
                     body_quat_w=body_quat_w,
                     joint_pos=joint_pos,
-                    qpos=np.asarray(configuration_data.qpos, dtype=np.float32),
+                    qpos=qpos,
                     xrobot_frame=xrobot_frame,
                     motion_first_frame=motion_first_frame,
                 )
@@ -851,10 +882,12 @@ class LiveRetargetMjviser:
         robot_cfg: RobotCfg,
         *,
         show_xrobot_frames: bool,
-    ) -> None:
+        mjcf_path: Path | str | None = None,
+        ) -> None:
         self.robot_cfg = robot_cfg
         self.show_xrobot_frames = bool(show_xrobot_frames)
-        with temp_mjcf_with_floor(robot_cfg.resolve_mjcf_path()) as viewer_mjcf_path:
+        resolved_mjcf_path = Path(mjcf_path) if mjcf_path is not None else robot_cfg.resolve_mjcf_path()
+        with temp_mjcf_with_floor(resolved_mjcf_path) as viewer_mjcf_path:
             self.model = mujoco.MjModel.from_xml_path(str(viewer_mjcf_path))
         self.data = mujoco.MjData(self.model)
         self.viewer = MjviserMujocoViewer(
@@ -934,6 +967,7 @@ def run_publish(args: "PublisherArgs") -> None:
         LiveRetargetMjviser(
             worker.robot_cfg,
             show_xrobot_frames=args.show_xrobot_frames,
+            mjcf_path=worker.mjcf_path,
         )
         if args.viewer
         else None
@@ -949,7 +983,8 @@ def run_publish(args: "PublisherArgs") -> None:
     print(
         f"[publish] bind={args.bind} publish_hz={args.publish_hz} "
         f"controller_bind={args.controller_bind} "
-        f"mjcf={worker.robot_cfg.mjcf_path} resolved={worker.mjcf_path}"
+        f"robot_mjcf={worker.robot_cfg.mjcf_path} "
+        f"publish_fk_mjcf={worker.mjcf_path}"
     )
     if args.publish_smpl:
         print(
@@ -1002,6 +1037,7 @@ class PublisherArgs:
     viewer: bool = True
     show_xrobot_frames: bool = True
     actual_human_height: float = 1.6
+    mjcf_path: str | None = None
     skip_retarget: bool = False
     min_link_height: float = 0.01
     min_link_height_align_strategy: Literal["none", "per_frame", "bootstrap"] = "bootstrap"

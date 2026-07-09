@@ -12,6 +12,8 @@ import numpy as np
 import torch
 
 from any4hdmi import BaseDataset as Any4HDMIBaseDataset, load_any4hdmi_dataset
+from any4hdmi.dataset.loading import resolve_input_paths
+from any4hdmi.utils.mjcf import resolve_mjcf_path
 from sim2real.config.robots.base import RobotCfg
 from sim2real.utils.strings import resolve_matching_names
 
@@ -153,11 +155,10 @@ def _any4hdmi_manifest_override_view(
     base_dir: Path,
     mjcf_path: str | Path,
 ) -> str:
-    input_path = Path(root_path).expanduser()
-    if not input_path.is_absolute():
-        input_path = (base_dir / input_path).resolve()
-    else:
-        input_path = input_path.resolve()
+    input_paths = resolve_input_paths(base_dir, root_path)
+    if len(input_paths) != 1:
+        raise ValueError("MJCF manifest override supports exactly one any4hdmi input path")
+    input_path = input_paths[0]
 
     source_root = _find_any4hdmi_manifest_root(input_path)
     manifest_path = source_root / "manifest.json"
@@ -167,11 +168,7 @@ def _any4hdmi_manifest_override_view(
     if not source_motions.is_dir():
         raise FileNotFoundError(f"any4hdmi motions dir not found: {source_motions}")
 
-    resolved_mjcf = Path(mjcf_path).expanduser()
-    if not resolved_mjcf.is_absolute():
-        resolved_mjcf = (base_dir / resolved_mjcf).resolve()
-    else:
-        resolved_mjcf = resolved_mjcf.resolve()
+    resolved_mjcf = resolve_mjcf_path(mjcf_path, dataset_root=base_dir)
     if not resolved_mjcf.is_file():
         raise FileNotFoundError(f"any4hdmi MJCF override not found: {resolved_mjcf}")
 

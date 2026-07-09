@@ -53,6 +53,13 @@ TRACKING_BODY_PATTERNS = (
 )
 TERMINATION_ROOT_BODY_NAME = "torso_link"
 ANCHOR_BODY_NAME = "pelvis"
+_URI_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
+
+
+def _expand_local_path_arg(path: str) -> str:
+    if _URI_RE.match(path):
+        return path
+    return str(Path(path).expanduser())
 
 
 def _record_array(values: list[Any]) -> Any:
@@ -727,7 +734,6 @@ class IntegratedSimRuntime:
         for name in self.robot_cfg.joint_names:
             if name not in joint_names_mujoco or name not in actuator_names_mujoco:
                 continue
-            print(f"shared_joint_names: {name}")
             self.joint_indices_unitree.append(self.robot_cfg.joint_names.index(name))
             joint_idx = joint_names_mujoco.index(name)
             self.qpos_adrs.append(int(self.mj_model.jnt_qposadr[joint_idx]))
@@ -1479,7 +1485,7 @@ class IntegratedSim2SimArgs:
         self.decimation = rounded_sim_steps
 
         self.policy_config = str(Path(self.policy_config).expanduser())
-        self.motion_path = str(Path(self.motion_path).expanduser())
+        self.motion_path = _expand_local_path_arg(self.motion_path)
         if self.root_trajectory_output is not None:
             self.root_trajectory_output = str(Path(self.root_trajectory_output).expanduser())
         if self.trajectory_output is not None:
