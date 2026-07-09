@@ -26,7 +26,8 @@ Run offline motion tracking (sim2sim):
 ```bash
 uv run sim2real/sim_env/base_sim.py --robot g1
 uv run sim2real/rl_policy/tracking.py --robot g1 \
-  --policy_config checkpoints/mimic-lite/32x8192-huge/policy.yaml
+  --policy_config checkpoints/mimic-lite/32x8192-huge/policy.yaml \
+  --motion_path hf://elijahgalahad/any4hdmi-g1-lafan/motions/walk1_subject1.npz
 ```
 
 After both processes are up, press `]` in the policy terminal to start. Open the mjviser URL printed by `base_sim.py`, then use the Elastic Band controls in the viewer UI to disable or tune the virtual gantry.
@@ -56,15 +57,6 @@ skills/adapt-policy-to-sim2real
 Converted checkpoints are distributed through the shared
 [sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e)
 folder.
-
-Install it into your local Codex skills directory:
-
-```bash
-mkdir -p ~/.codex/skills
-cp -r skills/adapt-policy-to-sim2real ~/.codex/skills/
-```
-
-After installation, start a new Codex session and use the skill by asking for policy adaptation work, or explicitly refer to `adapt-policy-to-sim2real`.
 
 ## Next Steps
 
