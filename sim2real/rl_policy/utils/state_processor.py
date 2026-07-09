@@ -77,7 +77,7 @@ class StateProcessor:
         # Reset motion playback to the first frame (standing pose)
         if self.motion_backend == "npz":
             self.motion_t[:] = 0
-        self._update_motion_data()
+        self._update_motion_data(paused=True)
 
     def update(self, data: Optional[Dict] = None):
         data = data or {}
@@ -88,13 +88,13 @@ class StateProcessor:
                 if self.motion_t[0] >= self.motion_length:
                     self.motion_t[:] = self.motion_length - 1
                     data["paused"] = True
-        self._update_motion_data()
+        self._update_motion_data(paused=paused)
 
     def restart_motion(self) -> None:
         if self.motion_backend != "npz":
             return
         self.motion_t[:] = 0
-        self._update_motion_data()
+        self._update_motion_data(paused=True)
 
     def _init_motion_backend(self) -> None:
         self.motion_future_steps = np.array(
@@ -153,17 +153,28 @@ class StateProcessor:
         else:
             raise ValueError(f"Unsupported motion_backend: {motion_backend}")
 
-    def _update_motion_data(self):
+    def _update_motion_data(self, *, paused: bool = False):
         if self.motion_backend == "npz":
+            motion_steps = self.motion_future_steps
+            if paused:
+                motion_steps = np.zeros_like(self.motion_future_steps)
             self.motion_data = self.motion_dataset.get_slice(
                 self.motion_ids,
                 self.motion_t,
-                self.motion_future_steps,
+                motion_steps,
             )
+            if paused:
+                self.motion_data.joint_vel[:] = 0.0
+                self.motion_data.body_lin_vel_w[:] = 0.0
+                self.motion_data.body_ang_vel_w[:] = 0.0
         elif self.motion_backend == "zmq":
             self.motion_data = self.motion_buffer.get_obs()
+            self.motion_joint_names = list(self.motion_buffer.joint_names)
+            self.motion_body_names = list(self.motion_buffer.body_names)
         elif self.motion_backend == "smpl_zmq":
             self.motion_data = self.motion_buffer.get_obs()
+            self.motion_joint_names = list(self.motion_buffer.joint_names)
+            self.motion_body_names = []
 
     def register_subscriber(self, object_name: str, port: Optional[int] = None):
         if object_name in self.mocap_subscribers:
