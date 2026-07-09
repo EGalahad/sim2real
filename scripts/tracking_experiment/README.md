@@ -85,7 +85,7 @@ Evaluate one or more policies over a motion directory:
 uv run python scripts/tracking_experiment/run_tracking_metrics_eval.py \
   --motions-root ../any4hdmi/output/lafan/motions \
   --policy mimic_lite_ppo=checkpoints/mimic_lite_ppo/policy.yaml \
-  --policy sonic=checkpoints/sonic_release/policy.yaml \
+  --policy sonic=checkpoints/sonic/g1/policy.yaml \
   --num-motions 40 \
   --seeds 0 1 2 \
   --output-dir outputs/tracking_eval/lafan40
@@ -97,7 +97,7 @@ Recompute tables from existing trajectory files without rerunning MuJoCo:
 uv run python scripts/tracking_experiment/run_tracking_metrics_eval.py \
   --motions-root ../any4hdmi/output/lafan/motions \
   --policy mimic_lite_ppo=checkpoints/mimic_lite_ppo/policy.yaml \
-  --policy sonic=checkpoints/sonic_release/policy.yaml \
+  --policy sonic=checkpoints/sonic/g1/policy.yaml \
   --num-motions 40 \
   --seeds 0 1 2 \
   --output-dir outputs/tracking_eval/lafan40 \

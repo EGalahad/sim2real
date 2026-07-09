@@ -60,6 +60,11 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'doc',
+          id: 'adapting_policies',
+          label: 'Adapting Policies',
+        },
+        {
+          type: 'doc',
           id: 'tracking_framework',
           label: 'Tracking Framework',
         },
