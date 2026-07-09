@@ -14,7 +14,8 @@ dependencies = [
     "tqdm",
     "tyro",
     # "viser>=1.0.24",
-    "general_motion_retargeting @ git+https://github.com/EGalahad/GMR.git@codex/add-pyproject-toml",
+    "general_motion_retargeting",
+    "xrobotoolkit-sdk",
     "loop-rate-limiters",
     "pybind11",
 ]
@@ -34,3 +35,7 @@ include = [
 
 [tool.uv]
 package = true
+
+[tool.uv.sources]
+general-motion-retargeting = { git = "https://github.com/EGalahad/GMR.git", branch = "codex/add-pyproject-toml" }
+xrobotoolkit-sdk = { path = "../../external/XRoboToolkit-PC-Service-Pybind", editable = true }
