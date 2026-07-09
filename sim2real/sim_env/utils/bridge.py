@@ -69,7 +69,6 @@ class SimulationBridge:
         for name in self.robot_cfg.joint_names:
             if name not in joint_names_mujoco or name not in actuator_names_mujoco:
                 continue
-            print(f"shared_joint_names: {name}")
             self.joint_indices_unitree.append(self.robot_cfg.joint_names.index(name))
 
             joint_idx = joint_names_mujoco.index(name)

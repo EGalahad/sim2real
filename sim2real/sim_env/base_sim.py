@@ -187,11 +187,10 @@ class BaseSimulator:
             if self.viewer is not None and sim_cnt % self.decimation == 0:
                 self.sync_viewer()
         
-            # Get FPS
-            if sim_cnt % 100 == 0:
+            # Get FPS, every 10 seconds
+            if sim_cnt % (int(10 / self.sim_dt)) == 0:
                 current_time = time.time()
-                print(f"FPS: {100 / (current_time - start_time)}")
-                start_time = current_time
+                print(f"FPS: {sim_cnt / (current_time - start_time):.2f}")
 
     def _sim_step_scheduled(self):
         loop_start = time.perf_counter()
