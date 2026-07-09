@@ -126,11 +126,19 @@ class Tracking(BasePolicy):
         self.state_dict["paused"] = paused
         logger.info(f"Paused state toggled to {paused} via {source}")
 
+    def _motion_update_state(self) -> dict[str, Any]:
+        if getattr(self.state_processor, "motion_backend", "") in {"zmq", "smpl_zmq"}:
+            state = dict(self.state_dict)
+            state["paused"] = False
+            return state
+        return self.state_dict
+
     def update(self):
-        self.state_processor.update(self.state_dict)
+        state = self._motion_update_state()
+        self.state_processor.update(state)
         for obs_group in self.observations.values():
             for obs_func in obs_group.funcs.values():
-                obs_func.update(self.state_dict)
+                obs_func.update(state)
 
     def process_controllers(self) -> None:
         super().process_controllers()
@@ -139,7 +147,9 @@ class Tracking(BasePolicy):
         if not extra_keys:
             return
 
-        if isinstance(self.controller, KeyboardController) and "space" in extra_keys:
+        if isinstance(self.controller, KeyboardController) and (
+            "space" in extra_keys or " " in extra_keys
+        ):
             self.toggle_paused(source="keyboard:space")
         elif isinstance(self.controller, UnitreeJoystickController) and "B" in extra_keys:
             self.toggle_paused(source="joystick:B")

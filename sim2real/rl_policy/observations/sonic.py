@@ -61,6 +61,16 @@ class sonic_smpl_official_encoder_input(Observation):
         super().__init__(**kwargs)
         self._cached_joint_names: tuple[str, ...] | None = None
         self._wrist_indices: np.ndarray | None = None
+        self._heading_offset: np.ndarray | None = None
+
+    def reset(self) -> None:
+        self._cached_joint_names = None
+        self._wrist_indices = None
+        self._heading_offset = None
+        motion_data = getattr(self.state_processor, "motion_data", None)
+        if motion_data is not None:
+            ref_root_quat_w = np.asarray(motion_data.smpl_root_quat_w[0], dtype=np.float32)
+            self._ensure_heading_offset(ref_root_quat_w)
 
     def _refresh_wrist_indices(self) -> np.ndarray:
         joint_names = tuple(self.state_processor.motion_joint_names)
@@ -76,12 +86,36 @@ class sonic_smpl_official_encoder_input(Observation):
         self._cached_joint_names = joint_names
         return self._wrist_indices
 
+    def _ensure_heading_offset(self, ref_root_quat_w: np.ndarray) -> None:
+        if self._heading_offset is None:
+            first_ref_root_quat_w = np.asarray(
+                ref_root_quat_w[0],
+                dtype=np.float32,
+            ).reshape(1, 4)
+            robot_root_quat_w = np.asarray(
+                self.state_processor.root_quat_w,
+                dtype=np.float32,
+            ).reshape(1, 4)
+            self._heading_offset = quat_mul(
+                projected_yaw_quat(robot_root_quat_w),
+                quat_conjugate(projected_yaw_quat(first_ref_root_quat_w)),
+            )[0].astype(np.float32, copy=False)
+
+    def _align_root_yaw(self, ref_root_quat_w: np.ndarray) -> np.ndarray:
+        self._ensure_heading_offset(ref_root_quat_w)
+        assert self._heading_offset is not None
+        heading_offset = np.broadcast_to(
+            self._heading_offset.reshape(1, 4),
+            ref_root_quat_w.shape,
+        )
+        return quat_mul(heading_offset, ref_root_quat_w)
+
     def compute(self) -> np.ndarray:
         motion_data = self.state_processor.motion_data
         out = np.zeros(self.ENCODER_DIM, dtype=np.float32)
-        out[0] = self.SMPL_MODE_ID
         if motion_data is None:
             return out
+        out[0] = self.SMPL_MODE_ID
 
         smpl_joint_pos_root = np.asarray(motion_data.smpl_joint_pos_root[0], dtype=np.float32)
         out[
@@ -89,6 +123,7 @@ class sonic_smpl_official_encoder_input(Observation):
         ] = smpl_joint_pos_root.reshape(-1)
 
         ref_root_quat_w = np.asarray(motion_data.smpl_root_quat_w[0], dtype=np.float32)
+        ref_root_quat_w = self._align_root_yaw(ref_root_quat_w)
         robot_root_quat_w = np.broadcast_to(
             self.state_processor.root_quat_w.reshape(1, 4),
             ref_root_quat_w.shape,
@@ -178,8 +213,6 @@ class _SonicMotionObservation(Observation):
         )
 
     def _playback_steps(self) -> np.ndarray:
-        if bool(self.env.state_dict.get("paused", False)):
-            return np.zeros_like(self.future_steps)
         return self.future_steps
 
 
@@ -188,10 +221,7 @@ class sonic_command_multi_future_nonflat(_SonicMotionObservation):
         steps = self._playback_steps()
         motion_data = self._motion_slice(steps)
         joint_pos = motion_data.joint_pos[:, :, self._joint_indices]
-        if bool(data.get("paused", False)):
-            joint_vel = np.zeros_like(joint_pos)
-        else:
-            joint_vel = motion_data.joint_vel[:, :, self._joint_indices]
+        joint_vel = motion_data.joint_vel[:, :, self._joint_indices]
         self.command = np.concatenate([joint_pos, joint_vel], axis=1)
 
     def compute(self) -> np.ndarray:

@@ -392,29 +392,52 @@ def _compute_minimal_backward_observations_from_motion_arrays(
     }
 
 
-def _get_available_motion_data_steps(
+def _resolve_motion_data_step_indices(
     *,
     motion_data: MotionData | None,
     motion_future_steps: np.ndarray,
     required_steps: np.ndarray,
-) -> tuple[MotionData | None, np.ndarray | None]:
+) -> tuple[MotionData, np.ndarray]:
     if motion_data is None:
-        return None, None
+        raise ValueError("BFM-Zero window obs requires state_processor.motion_data")
     available_steps = [int(step) for step in np.asarray(motion_future_steps, dtype=np.int64).reshape(-1)]
     if not available_steps:
-        return None, None
+        raise ValueError("BFM-Zero window obs requires motion.future_steps")
     step_to_index = {step: idx for idx, step in enumerate(available_steps)}
-    try:
-        indices = np.asarray([step_to_index[int(step)] for step in required_steps], dtype=np.int64)
-    except KeyError:
-        return None, None
+    missing_steps = [int(step) for step in required_steps if int(step) not in step_to_index]
+    if missing_steps:
+        raise ValueError(
+            "BFM-Zero window obs requires motion.future_steps to contain "
+            f"{[int(step) for step in required_steps]}, got {available_steps}; "
+            f"missing {missing_steps}"
+        )
+    indices = np.asarray([step_to_index[int(step)] for step in required_steps], dtype=np.int64)
     return motion_data, indices
+
+
+def _backward_window_query(
+    *,
+    state_processor: Any,
+    seq_length: int,
+    motion_t_offset: int,
+) -> tuple[np.ndarray, list[str], list[str]]:
+    required_steps = int(motion_t_offset) - 1 + np.arange(
+        int(seq_length) + 1,
+        dtype=np.int64,
+    )
+    source_joint_names = list(getattr(state_processor, "motion_joint_names", ()))
+    source_body_names = list(getattr(state_processor, "motion_body_names", ()))
+    if not source_joint_names or not source_body_names:
+        raise ValueError(
+            "BFM-Zero window obs requires motion_joint_names and "
+            "motion_body_names on state_processor"
+        )
+    return required_steps, source_joint_names, source_body_names
 
 
 def _get_motion_data_backward_observation_window(
     *,
     state_processor: Any,
-    local_motion_id: int,
     joint_names: Sequence[str],
     default_joint_pos: np.ndarray,
     target_fps: float,
@@ -425,31 +448,40 @@ def _get_motion_data_backward_observation_window(
     if not clamp_to_final:
         raise ValueError("BFM-Zero MotionData window obs currently requires clamp_to_final=True")
 
-    dataset = getattr(state_processor, "motion_dataset", None)
-    if dataset is None:
-        raise ValueError("BFM-Zero MotionData window obs requires motion_backend=npz")
+    required_steps, source_joint_names, source_body_names = _backward_window_query(
+        state_processor=state_processor,
+        seq_length=seq_length,
+        motion_t_offset=motion_t_offset,
+    )
 
-    motion_ids = np.asarray(state_processor.motion_ids, dtype=np.int64).reshape(-1)
-    motion_t_arr = np.asarray(state_processor.motion_t, dtype=np.int64).reshape(-1)
-    if motion_ids.size != 1 or motion_t_arr.size != 1:
-        raise ValueError("BFM-Zero MotionData window obs expects one motion id")
-    if int(motion_ids[0]) != int(local_motion_id):
-        raise ValueError(
-            f"local_motion_id mismatch: requested {local_motion_id}, "
-            f"state_processor has {int(motion_ids[0])}"
-        )
+    motion_data, support_indices = _resolve_motion_data_step_indices(
+        motion_data=getattr(state_processor, "motion_data", None),
+        motion_future_steps=getattr(
+            state_processor,
+            "motion_future_steps",
+            np.asarray([], dtype=np.int64),
+        ),
+        required_steps=required_steps,
+    )
 
-    motion_t = int(motion_t_arr[0])
-    motion_length = int(np.asarray(dataset.lengths).reshape(-1)[local_motion_id])
-    start = motion_t + int(motion_t_offset)
-    start = min(max(start, 0), max(motion_length - 1, 0))
-    support_abs_steps = start - 1 + np.arange(int(seq_length) + 1, dtype=np.int64)
-    required_steps = support_abs_steps - motion_t
-
+    selected_timestamps = np.asarray(
+        getattr(motion_data, "timestamps_ns", np.zeros((1, 0), dtype=np.int64)),
+        dtype=np.int64,
+    )
+    timestamp_key = ()
+    if selected_timestamps.ndim >= 2 and selected_timestamps.shape[1] > int(np.max(support_indices)):
+        timestamp_key = tuple(selected_timestamps[0, support_indices].reshape(-1).tolist())
+    selected_steps = np.asarray(
+        getattr(motion_data, "step", np.zeros((1, 0), dtype=np.int64)),
+        dtype=np.int64,
+    )
+    step_key = ()
+    if selected_steps.ndim >= 2 and selected_steps.shape[1] > int(np.max(support_indices)):
+        step_key = tuple(selected_steps[0, support_indices].reshape(-1).tolist())
     cache_key = (
-        int(local_motion_id),
-        motion_t,
         tuple(required_steps.tolist()),
+        step_key,
+        timestamp_key,
         float(target_fps),
         int(seq_length),
         int(motion_t_offset),
@@ -459,25 +491,7 @@ def _get_motion_data_backward_observation_window(
     if getattr(state_processor, "_bfm_zero_motion_data_window_obs_cache_key", None) == cache_key:
         return getattr(state_processor, "_bfm_zero_motion_data_window_obs_cache_value")
 
-    motion_data, support_indices = _get_available_motion_data_steps(
-        motion_data=getattr(state_processor, "motion_data", None),
-        motion_future_steps=getattr(
-            state_processor,
-            "motion_future_steps",
-            np.asarray([], dtype=np.int64),
-        ),
-        required_steps=required_steps,
-    )
-    if motion_data is None or support_indices is None:
-        motion_data = dataset.get_slice(
-            motion_ids,
-            motion_t_arr,
-            required_steps,
-        )
-        support_indices = np.arange(required_steps.shape[0], dtype=np.int64)
-
-    joint_indices = [dataset.joint_names.index(name) for name in joint_names]
-    source_body_names = list(dataset.body_names)
+    joint_indices = [source_joint_names.index(name) for name in joint_names]
     body_indices = [
         source_body_names.index(name)
         for name in BFM_ZERO_MINIMAL_BODY_NAMES
@@ -1019,12 +1033,8 @@ class _BFMZeroMinimalBackwardFutureWindow(_BFMZeroJointSelection):
             raise ValueError("BFM-Zero future window seq_length must be positive")
 
     def compute(self) -> np.ndarray:
-        motion_ids = np.asarray(self.state_processor.motion_ids, dtype=np.int64).reshape(-1)
-        if motion_ids.size != 1:
-            raise ValueError("BFM-Zero minimal future-window obs expects one motion id")
         obs = _get_motion_data_backward_observation_window(
             state_processor=self.state_processor,
-            local_motion_id=int(motion_ids[0]),
             joint_names=self.joint_names,
             default_joint_pos=self._default_joint_pos,
             target_fps=self.target_fps,
@@ -1068,31 +1078,39 @@ class bfm_zero_minimal_future_window_weight(Observation):
         if self.seq_length <= 0:
             raise ValueError("BFM-Zero future window weight seq_length must be positive")
 
-    def _motion_length(self) -> int:
-        dataset = getattr(self.state_processor, "motion_dataset", None)
-        motion_ids = np.asarray(self.state_processor.motion_ids, dtype=np.int64).reshape(-1)
-        if motion_ids.size != 1:
-            raise ValueError("BFM-Zero future-window weight expects one motion id")
-        if dataset is not None and hasattr(dataset, "lengths"):
-            return int(np.asarray(dataset.lengths).reshape(-1)[int(motion_ids[0])])
-        return int(getattr(self.state_processor, "motion_length"))
-
-    def _window_start(self, sequence_length: int) -> int:
-        if hasattr(self.state_processor, "motion_t"):
-            start = int(np.asarray(self.state_processor.motion_t).reshape(-1)[0])
-            start += self.motion_t_offset
-        else:
-            start = 0
-        if self.clamp_to_final:
-            return min(max(start, 0), max(sequence_length - 1, 0))
-        return start % sequence_length
-
     def compute(self) -> np.ndarray:
-        length = self._motion_length()
-        start = self._window_start(length)
-        indices = start + np.arange(self.seq_length, dtype=np.int64)
-        if self.clamp_to_final:
-            weights = (indices < length).astype(np.float32)
-        else:
-            weights = np.ones(self.seq_length, dtype=np.float32)
+        if not self.clamp_to_final:
+            return np.ones((self.seq_length, 1), dtype=np.float32)
+
+        required_steps, _, _ = _backward_window_query(
+            state_processor=self.state_processor,
+            seq_length=self.seq_length,
+            motion_t_offset=self.motion_t_offset,
+        )
+        motion_data, support_indices = _resolve_motion_data_step_indices(
+            motion_data=getattr(self.state_processor, "motion_data", None),
+            motion_future_steps=getattr(
+                self.state_processor,
+                "motion_future_steps",
+                np.asarray([], dtype=np.int64),
+            ),
+            required_steps=required_steps,
+        )
+
+        step = np.asarray(getattr(motion_data, "step"), dtype=np.int64)
+        if step.ndim != 2 or step.shape[0] != 1:
+            raise ValueError(f"BFM-Zero future-window weight expects step shape [1, T], got {step.shape}")
+        support_step = step[0, support_indices]
+        output_step = support_step[1:]
+        output_required_steps = required_steps[1:]
+
+        weights = np.ones(self.seq_length, dtype=np.float32)
+        if output_step.shape[0] > 1:
+            repeated_from_previous = output_step[1:] == output_step[:-1]
+            positive_future = output_required_steps[1:] > 0
+            weights[1:] = np.where(
+                repeated_from_previous & positive_future,
+                0.0,
+                1.0,
+            ).astype(np.float32)
         return weights.reshape(self.seq_length, 1)
