@@ -51,6 +51,26 @@ Use this skill when bringing a policy checkpoint from any training repo into `/h
 - Assume the training codebase may be unmodified upstream code. Do not rely on export flags or helper code that were added in a previous local adaptation unless you verify they exist in that checkout.
 - If source motions may need retargeting, inspect `joint_names`, `body_names`, root pose fields, and quaternion order first. If they already match the sim2real robot and qpos layout, skip retargeting.
 
+## ONNX Runtime Compatibility
+
+- G1 GPU deploy may use `onnxruntime-gpu==1.16.0`, whose local wheel supports ONNX IR up to 9. Newer exporters can produce IR 10 / opset 20 models that load on CPU ORT 1.23 but fail on G1 GPU with `Unsupported model IR version: 10, max supported IR version: 9`.
+- Prefer re-exporting from the source codebase with `opset <= 19` and `ir_version <= 9` when targeting ORT 1.16.
+- If re-export is not practical, convert the already-exported ONNX and compare outputs:
+
+  ```bash
+  uv run --with onnx --with onnxruntime --with numpy python skills/adapt-policy-to-sim2real/scripts/convert_onnx_compat.py \
+    checkpoints/.../policy.onnx \
+    --suffix -ort116 \
+    --target-opset 19 \
+    --target-ir 9 \
+    --compare-runs 100
+  ```
+
+- The converter copies an adjacent YAML to the converted ONNX stem by default because sim2real derives the ONNX path from `--policy_config`.
+- Validate the converted YAML on G1 with `uv run --no-sync scripts/test_policy_inference.py --policy_config <converted>.yaml --inference_backend onnx-gpu --single`. For non-interactive `g1-rp` SSH, run commands through `bash -lc` so `uv` is on PATH.
+- Do not only edit `ir_version`. The conversion is acceptable only when ONNX checker passes and source-vs-converted output comparison matches within tolerance.
+- CPU inference should not meaningfully slow down from this compatibility conversion, but benchmark both files if latency matters for the deployment decision.
+
 ## Validation Checklist
 
 - ONNX input names and dimensions match deploy YAML observation groups.
