@@ -24,7 +24,7 @@ uv run sim2real/sim_env/base_sim.py
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml \
+  --policy-config checkpoints/mimic-lite/32x8192-huge/policy.yaml \
   --motion-backend zmq \
   --controller pico
 ```
@@ -35,7 +35,7 @@ uv run sim2real/rl_policy/tracking.py \
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml \
+  --policy-config checkpoints/mimic-lite/32x8192-huge/policy.yaml \
   --motion-backend zmq \
   --controller pico
 ```

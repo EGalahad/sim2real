@@ -28,7 +28,7 @@ uv sync
 uv run sim2real/sim_env/base_sim.py --robot g1
 uv run sim2real/rl_policy/tracking.py \
   --robot g1 \
-  --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
+  --policy_config checkpoints/mimic-lite/32x8192-huge/policy.yaml
 ```
 
 两个进程都启动后，在 policy 终端按 `]` 开始跟踪，然后打开 `base_sim.py` 打印出来的 mjviser URL。虚拟 gantry / elastic band 的开关和长度在 viewer UI 里调。

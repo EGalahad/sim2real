@@ -26,7 +26,7 @@ Run offline motion tracking (sim2sim):
 ```bash
 uv run sim2real/sim_env/base_sim.py --robot g1
 uv run sim2real/rl_policy/tracking.py --robot g1 \
-  --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
+  --policy_config checkpoints/mimic-lite/32x8192-huge/policy.yaml
 ```
 
 After both processes are up, press `]` in the policy terminal to start. Open the mjviser URL printed by `base_sim.py`, then use the Elastic Band controls in the viewer UI to disable or tune the virtual gantry.

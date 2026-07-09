@@ -37,7 +37,7 @@ No real bridge process is started.
 ```bash
 uv run sim2real/rl_policy/tracking.py \
   --robot-io inline \
-  --policy-config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
+  --policy-config checkpoints/mimic-lite/32x8192-huge/policy.yaml
 ```
 
 Use this path first for real deployment when latency jitter matters. Add
@@ -60,7 +60,7 @@ Terminal 2:
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
+  --policy-config checkpoints/mimic-lite/32x8192-huge/policy.yaml
 ```
 
 Add `--interface <robot_network_interface>` to the bridge command only when the
@@ -81,7 +81,7 @@ Terminal 2:
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
+  --policy-config checkpoints/mimic-lite/32x8192-huge/policy.yaml
 ```
 
 Add `--interface <robot_network_interface>` to the bridge command only when the

@@ -20,7 +20,7 @@ third_party/
 
 `checkpoints/` contains exported policy YAML and ONNX files. Tutorial commands
 assume these paths exist locally, for example
-`checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml`.
+`checkpoints/mimic-lite/32x8192-huge/policy.yaml`.
 
 `third_party/wheels/` contains deployment-only wheels that are resolved by
 `uv` through `find-links = ["third_party/wheels"]`. On G1, use:

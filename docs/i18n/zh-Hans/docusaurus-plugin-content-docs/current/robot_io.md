@@ -33,7 +33,7 @@ inline 模式会在 `BasePolicy` 里直接创建 Unitree robot object。policy l
 ```bash
 uv run sim2real/rl_policy/tracking.py \
   --robot-io inline \
-  --policy-config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
+  --policy-config checkpoints/mimic-lite/32x8192-huge/policy.yaml
 ```
 
 真机部署时如果关心延迟稳定性，优先用这个模式。只有机器人网卡不是默认 `eth0`
@@ -54,7 +54,7 @@ uv run scripts/real_bridge.py
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
+  --policy-config checkpoints/mimic-lite/32x8192-huge/policy.yaml
 ```
 
 只有机器人网卡不是默认 `eth0` 时，才在 bridge 命令里加
@@ -75,7 +75,7 @@ uv run scripts/real_bridge_cpp.py
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml
+  --policy-config checkpoints/mimic-lite/32x8192-huge/policy.yaml
 ```
 
 只有机器人网卡不是默认 `eth0` 时，才在 bridge 命令里加

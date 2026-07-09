@@ -19,7 +19,7 @@ third_party/
 ```
 
 `checkpoints/` 里放导出的 policy YAML 和 ONNX。教程里的命令默认这些路径已经存在，
-例如 `checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml`。
+例如 `checkpoints/mimic-lite/32x8192-huge/policy.yaml`。
 
 `third_party/wheels/` 里放部署用 wheel。`uv` 会通过
 `find-links = ["third_party/wheels"]` 解析这些包。G1 上安装基础真机依赖：
