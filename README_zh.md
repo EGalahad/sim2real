@@ -33,20 +33,6 @@ uv run sim2real/rl_policy/tracking.py \
 
 两个进程都启动后，在 policy 终端按 `]` 开始跟踪，然后打开 `base_sim.py` 打印出来的 mjviser URL。虚拟 gantry / elastic band 的开关和长度在 viewer UI 里调。
 
-## 录制和回放 Motion
-
-在 root project 里把 Pico / XR retarget 后的 motion 录成 any4hdmi dataset：
-
-```bash
-uv run scripts/record_motion.py --connect tcp://127.0.0.1:28701
-```
-
-用 any4hdmi viewer wrapper 回放录好的 qpos motion：
-
-```bash
-uv run scripts/view_motion.py --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.npz
-```
-
 ## Migrating to sim2real
 
 这个 repo 内置了一个 Codex skill，用来把外部训练 codebase 里的 policy 适配到 `sim2real`：
@@ -58,6 +44,16 @@ skills/adapt-policy-to-sim2real
 已经转好的 checkpoints 统一放在共享的
 [sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e)
 目录里。
+
+目前已经支持的 adapted checkpoint：
+
+- BFM-Zero: `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml`
+- HEFT: `checkpoints/heft/pmg/policy.yaml`, `checkpoints/heft/compliance/policy.yaml`
+- Humanoid-GPT: `checkpoints/humanoid-gpt/policy.yaml`
+- SONIC G1: `checkpoints/sonic/g1/policy.yaml`
+- SONIC SMPL: `checkpoints/sonic/smpl/policy.yaml`
+- TeleopIT: `checkpoints/teleopit/policy.yaml`
+- TWIST2: `checkpoints/twist2/policy.yaml`
 
 安装到本机 Codex skills 目录：
 
@@ -75,4 +71,3 @@ cp -r skills/adapt-policy-to-sim2real ~/.codex/skills/
 - [Root Project Setup](https://egalahad.github.io/sim2real/zh-Hans/getting-started/root-project)
 - [离线动作跟踪教程](https://egalahad.github.io/sim2real/zh-Hans/tutorials/offline-motion-tracking)
 - [Pico Teleoperation 教程](https://egalahad.github.io/sim2real/zh-Hans/tutorials/pico-teleoperation)
-- [Motion Recording 教程](https://egalahad.github.io/sim2real/zh-Hans/tutorials/motion-recording)

@@ -1,5 +1,7 @@
 # sim2real
 
+A lightweight and modular sim2sim and sim2real deployment stack.
+
 Chinese version: [README_zh.md](./README_zh.md)
 
 Full documentation: [https://egalahad.github.io/sim2real/](https://egalahad.github.io/sim2real/)
@@ -32,20 +34,6 @@ uv run sim2real/rl_policy/tracking.py --robot g1 \
 
 After both processes are up, press `]` in the policy terminal to start. Open the mjviser URL printed by `base_sim.py`, then use the Elastic Band controls in the viewer UI to disable or tune the virtual gantry.
 
-## Record and Visualize Motion
-
-Record retargeted Pico / XR motion into an any4hdmi dataset from the root project:
-
-```bash
-uv run scripts/record_motion.py --connect tcp://127.0.0.1:28701
-```
-
-Replay the recorded qpos motion with the any4hdmi viewer wrapper:
-
-```bash
-uv run scripts/view_motion.py --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.npz
-```
-
 ## Migrating to sim2real
 
 This repo includes a Codex skill for adapting policies trained in external codebases into `sim2real`:
@@ -58,10 +46,19 @@ Converted checkpoints are distributed through the shared
 [sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e)
 folder.
 
+Currently supported adapted checkpoint families:
+
+- BFM-Zero: `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml`
+- HEFT: `checkpoints/heft/pmg/policy.yaml`, `checkpoints/heft/compliance/policy.yaml`
+- Humanoid-GPT: `checkpoints/humanoid-gpt/policy.yaml`
+- SONIC G1: `checkpoints/sonic/g1/policy.yaml`
+- SONIC SMPL: `checkpoints/sonic/smpl/policy.yaml`
+- TeleopIT: `checkpoints/teleopit/policy.yaml`
+- TWIST2: `checkpoints/twist2/policy.yaml`
+
 ## Next Steps
 
 - [Docs Home](./docs/README.md)
 - [Getting Started](./docs/getting-started/README.md)
 - [Offline Motion Tracking Tutorial](./docs/tutorials/offline-motion-tracking.md)
 - [Pico Teleoperation Tutorial](./docs/tutorials/pico-teleoperation.md)
-- [Motion Recording Tutorial](./docs/tutorials/motion-recording.md)
