@@ -1,13 +1,31 @@
 ---
-title: Adapting Policies
-slug: /reference/adapting-policies
+title: Run External Policies
+slug: /tutorials/run-external-policies
 ---
 
-# Adapting Policies
+# Run External Policies
 
-大多数导出的 tracking policy 都使用同一套 sim2real runtime。只要这个 policy 已经在
-`checkpoints/` 下面有 deploy YAML，部署命令通常保持不变，只需要把
-`--policy-config` 换成对应 YAML。
+sim2real 的模块化设计允许同一套 runtime 执行不同的 tracking policy，只要这个
+policy 提供兼容的 deploy YAML 和 ONNX model。我们已经把几个外部工作转换成了这个
+格式，所以多数情况下可以保持正常部署命令不变，只把 `--policy-config` 换成对应
+policy YAML。
+
+## 已转换 Checkpoints
+
+先下载共享的
+[sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e)
+目录，然后把下面任意 checkpoint 路径作为 `--policy-config` 使用。
+
+| Policy | Checkpoint YAML | Notes |
+| --- | --- | --- |
+| HEFT PMG | `checkpoints/heft/pmg/policy.yaml` | 正常 G1 motion stream。 |
+| HEFT Compliance | `checkpoints/heft/compliance/policy.yaml` | 正常 G1 motion stream；observation 里 compliance flag 固定为 off。 |
+| TeleopIT | `checkpoints/teleopit/policy.yaml` | 正常 G1 motion stream。 |
+| Humanoid-GPT | `checkpoints/humanoid-gpt/policy.yaml` | 正常 G1 motion stream。 |
+| BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | ZMQ publisher 需要传 checkpoint 对应的 MJCF override。 |
+| SONIC G1 | `checkpoints/sonic/g1/policy.yaml` | 正常 G1 motion stream。 |
+| SONIC SMPL | `checkpoints/sonic/smpl/policy.yaml` | 使用 `motion_backend: smpl_zmq` 和 SMPL publisher。 |
+| TWIST2 | `checkpoints/twist2/policy.yaml` | 正常 G1 motion stream。 |
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \

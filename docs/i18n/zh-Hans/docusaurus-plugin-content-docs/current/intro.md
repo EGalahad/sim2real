@@ -15,6 +15,7 @@ slug: /
 - [Offline Motion Tracking](/tutorials/offline-motion-tracking)
 - [Pico Teleoperation](/tutorials/pico-teleoperation)
 - [Motion Recording](/tutorials/motion-recording)
+- [Run External Policies](/tutorials/run-external-policies)
 
 ## FAQ
 
@@ -23,7 +24,6 @@ slug: /
 ## Reference
 
 - [Download Artifacts](/reference/artifacts)
-- [Adapting Policies](/reference/adapting-policies)
 - [Tracking Framework](/reference/tracking-framework)
 - [Pico To G1](/reference/pico-to-g1)
 - [Teleop Implementation](/reference/teleop-implementation)

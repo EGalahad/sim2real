@@ -41,6 +41,7 @@ const sidebars: SidebarsConfig = {
         'tutorials/offline-motion-tracking',
         'tutorials/pico-teleoperation',
         'tutorials/motion-recording',
+        'tutorials/run-external-policies',
       ],
     },
     'faq',
@@ -57,11 +58,6 @@ const sidebars: SidebarsConfig = {
           type: 'doc',
           id: 'robot_io',
           label: 'Robot I/O',
-        },
-        {
-          type: 'doc',
-          id: 'adapting_policies',
-          label: 'Adapting Policies',
         },
         {
           type: 'doc',

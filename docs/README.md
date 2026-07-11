@@ -15,6 +15,7 @@ Chinese docs: [https://egalahad.github.io/sim2real/zh-Hans/](https://egalahad.gi
 - [Offline Motion Tracking](./tutorials/offline-motion-tracking.md)
 - [Pico Teleoperation](./tutorials/pico-teleoperation.md)
 - [Motion Recording](./tutorials/motion-recording.md)
+- [Run External Policies](./tutorials/run-external-policies.md)
 
 ## FAQ
 
@@ -23,7 +24,6 @@ Chinese docs: [https://egalahad.github.io/sim2real/zh-Hans/](https://egalahad.gi
 ## Reference
 
 - [Download Artifacts](./artifacts.md)
-- [Adapting Policies](./adapting_policies.md)
 - [Tracking Framework](./tracking_framework.md)
 - [Pico To G1](./pico_to_g1.md)
 - [Teleop Implementation](./teleop_impl.md)
