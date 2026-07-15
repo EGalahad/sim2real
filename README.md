@@ -20,19 +20,37 @@ layout and onboard dependency notes.
 ## Quick Start
 
 ```bash
-uv sync
+# Specify device for inference
+uv sync --group cpu     # Sim2sim
+uv sync --group g1      # G1 Robot
+uv sync --group g1-gpu  # G1 Robot using GPU
 ```
 
 Run offline motion tracking (sim2sim):
 
 ```bash
+# Use Mirror for Acceleration (China Mainland)
+export HF_ENDPOINT=https://hf-mirror.com
+# Terminal 1: Launch sim
 uv run sim2real/sim_env/base_sim.py --robot g1
+# Terminal 2: Launch policy
 uv run sim2real/rl_policy/tracking.py --robot g1 \
   --policy_config checkpoints/mimic-lite/32x8192-huge/policy.yaml \
   --motion_path hf://elijahgalahad/any4hdmi-g1-lafan/motions/walk1_subject1.npz
 ```
 
+### Keyboard Controls
+
 After both processes are up, press `]` in the policy terminal to start. Open the mjviser URL printed by `base_sim.py`, then use the Elastic Band controls in the viewer UI to disable or tune the virtual gantry.
+
+Keys are read in the policy (`tracking.py`) terminal:
+
+| Key | Function |
+|-----|----------|
+| `i` | Init mode: interpolate joints from the current pose to the default pose (~10 s ramp) |
+| `o` | Zero mode: hold the current joint positions |
+| `]` | Policy mode: reset and start RL policy inference |
+| `Space` | Pause / resume reference motion playback (starts paused; `npz` motion backend only) |
 
 ## Migrating to sim2real
 
