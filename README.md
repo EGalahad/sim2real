@@ -62,3 +62,17 @@ Currently supported adapted checkpoint families:
 - [Getting Started](./docs/getting-started/README.md)
 - [Offline Motion Tracking Tutorial](./docs/tutorials/offline-motion-tracking.md)
 - [Pico Teleoperation Tutorial](./docs/tutorials/pico-teleoperation.md)
+
+## Citation
+
+If you find sim2real useful in your research, please cite:
+
+```bibtex
+@misc{sim2real2026,
+  author       = {{RoboParty Lab Team}},
+  title        = {sim2real: A Lightweight and Modular Sim2sim and Sim2real Deployment Stack},
+  year         = {2026},
+  howpublished = {\url{https://github.com/EGalahad/sim2real}},
+  note         = {Documentation: \url{https://egalahad.github.io/sim2real/}}
+}
+```

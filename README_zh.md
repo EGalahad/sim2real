@@ -71,3 +71,17 @@ cp -r skills/adapt-policy-to-sim2real ~/.codex/skills/
 - [Root Project Setup](https://egalahad.github.io/sim2real/zh-Hans/getting-started/root-project)
 - [离线动作跟踪教程](https://egalahad.github.io/sim2real/zh-Hans/tutorials/offline-motion-tracking)
 - [Pico Teleoperation 教程](https://egalahad.github.io/sim2real/zh-Hans/tutorials/pico-teleoperation)
+
+## Citation
+
+如果 sim2real 对你的研究有所帮助，请引用：
+
+```bibtex
+@misc{sim2real2026,
+  author       = {{RoboParty Lab Team}},
+  title        = {sim2real: A Lightweight and Modular Sim2sim and Sim2real Deployment Stack},
+  year         = {2026},
+  howpublished = {\url{https://github.com/EGalahad/sim2real}},
+  note         = {Documentation: \url{https://egalahad.github.io/sim2real/}}
+}
+```
