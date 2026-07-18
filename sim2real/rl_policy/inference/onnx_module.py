@@ -1,8 +1,10 @@
 import json
-import numpy as np
+import os
 import time
-from typing import Dict, Tuple, Union
 from pathlib import Path
+from typing import Dict, Tuple, Union
+
+import numpy as np
 
 from sim2real.rl_policy.inference.cuda_runtime import preload_cuda_runtime_libraries
 
@@ -74,7 +76,19 @@ class ONNXModule:
                 f"Requested provider {requested[0]} is not available. available={available}"
             )
 
-        self.ort_session = ort.InferenceSession(path, providers=requested)
+        session_options = None
+        eval_threads = int(os.environ.get("SIM2REAL_ORT_NUM_THREADS", "0"))
+        if eval_threads > 0:
+            session_options = ort.SessionOptions()
+            session_options.intra_op_num_threads = eval_threads
+            session_options.inter_op_num_threads = 1
+            session_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+
+        self.ort_session = ort.InferenceSession(
+            path,
+            sess_options=session_options,
+            providers=requested,
+        )
         active_providers = self.ort_session.get_providers()
         if requested[0] not in active_providers:
             raise RuntimeError(

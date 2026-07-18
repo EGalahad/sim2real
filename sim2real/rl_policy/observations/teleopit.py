@@ -8,6 +8,7 @@ import mujoco
 import numpy as np
 
 from sim2real.rl_policy.observations.base import Observation
+from sim2real.rl_policy.observations.motion import motion_obs
 
 
 _GRAVITY_UNIT_W = np.asarray([0.0, 0.0, -1.0], dtype=np.float32)
@@ -142,7 +143,6 @@ class _TeleopitVelCmdCache:
         self.current_obs = np.zeros((1, self.obs_dim), dtype=np.float32)
         self.obs_history = np.zeros((1, self.history_length, self.obs_dim), dtype=np.float32)
         self.history_initialized = False
-        self.cached_motion_layout: tuple[tuple[str, ...], tuple[str, ...]] | None = None
         self.fixed_reference_yaw_quat: np.ndarray | None = None
         self.fixed_reference_pivot_pos_w: np.ndarray | None = None
         self.fixed_reference_xy_offset_w: np.ndarray | None = None
@@ -152,27 +152,10 @@ class _TeleopitVelCmdCache:
         self.current_obs[:] = 0.0
         self.obs_history[:] = 0.0
         self.history_initialized = False
-        self.cached_motion_layout = None
         self.fixed_reference_yaw_quat = None
         self.fixed_reference_pivot_pos_w = None
         self.fixed_reference_xy_offset_w = None
         self.last_reference_qpos = None
-
-    def _refresh_motion_indices(self) -> None:
-        joint_names = tuple(self.env.state_processor.motion_joint_names)
-        body_names = tuple(self.env.state_processor.motion_body_names)
-        layout = (joint_names, body_names)
-        if self.cached_motion_layout == layout:
-            return
-
-        missing_joints = [name for name in self.joint_names if name not in joint_names]
-        if missing_joints:
-            raise ValueError(f"Motion source missing Teleopit policy joints: {missing_joints}")
-        if "pelvis" not in body_names:
-            raise ValueError("Motion source missing Teleopit root body 'pelvis'")
-        self.motion_joint_indices = [joint_names.index(name) for name in self.joint_names]
-        self.motion_root_body_idx = body_names.index("pelvis")
-        self.cached_motion_layout = layout
 
     def _run_fk(self, base_pos: np.ndarray, base_quat: np.ndarray, joint_pos: np.ndarray) -> None:
         self.data.qpos[:] = 0.0
@@ -192,37 +175,10 @@ class _TeleopitVelCmdCache:
             np.asarray(self.data.xquat[self.anchor_body_id], dtype=np.float32).copy(),
         )
 
-    def _motion_data_current(self):
-        self._refresh_motion_indices()
-        state = self.env.state_processor
-        if getattr(state, "motion_backend", "") == "npz":
-            return state.motion_dataset.get_slice(
-                state.motion_ids,
-                state.motion_t,
-                np.asarray([0], dtype=np.int64),
-            )
-
-        available_steps = [int(step) for step in state.motion_future_steps.tolist()]
-        if 0 not in available_steps:
-            raise ValueError(f"Teleopit observation requires motion.future_steps to include 0, got {available_steps}")
-        step_idx = available_steps.index(0)
-        motion_data = state.motion_data
-        return motion_data[:, step_idx : step_idx + 1]
-
-    def _current_motion_qpos(self) -> np.ndarray:
-        motion_data = self._motion_data_current()
-        root_pos = np.asarray(
-            motion_data.body_pos_w[0, 0, self.motion_root_body_idx],
-            dtype=np.float32,
-        )
-        root_quat = np.asarray(
-            motion_data.body_quat_w[0, 0, self.motion_root_body_idx],
-            dtype=np.float32,
-        )
-        joint_pos = np.asarray(
-            motion_data.joint_pos[0, 0, self.motion_joint_indices],
-            dtype=np.float32,
-        )
+    def _current_motion_qpos(self, motion_view: motion_obs) -> np.ndarray:
+        root_pos = np.asarray(motion_view.ref_root_pos_w[0], dtype=np.float32)
+        root_quat = np.asarray(motion_view.ref_root_quat_w[0], dtype=np.float32)
+        joint_pos = np.asarray(motion_view.ref_joint_pos[0], dtype=np.float32)
         qpos = np.concatenate([root_pos, root_quat, joint_pos], axis=0).astype(np.float32)
         if not self.align_reference_yaw:
             return qpos
@@ -281,7 +237,7 @@ class _TeleopitVelCmdCache:
             ang_vel = np.zeros(3, dtype=np.float32)
         return lin_vel, ang_vel
 
-    def update(self, data: Dict[str, Any]) -> None:
+    def update(self, data: Dict[str, Any], motion_view: motion_obs) -> None:
         state = self.env.state_processor
         robot_joint_pos = np.asarray(state.joint_pos[self.state_joint_indices], dtype=np.float32)
         robot_joint_vel = np.asarray(state.joint_vel[self.state_joint_indices], dtype=np.float32)
@@ -289,7 +245,7 @@ class _TeleopitVelCmdCache:
         robot_ang_vel = np.asarray(state.root_ang_vel_b, dtype=np.float32).reshape(3)
         robot_base_pos = np.asarray(state.root_pos_w, dtype=np.float32).reshape(3)
 
-        motion_qpos = self._current_motion_qpos()
+        motion_qpos = self._current_motion_qpos(motion_view)
         motion_joint_pos = motion_qpos[7 : 7 + len(self.joint_names)]
         motion_joint_vel = self._compute_motion_joint_vel(motion_qpos)
         anchor_lin_vel_w, anchor_ang_vel_w = self._compute_anchor_velocities(motion_qpos)
@@ -387,7 +343,7 @@ def _get_cache(
     return cache
 
 
-class teleopit_velcmd_obs(Observation):
+class teleopit_velcmd_obs(motion_obs, namespace="teleopit"):
     def __init__(
         self,
         xml_path: str,
@@ -399,8 +355,20 @@ class teleopit_velcmd_obs(Observation):
         align_reference_yaw: bool = True,
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
-        resolved_joint_names = joint_names if joint_names is not None else self.env.policy_joint_names
+        env = kwargs["env"]
+        resolved_joint_names = (
+            list(joint_names) if joint_names is not None else list(env.policy_joint_names)
+        )
+        super().__init__(
+            future_steps=[0],
+            joint_names=resolved_joint_names,
+            body_names=["pelvis"],
+            root_body_name="pelvis",
+            anchor_body_name="pelvis",
+            joint_order="given",
+            body_order="given",
+            **kwargs,
+        )
         resolved_default_dof_pos = default_dof_pos if default_dof_pos is not None else self.env.default_dof_angles
         self.cache = _get_cache(
             self.env,
@@ -414,16 +382,18 @@ class teleopit_velcmd_obs(Observation):
         )
 
     def reset(self) -> None:
+        super().reset()
         self.cache.reset()
 
     def update(self, data: Dict[str, Any]) -> None:
-        self.cache.update(data)
+        super().update(data)
+        self.cache.update(data, self)
 
     def compute(self) -> np.ndarray:
         return self.cache.current_obs
 
 
-class teleopit_velcmd_obs_history(Observation):
+class teleopit_velcmd_obs_history(Observation, namespace="teleopit"):
     def __init__(
         self,
         xml_path: str,

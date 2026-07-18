@@ -4,8 +4,9 @@ from typing import Any, Dict, Sequence
 
 import numpy as np
 
-from .base import Observation
 from .common import sort_names_by_preferred_order
+from .base import Observation
+from .motion import motion_obs
 from sim2real.utils.math import quat_rotate_inverse_numpy
 
 
@@ -25,7 +26,7 @@ def _quat_to_roll_pitch(quat_wxyz: np.ndarray) -> np.ndarray:
     return np.asarray([roll, pitch], dtype=np.float32)
 
 
-class twist2_input(Observation):
+class twist2_input(motion_obs, namespace="twist2"):
     """TWIST2 student-future ONNX input.
 
     Matches upstream TWIST2 deployment/training layout:
@@ -50,21 +51,26 @@ class twist2_input(Observation):
         ),
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        env = kwargs["env"]
+        root_body_name = str(env.policy_config.get("motion", {}).get("root_body_name", "pelvis"))
         self.joint_names = sort_names_by_preferred_order(
             joint_names,
-            self.env.joint_names_simulation,
+            env.joint_names_simulation,
+        )
+        super().__init__(
+            future_steps=None,
+            joint_names=self.joint_names,
+            body_names=[root_body_name],
+            root_body_name=root_body_name,
+            anchor_body_name=root_body_name,
+            joint_order="given",
+            body_order="given",
+            **kwargs,
         )
         self.joint_ids = [
             self.state_processor.joint_names.index(joint_name)
             for joint_name in self.joint_names
         ]
-        self.motion_joint_ids: list[int] | None = None
-        self.motion_root_body_idx: int | None = None
-        self.cached_motion_layout: tuple[tuple[str, ...], tuple[str, ...]] | None = None
-        self.root_body_name = str(
-            self.env.policy_config.get("motion", {}).get("root_body_name", "pelvis")
-        )
         self.history_len = int(history_len)
         self.current_step = int(current_step)
         self.future_step = int(future_step)
@@ -79,29 +85,33 @@ class twist2_input(Observation):
         ]
         self.history = np.zeros((self.history_len, 127), dtype=np.float32)
         self.input = np.zeros((1, 1432), dtype=np.float32)
+        self._input_parts = {
+            "current_motion": np.zeros(35, dtype=np.float32),
+            "proprioception": np.zeros(92, dtype=np.float32),
+            "observation_history": np.zeros(self.history_len * 127, dtype=np.float32),
+            "future_motion": np.zeros(35, dtype=np.float32),
+        }
 
-    def _refresh_motion_indices(self) -> None:
-        joint_names = tuple(self.state_processor.motion_joint_names)
-        body_names = tuple(self.state_processor.motion_body_names)
-        layout = (joint_names, body_names)
-        if self.cached_motion_layout == layout:
-            return
-
-        self.motion_joint_ids = [joint_names.index(name) for name in self.joint_names]
-        self.motion_root_body_idx = body_names.index(self.root_body_name)
-        self.cached_motion_layout = layout
+    def _set_input_parts(
+        self,
+        current_motion: np.ndarray,
+        proprioception: np.ndarray,
+        future_motion: np.ndarray,
+    ) -> None:
+        self._input_parts = {
+            "current_motion": current_motion.astype(np.float32, copy=True),
+            "proprioception": proprioception.astype(np.float32, copy=True),
+            "observation_history": self.history.reshape(-1).astype(np.float32, copy=True),
+            "future_motion": future_motion.astype(np.float32, copy=True),
+        }
+        self.input[0, :] = np.concatenate(list(self._input_parts.values()))
 
     def _motion_mimic_obs(self, step_index: int) -> np.ndarray:
-        self._refresh_motion_indices()
-        assert self.motion_joint_ids is not None
-        assert self.motion_root_body_idx is not None
-        motion_data = self.state_processor.motion_data
-
-        root_pos = motion_data.body_pos_w[0, step_index, self.motion_root_body_idx]
-        root_quat = motion_data.body_quat_w[0, step_index, self.motion_root_body_idx]
-        root_lin_vel_w = motion_data.body_lin_vel_w[0, step_index, self.motion_root_body_idx]
-        root_ang_vel_w = motion_data.body_ang_vel_w[0, step_index, self.motion_root_body_idx]
-        joint_pos = motion_data.joint_pos[0, step_index, self.motion_joint_ids]
+        root_pos = self.ref_root_pos_future_w[0, step_index]
+        root_quat = self.ref_root_quat_future_w[0, step_index]
+        root_lin_vel_w = self.ref_root_lin_vel_future_w[0, step_index]
+        root_ang_vel_w = self.ref_root_ang_vel_future_w[0, step_index]
+        joint_pos = self.ref_joint_pos_future[0, step_index]
 
         root_lin_vel_local = quat_rotate_inverse_numpy(
             root_quat.reshape(1, 4),
@@ -143,43 +153,68 @@ class twist2_input(Observation):
         ).astype(np.float32)
 
     def reset(self) -> None:
-        self._refresh_motion_indices()
+        super().reset()
         current_step_index = self._step_to_motion_index(self.current_step)
         future_step_index = self._step_to_motion_index(self.future_step)
-        current = np.concatenate(
-            [
-                self._motion_mimic_obs(current_step_index),
-                self._robot_proprio_obs({"action": np.zeros(self.env.num_actions, dtype=np.float32)}),
-            ]
-        ).astype(np.float32)
+        current_motion = self._motion_mimic_obs(current_step_index)
+        proprioception = self._robot_proprio_obs(
+            {"action": np.zeros(self.env.num_actions, dtype=np.float32)}
+        )
+        current = np.concatenate([current_motion, proprioception]).astype(np.float32)
         self.history[:] = current
-        self.input[0, :] = np.concatenate(
-            [current, self.history.reshape(-1), self._motion_mimic_obs(future_step_index)]
+        self._set_input_parts(
+            current_motion,
+            proprioception,
+            self._motion_mimic_obs(future_step_index),
         )
 
     def _step_to_motion_index(self, step: int) -> int:
-        available_steps = [int(step) for step in self.state_processor.motion_future_steps.tolist()]
-        if step not in available_steps:
-            raise ValueError(
-                f"TWIST2 step={step} not in motion.future_steps={available_steps}"
-            )
-        return available_steps.index(step)
+        return self._motion_step_index(step)
 
     def update(self, data: Dict[str, Any]) -> None:
+        super().update(data)
         current_step_index = self._step_to_motion_index(self.current_step)
         future_step_index = self._step_to_motion_index(self.future_step)
 
-        current = np.concatenate(
-            [
-                self._motion_mimic_obs(current_step_index),
-                self._robot_proprio_obs(data),
-            ]
-        ).astype(np.float32)
+        current_motion = self._motion_mimic_obs(current_step_index)
+        proprioception = self._robot_proprio_obs(data)
+        current = np.concatenate([current_motion, proprioception]).astype(np.float32)
         future = self._motion_mimic_obs(future_step_index)
 
-        self.input[0, :] = np.concatenate([current, self.history.reshape(-1), future])
+        self._set_input_parts(current_motion, proprioception, future)
         self.history[:-1] = self.history[1:]
         self.history[-1] = current
 
     def compute(self) -> np.ndarray:
         return self.input
+
+
+class twist2_component_input(Observation, namespace="twist2"):
+    """One semantic TWIST2 input group without flat-vector slicing."""
+
+    def __init__(self, component: str, **kwargs: Any) -> None:
+        if component not in {
+            "current_motion",
+            "proprioception",
+            "observation_history",
+            "future_motion",
+        }:
+            raise ValueError(f"Unsupported TWIST2 component: {component!r}")
+        super().__init__(env=kwargs["env"])
+        self.component = component
+        cache_name = "_twist2_semantic_observation"
+        self._owns_core = not hasattr(self.env, cache_name)
+        if self._owns_core:
+            setattr(self.env, cache_name, twist2_input(**kwargs))
+        self._core = getattr(self.env, cache_name)
+
+    def reset(self) -> None:
+        if self._owns_core:
+            self._core.reset()
+
+    def update(self, data: Dict[str, Any]) -> None:
+        if self._owns_core:
+            self._core.update(data)
+
+    def compute(self) -> np.ndarray:
+        return self._core._input_parts[self.component][None, :]

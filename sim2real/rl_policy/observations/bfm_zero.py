@@ -5,6 +5,7 @@ from typing import Any, Dict, Sequence
 import numpy as np
 
 from sim2real.rl_policy.observations.base import Observation
+from sim2real.rl_policy.observations.motion import motion_obs
 from sim2real.rl_policy.utils.motion import MotionData
 from sim2real.utils.math import (
     matrix_from_quat,
@@ -636,9 +637,10 @@ class _BFMZeroJointSelection(Observation):
         )
 
 
-class _BFMZeroMotionSelection(_BFMZeroJointSelection):
+class _BFMZeroMotionSelection(motion_obs):
     def __init__(
         self,
+        joint_names: Sequence[str] | None = None,
         body_names: Sequence[str] | None = None,
         root_body_name: str = "pelvis",
         motion_t_offset: int = 0,
@@ -647,14 +649,51 @@ class _BFMZeroMotionSelection(_BFMZeroJointSelection):
         humanoidverse_velocity_fps: float = 50.0,
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
-        self.body_names = list(body_names or self.env.body_names_simulation)
+        resolved_joint_names = (
+            list(joint_names) if joint_names is not None else list(kwargs["env"].policy_joint_names)
+        )
+        resolved_body_names = (
+            list(body_names) if body_names is not None else list(kwargs["env"].body_names_simulation)
+        )
+        source_body_names = [name for name in resolved_body_names if name != "head_link"]
+        super().__init__(
+            future_steps=[0],
+            joint_names=resolved_joint_names,
+            body_names=source_body_names,
+            root_body_name=root_body_name,
+            anchor_body_name="torso_link" if "torso_link" in source_body_names else root_body_name,
+            joint_order="given",
+            body_order="given",
+            **kwargs,
+        )
+        self.joint_names = resolved_joint_names
+        if len(self.joint_names) != BFM_ZERO_ACTION_DIM:
+            raise ValueError(
+                f"BFM-Zero expects {BFM_ZERO_ACTION_DIM} joints, got {len(self.joint_names)}"
+            )
+        self._state_joint_indices = [
+            self.state_processor.joint_names.index(name) for name in self.joint_names
+        ]
+        self._default_joint_pos = np.asarray(
+            [
+                self.env.default_dof_angles[self.env.joint_names_simulation.index(name)]
+                for name in self.joint_names
+            ],
+            dtype=np.float32,
+        )
+        self.body_names = resolved_body_names
         self.root_body_name = str(root_body_name)
         self.motion_t_offset = int(motion_t_offset)
         self.motion_velocity_source = str(motion_velocity_source)
         self.humanoidverse_velocity_sigma = float(humanoidverse_velocity_sigma)
         self.humanoidverse_velocity_fps = float(humanoidverse_velocity_fps)
         self._cached_motion_layout: tuple[tuple[str, ...], tuple[str, ...]] | None = None
+
+    def reset(self) -> None:
+        self._cached_motion_layout = None
+
+    def update(self, data: Dict[str, Any]) -> None:
+        pass
 
     def _refresh_motion_indices(self) -> None:
         joint_names = tuple(self.state_processor.motion_joint_names)
@@ -680,14 +719,15 @@ class _BFMZeroMotionSelection(_BFMZeroJointSelection):
         motion_data = self.state_processor.motion_data
         if motion_data is None:
             raise ValueError("BFM-Zero fused observations require motion_data")
-        motion_ids, motion_t, motion_steps = self._motion_query()
         if self.motion_t_offset != 0:
+            motion_ids, motion_t, motion_steps = self._motion_query()
             motion_data = self.state_processor.motion_dataset.get_slice(
                 motion_ids,
                 motion_t,
                 motion_steps,
             )
         if self.motion_velocity_source == "humanoidverse":
+            motion_ids, motion_t, motion_steps = self._motion_query()
             return self._with_humanoidverse_velocities(
                 motion_data,
                 motion_ids=motion_ids,
@@ -830,7 +870,7 @@ class _BFMZeroMotionSelection(_BFMZeroJointSelection):
         return body_pos, body_quat, body_lin_vel, body_ang_vel
 
 
-class bfm_zero_state(_BFMZeroJointSelection):
+class bfm_zero_state(_BFMZeroJointSelection, namespace="bfm_zero"):
     """BFM-Zero 64D ``state`` input.
 
     Mirrors ``HumanoidVerseVectorEnv._get_g1env_observation``:
@@ -858,7 +898,7 @@ class bfm_zero_state(_BFMZeroJointSelection):
         return _batched(state)
 
 
-class bfm_zero_encoder_state(_BFMZeroMotionSelection):
+class bfm_zero_encoder_state(_BFMZeroMotionSelection, namespace="bfm_zero"):
     """Target-motion state consumed by the BFM-Zero backward encoder."""
 
     def compute(self) -> np.ndarray:
@@ -881,7 +921,7 @@ class bfm_zero_encoder_state(_BFMZeroMotionSelection):
         return _batched(state)
 
 
-class bfm_zero_privileged_state(_BFMZeroMotionSelection):
+class bfm_zero_privileged_state(_BFMZeroMotionSelection, namespace="bfm_zero"):
     """Target-motion ``max_local_self`` input for BFM-Zero's backward encoder."""
 
     def compute(self) -> np.ndarray:
@@ -919,7 +959,7 @@ class bfm_zero_privileged_state(_BFMZeroMotionSelection):
         return _batched(privileged_state)
 
 
-class bfm_zero_last_action(_BFMZeroJointSelection):
+class bfm_zero_last_action(_BFMZeroJointSelection, namespace="bfm_zero"):
     """Previous normalized env action in BFM-Zero policy joint order.
 
     Source training multiplies the raw actor output by ``normalize_action_to=5``
@@ -940,7 +980,7 @@ class bfm_zero_last_action(_BFMZeroJointSelection):
         return _batched(getattr(self, "_last_action", np.zeros(len(self.joint_names), dtype=np.float32)))
 
 
-class bfm_zero_history_actor(_BFMZeroJointSelection):
+class bfm_zero_history_actor(_BFMZeroJointSelection, namespace="bfm_zero"):
     """BFM-Zero 4-step actor history.
 
     Upstream ``_get_obs_history_actor`` sorts keys alphabetically, so the layout is:
@@ -1010,7 +1050,7 @@ class bfm_zero_history_actor(_BFMZeroJointSelection):
         return _batched(history)
 
 
-class _BFMZeroMinimalBackwardFutureWindow(_BFMZeroJointSelection):
+class _BFMZeroMinimalBackwardFutureWindow(motion_obs):
     """Future-window backward obs for fused BFM-Zero streaming graphs."""
 
     obs_key: str
@@ -1018,13 +1058,38 @@ class _BFMZeroMinimalBackwardFutureWindow(_BFMZeroJointSelection):
 
     def __init__(
         self,
+        joint_names: Sequence[str] | None = None,
         seq_length: int = 8,
         target_fps: float = 50.0,
         clamp_to_final: bool = True,
         motion_t_offset: int = -1,
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
+        resolved_joint_names = (
+            list(joint_names) if joint_names is not None else list(kwargs["env"].policy_joint_names)
+        )
+        super().__init__(
+            future_steps=None,
+            joint_names=resolved_joint_names,
+            body_names=[name for name in BFM_ZERO_MINIMAL_BODY_NAMES if name != "head_link"],
+            root_body_name="pelvis",
+            anchor_body_name="torso_link",
+            joint_order="given",
+            body_order="given",
+            **kwargs,
+        )
+        self.joint_names = resolved_joint_names
+        if len(self.joint_names) != BFM_ZERO_ACTION_DIM:
+            raise ValueError(
+                f"BFM-Zero expects {BFM_ZERO_ACTION_DIM} joints, got {len(self.joint_names)}"
+            )
+        self._default_joint_pos = np.asarray(
+            [
+                self.env.default_dof_angles[self.env.joint_names_simulation.index(name)]
+                for name in self.joint_names
+            ],
+            dtype=np.float32,
+        )
         self.seq_length = int(seq_length)
         self.target_fps = float(target_fps)
         self.clamp_to_final = bool(clamp_to_final)
@@ -1051,17 +1116,17 @@ class _BFMZeroMinimalBackwardFutureWindow(_BFMZeroJointSelection):
         return value
 
 
-class bfm_zero_minimal_encoder_state_future(_BFMZeroMinimalBackwardFutureWindow):
+class bfm_zero_minimal_encoder_state_future(_BFMZeroMinimalBackwardFutureWindow, namespace="bfm_zero"):
     obs_key = "state"
     obs_dim = BFM_ZERO_STATE_DIM
 
 
-class bfm_zero_minimal_privileged_state_future(_BFMZeroMinimalBackwardFutureWindow):
+class bfm_zero_minimal_privileged_state_future(_BFMZeroMinimalBackwardFutureWindow, namespace="bfm_zero"):
     obs_key = "privileged_state"
     obs_dim = BFM_ZERO_PRIVILEGED_STATE_DIM
 
 
-class bfm_zero_minimal_future_window_weight(Observation):
+class bfm_zero_minimal_future_window_weight(motion_obs, namespace="bfm_zero"):
     """Validity weights for BFM-Zero future-window latent smoothing."""
 
     def __init__(
@@ -1071,7 +1136,16 @@ class bfm_zero_minimal_future_window_weight(Observation):
         motion_t_offset: int = -1,
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            future_steps=None,
+            joint_names=list(kwargs["env"].policy_joint_names),
+            body_names=[name for name in BFM_ZERO_MINIMAL_BODY_NAMES if name != "head_link"],
+            root_body_name="pelvis",
+            anchor_body_name="torso_link",
+            joint_order="given",
+            body_order="given",
+            **kwargs,
+        )
         self.seq_length = int(seq_length)
         self.clamp_to_final = bool(clamp_to_final)
         self.motion_t_offset = int(motion_t_offset)

@@ -51,8 +51,10 @@ Currently supported adapted checkpoint families:
 - BFM-Zero: `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml`
 - HEFT: `checkpoints/heft/pmg/policy.yaml`, `checkpoints/heft/compliance/policy.yaml`
 - Humanoid-GPT: `checkpoints/humanoid-gpt/policy.yaml`
-- SONIC G1: `checkpoints/sonic/g1/policy.yaml`
-- SONIC SMPL: `checkpoints/sonic/smpl/policy.yaml`
+- SONIC release G1: `checkpoints/sonic/release/g1/policy.yaml`
+- SONIC release SMPL: `checkpoints/sonic/release/smpl/policy.yaml`
+- SONIC low-latency G1: `checkpoints/sonic/low_latency/g1/policy.yaml`
+- SONIC low-latency SMPL: `checkpoints/sonic/low_latency/smpl/policy.yaml`
 - TeleopIT: `checkpoints/teleopit/policy.yaml`
 - TWIST2: `checkpoints/twist2/policy.yaml`
 

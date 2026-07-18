@@ -25,9 +25,21 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--num-motions", type=int, default=8, help="Evaluate first N motions.")
     parser.add_argument("--seeds", type=int, nargs="+", default=[0], help="Seeds to run.")
     parser.add_argument("--initial-pause-s", type=float, default=5.0)
+    parser.add_argument(
+        "--max-runtime-s",
+        type=float,
+        default=None,
+        help="Optional simulated-time limit forwarded to integrated_sim2sim.",
+    )
     parser.add_argument("--robot", default="g1")
     parser.add_argument("--policy", action="append", default=[], help="Policy as name=path.")
     parser.add_argument("--skip-existing", action="store_true")
+    parser.add_argument(
+        "--motion-index-offset",
+        type=int,
+        default=0,
+        help="Offset added to motion indices when naming trajectories for sharded motion lists.",
+    )
     return parser.parse_args()
 
 
@@ -158,36 +170,44 @@ def main() -> None:
     rows: list[dict[str, str | int]] = []
     for policy_name, policy_config in policies.items():
         for motion_index, motion_path in enumerate(motions):
+            output_motion_index = args.motion_index_offset + motion_index
             motion_slug = motion_path.stem
             for seed in args.seeds:
-                traj_path = output_dir / "trajectories" / policy_name / f"seed_{seed}" / f"{motion_index:02d}_{motion_slug}.npz"
+                traj_path = (
+                    output_dir
+                    / "trajectories"
+                    / policy_name
+                    / f"seed_{seed}"
+                    / f"{output_motion_index:02d}_{motion_slug}.npz"
+                )
                 if not (args.skip_existing and traj_path.is_file()):
-                    _run(
-                        [
-                            sys.executable,
-                            "-m",
-                            "sim2real.sim_env.integrated_sim2sim",
-                            "--robot",
-                            args.robot,
-                            "--policy-config",
-                            policy_config,
-                            "--motion-path",
-                            str(motion_path),
-                            "--headless",
-                            "--run-once",
-                            "--initial-pause-s",
-                            str(args.initial_pause_s),
-                            "--trajectory-output",
-                            str(traj_path),
-                            "--seed",
-                            str(seed),
-                        ]
-                    )
+                    cmd = [
+                        sys.executable,
+                        "-m",
+                        "sim2real.sim_env.integrated_sim2sim",
+                        "--robot",
+                        args.robot,
+                        "--policy-config",
+                        policy_config,
+                        "--motion-path",
+                        str(motion_path),
+                        "--headless",
+                        "--run-once",
+                        "--initial-pause-s",
+                        str(args.initial_pause_s),
+                        "--trajectory-output",
+                        str(traj_path),
+                        "--seed",
+                        str(seed),
+                    ]
+                    if args.max_runtime_s is not None:
+                        cmd.extend(["--max-runtime-s", str(args.max_runtime_s)])
+                    _run(cmd)
                 rows.append(
                     {
                         "policy": policy_name,
                         "policy_config": policy_config,
-                        "motion_index": motion_index,
+                        "motion_index": output_motion_index,
                         "motion_path": str(motion_path),
                         "seed": seed,
                         "trajectory_path": str(traj_path),

@@ -14,7 +14,12 @@ np.set_printoptions(precision=3, suppress=True, linewidth=1000)
 
 DEFAULT_MOTION_ZMQ_CONNECT = "tcp://127.0.0.1:28701"
 DEFAULT_SMPL_MOTION_ZMQ_CONNECT = "tcp://127.0.0.1:28702"
-SMPL_ENCODER_OBSERVATION = "sonic_smpl_official_encoder_input"
+SMPL_ENCODER_OBSERVATIONS = {
+    "sonic_smpl_official_encoder_input",
+    "sonic_smpl_joints_multi_future_local",
+    "sonic_smpl_root_ori_b_multi_future",
+    "sonic_joint_pos_multi_future_wrist_for_smpl",
+}
 
 
 def _policy_uses_smpl_motion(policy_config: dict[str, Any]) -> bool:
@@ -29,7 +34,7 @@ def _policy_uses_smpl_motion(policy_config: dict[str, Any]) -> bool:
             target = obs_name
             if isinstance(obs_config, dict):
                 target = str(obs_config.get("_target_", obs_name))
-            if target.split(".")[-1] == SMPL_ENCODER_OBSERVATION:
+            if target.split(".")[-1] in SMPL_ENCODER_OBSERVATIONS:
                 return True
     return False
 

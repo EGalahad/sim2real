@@ -4,12 +4,12 @@ from typing import Any, Dict, Sequence
 
 import numpy as np
 
+from sim2real.rl_policy.observations.motion import motion_obs
 from sim2real.rl_policy.observations.base import Observation
-from sim2real.rl_policy.utils.motion import MotionData
 from sim2real.utils.math import matrix_from_quat, quat_conjugate, quat_mul, quat_rotate_inverse_numpy
 
 
-class heft_policy_obs(Observation):
+class heft_policy_obs(motion_obs, namespace="heft"):
     """HEFT G1 PMG policy input from the motion_tracking sim2real branch.
 
     Mirrors upstream ``TrackingPolicyRaw._build_obs_modules()`` order:
@@ -35,8 +35,20 @@ class heft_policy_obs(Observation):
         boot_indicator_max: int = 25,
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
-        self.future_steps = np.asarray([int(step) for step in future_steps], dtype=np.int64)
+        resolved_joint_names = (
+            list(joint_names) if joint_names is not None else list(kwargs["env"].policy_joint_names)
+        )
+        super().__init__(
+            future_steps=future_steps,
+            joint_names=resolved_joint_names,
+            body_names=[root_body_name],
+            root_body_name=root_body_name,
+            anchor_body_name=root_body_name,
+            joint_order="given",
+            body_order="given",
+            **kwargs,
+        )
+        self.future_steps = np.asarray([int(step) for step in self.future_steps], dtype=np.int64)
         if self.future_steps.ndim != 1 or self.future_steps.size == 0:
             raise ValueError("future_steps must be a non-empty 1D sequence")
         if int(self.future_steps[0]) != 0:
@@ -65,16 +77,12 @@ class heft_policy_obs(Observation):
             raise ValueError(f"boot_indicator_max must be positive, got {self.boot_indicator_max}")
         self._boot_indicator_value = self.boot_indicator_max
 
-        self.joint_names = list(joint_names or self.env.policy_joint_names)
-        self.root_body_name = str(root_body_name)
-
         if len(self.joint_names) != 29:
             raise ValueError(f"HEFT G1 tracking expects 29 joints, got {len(self.joint_names)}")
 
         self._state_joint_indices = [
             self.state_processor.joint_names.index(name) for name in self.joint_names
         ]
-        self._cached_motion_layout: tuple[tuple[str, ...], tuple[str, ...]] | None = None
 
         self._root_angvel_history = np.zeros(
             (max(self.root_angvel_history_steps) + 1, 3),
@@ -99,7 +107,7 @@ class heft_policy_obs(Observation):
         self._obs = np.zeros((1, self.OBS_DIM), dtype=np.float32)
 
     def reset(self) -> None:
-        self._cached_motion_layout = None
+        super().reset()
         self._boot_indicator_value = self.boot_indicator_max
         self._root_angvel_history[:] = 0.0
         self._projected_gravity_history[:] = 0.0
@@ -107,56 +115,6 @@ class heft_policy_obs(Observation):
         self._joint_vel_history[:] = 0.0
         self._prev_actions[:] = 0.0
         self._obs[:] = 0.0
-
-    def _refresh_motion_indices(self) -> None:
-        joint_names = tuple(self.state_processor.motion_joint_names)
-        body_names = tuple(self.state_processor.motion_body_names)
-        layout = (joint_names, body_names)
-        if self._cached_motion_layout == layout:
-            return
-
-        missing_joints = [name for name in self.joint_names if name not in joint_names]
-        if missing_joints:
-            raise ValueError(f"Motion source missing HEFT policy joints: {missing_joints}")
-        if self.root_body_name not in body_names:
-            raise ValueError(f"Motion source missing root body {self.root_body_name!r}")
-
-        self._motion_joint_indices = [joint_names.index(name) for name in self.joint_names]
-        self._root_body_idx = body_names.index(self.root_body_name)
-        self._cached_motion_layout = layout
-
-    def _motion_slice(self) -> MotionData:
-        self._refresh_motion_indices()
-        backend = getattr(self.state_processor, "motion_backend", "")
-        if backend == "npz":
-            return self.state_processor.motion_dataset.get_slice(
-                self.state_processor.motion_ids,
-                self.state_processor.motion_t,
-                self.future_steps,
-            )
-
-        motion_data: MotionData = self.state_processor.motion_data
-        available_steps = [int(step) for step in self.state_processor.motion_future_steps.tolist()]
-        step_indices = []
-        for step in [int(step) for step in self.future_steps.tolist()]:
-            if step not in available_steps:
-                raise ValueError(
-                    f"HEFT obs requested future step {step}, "
-                    f"but motion source provides {available_steps}"
-                )
-            step_indices.append(available_steps.index(step))
-
-        return MotionData(
-            motion_id=np.take(motion_data.motion_id, step_indices, axis=1),
-            step=np.take(motion_data.step, step_indices, axis=1),
-            timestamps_ns=np.take(motion_data.timestamps_ns, step_indices, axis=1),
-            joint_pos=np.take(motion_data.joint_pos, step_indices, axis=1),
-            joint_vel=np.take(motion_data.joint_vel, step_indices, axis=1),
-            body_pos_w=np.take(motion_data.body_pos_w, step_indices, axis=1),
-            body_lin_vel_w=np.take(motion_data.body_lin_vel_w, step_indices, axis=1),
-            body_quat_w=np.take(motion_data.body_quat_w, step_indices, axis=1),
-            body_ang_vel_w=np.take(motion_data.body_ang_vel_w, step_indices, axis=1),
-        )
 
     def _current_joint_pos(self) -> np.ndarray:
         return np.asarray(
@@ -189,6 +147,7 @@ class heft_policy_obs(Observation):
         return np.asarray([value, value * threshold, value * kp], dtype=np.float32)
 
     def update(self, data: Dict[str, Any]) -> None:
+        super().update(data)
         self._boot_indicator_value = max(self._boot_indicator_value - 1, 0)
         self._append_history(
             self._root_angvel_history,
@@ -212,20 +171,10 @@ class heft_policy_obs(Observation):
 
         self._obs[0, :] = self._build_obs()
 
-    def _build_obs(self) -> np.ndarray:
-        motion_data = self._motion_slice()
-        ref_joint_pos = np.asarray(
-            motion_data.joint_pos[0][:, self._motion_joint_indices],
-            dtype=np.float32,
-        )
-        ref_root_pos_w = np.asarray(
-            motion_data.body_pos_w[0, :, self._root_body_idx],
-            dtype=np.float32,
-        )
-        ref_root_quat_w = np.asarray(
-            motion_data.body_quat_w[0, :, self._root_body_idx],
-            dtype=np.float32,
-        )
+    def _build_obs_parts(self) -> Dict[str, np.ndarray]:
+        ref_joint_pos = np.asarray(self._select(self.ref_joint_pos_future)[0], dtype=np.float32)
+        ref_root_pos_w = np.asarray(self._select(self.ref_root_pos_future_w)[0], dtype=np.float32)
+        ref_root_quat_w = np.asarray(self._select(self.ref_root_quat_future_w)[0], dtype=np.float32)
 
         pos_diff_w = ref_root_pos_w[1:] - ref_root_pos_w[0:1]
         base_ref_quat = np.broadcast_to(ref_root_quat_w[0:1], (pos_diff_w.shape[0], 4))
@@ -253,28 +202,46 @@ class heft_policy_obs(Observation):
         )
         target_projected_gravity = quat_rotate_inverse_numpy(ref_root_quat_w, down).reshape(-1)
 
-        obs_parts = [
-            np.asarray(
+        parts = {
+            "context": np.asarray(
                 [self._boot_indicator_value / self.boot_indicator_max],
                 dtype=np.float32,
             ),
-            command,
-        ]
+            "motion_command": command.astype(np.float32),
+        }
         if self.INCLUDE_COMPLIANCE_FLAG:
-            obs_parts.append(self._compliance_obs())
-        obs_parts.extend(
-            [
-                target_joint,
-                ref_root_pos_w[:, 2].astype(np.float32),
-                target_projected_gravity.astype(np.float32),
-                self._root_angvel_history[self.root_angvel_history_steps].reshape(-1),
-                self._projected_gravity_history[self.projected_gravity_history_steps].reshape(-1),
-                self._joint_pos_history[self.joint_pos_history_steps].reshape(-1),
-                self._joint_vel_history[self.joint_vel_history_steps].reshape(-1),
-                self._prev_actions.reshape(-1),
-            ]
+            parts["compliance_context"] = self._compliance_obs()
+        parts.update(
+            {
+            "target_motion": np.concatenate(
+                [
+                    target_joint,
+                    ref_root_pos_w[:, 2].astype(np.float32),
+                    target_projected_gravity.astype(np.float32),
+                ],
+                axis=0,
+            ).astype(np.float32),
+            "proprioception": np.concatenate(
+                [
+                    self._root_angvel_history[self.root_angvel_history_steps].reshape(-1),
+                    self._projected_gravity_history[
+                        self.projected_gravity_history_steps
+                    ].reshape(-1),
+                    self._joint_pos_history[self.joint_pos_history_steps].reshape(-1),
+                    self._joint_vel_history[self.joint_vel_history_steps].reshape(-1),
+                    self._prev_actions.reshape(-1),
+                ],
+                axis=0,
+            ).astype(np.float32),
+            }
         )
-        obs = np.concatenate(obs_parts, axis=0).astype(np.float32)
+        return parts
+
+    def _build_obs(self) -> np.ndarray:
+        obs = np.concatenate(
+            list(self._build_obs_parts().values()),
+            axis=0,
+        ).astype(np.float32)
         if obs.shape[0] != self.OBS_DIM:
             raise ValueError(f"HEFT G1 tracking obs dim mismatch: {obs.shape[0]} != {self.OBS_DIM}")
         return obs
@@ -283,9 +250,58 @@ class heft_policy_obs(Observation):
         return self._obs
 
 
-class heft_compliance_policy_obs(heft_policy_obs):
+class heft_compliance_policy_obs(heft_policy_obs, namespace="heft"):
     """HEFT G1 Compliance policy input with compliance flag forced off."""
 
     OBS_DIM = 1590
     INCLUDE_COMPLIANCE_FLAG = True
     COMPLIANCE_FLAG = False
+
+
+class heft_component_obs(Observation, namespace="heft"):
+    """One semantic HEFT input group without relying on flat-vector offsets."""
+
+    def __init__(
+        self,
+        component: str,
+        policy_variant: str = "pmg",
+        **kwargs: Any,
+    ) -> None:
+        if component not in {
+            "context",
+            "motion_command",
+            "compliance_context",
+            "target_motion",
+            "proprioception",
+        }:
+            raise ValueError(f"Unsupported HEFT component: {component!r}")
+        if policy_variant not in {"pmg", "compliance"}:
+            raise ValueError(f"Unsupported HEFT policy variant: {policy_variant!r}")
+        super().__init__(env=kwargs["env"])
+        self.component = component
+        cache_name = f"_heft_{policy_variant}_semantic_observation"
+        self._owns_core = not hasattr(self.env, cache_name)
+        if self._owns_core:
+            core_class = (
+                heft_compliance_policy_obs
+                if policy_variant == "compliance"
+                else heft_policy_obs
+            )
+            setattr(self.env, cache_name, core_class(**kwargs))
+        self._core = getattr(self.env, cache_name)
+
+    def reset(self) -> None:
+        if self._owns_core:
+            self._core.reset()
+
+    def update(self, data: Dict[str, Any]) -> None:
+        if self._owns_core:
+            self._core.update(data)
+
+    def compute(self) -> np.ndarray:
+        parts = self._core._build_obs_parts()
+        if self.component not in parts:
+            raise ValueError(
+                f"HEFT component {self.component!r} is not present in this policy variant"
+            )
+        return parts[self.component][None, :]

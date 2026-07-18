@@ -23,8 +23,10 @@ policy YAML。
 | TeleopIT | `checkpoints/teleopit/policy.yaml` | 正常 G1 motion stream。 |
 | Humanoid-GPT | `checkpoints/humanoid-gpt/policy.yaml` | 正常 G1 motion stream。 |
 | BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | ZMQ publisher 需要传 checkpoint 对应的 MJCF override。 |
-| SONIC G1 | `checkpoints/sonic/g1/policy.yaml` | 正常 G1 motion stream。 |
-| SONIC SMPL | `checkpoints/sonic/smpl/policy.yaml` | 使用 `motion_backend: smpl_zmq` 和 SMPL publisher。 |
+| SONIC release G1 | `checkpoints/sonic/release/g1/policy.yaml` | 正常 G1 motion stream。 |
+| SONIC release SMPL | `checkpoints/sonic/release/smpl/policy.yaml` | 使用 `motion_backend: smpl_zmq` 和 SMPL publisher。 |
+| SONIC low-latency G1 | `checkpoints/sonic/low_latency/g1/policy.yaml` | 使用低延迟 checkpoint 的正常 G1 motion stream。 |
+| SONIC low-latency SMPL | `checkpoints/sonic/low_latency/smpl/policy.yaml` | 使用四帧 SMPL 输入窗口。 |
 | TWIST2 | `checkpoints/twist2/policy.yaml` | 正常 G1 motion stream。 |
 
 ```bash
@@ -78,7 +80,7 @@ uv run sim2real/sim_env/base_sim.py --robot g1
 ```bash
 uv run sim2real/rl_policy/tracking.py \
   --robot g1 \
-  --policy-config checkpoints/sonic/smpl/policy.yaml \
+  --policy-config checkpoints/sonic/release/smpl/policy.yaml \
   --inference-backend onnx-cpu \
   --robot-io zmq \
   --controller pico

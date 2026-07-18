@@ -6,7 +6,7 @@ import numpy as np
 
 from sim2real.rl_policy.observations.base import Observation
 from sim2real.rl_policy.observations.common import _get_simulation_joint_selection
-from sim2real.rl_policy.utils.motion import MotionData
+from sim2real.rl_policy.observations.motion import motion_obs
 from sim2real.utils.math import (
     matrix_from_quat,
     projected_yaw_quat,
@@ -14,15 +14,14 @@ from sim2real.utils.math import (
     quat_mul,
     quat_rotate_inverse_numpy,
 )
-from sim2real.utils.strings import resolve_matching_names
 
 
-class sonic_encoder_select(Observation):
+class sonic_encoder_select(Observation, namespace="sonic"):
     def compute(self) -> np.ndarray:
         return np.zeros(1, dtype=np.float32)
 
 
-class sonic_encoder_index(Observation):
+class sonic_encoder_index(Observation, namespace="sonic"):
     def __init__(self, width: int = 4, mode_id: float = 0.0, **kwargs):
         super().__init__(**kwargs)
         self.width = int(width)
@@ -35,7 +34,7 @@ class sonic_encoder_index(Observation):
         return out
 
 
-class sonic_smpl_official_encoder_input(Observation):
+class sonic_smpl_official_encoder_input(Observation, namespace="sonic"):
     """Full 1762D official encoder input with SMPL-mode fields populated.
 
     Official deployment exports one encoder input containing all enabled encoder
@@ -138,7 +137,145 @@ class sonic_smpl_official_encoder_input(Observation):
         return out
 
 
-class _SonicMotionObservation(Observation):
+class _SonicSmplFutureObservation(Observation):
+    def __init__(self, future_steps: Sequence[int], **kwargs):
+        super().__init__(**kwargs)
+        self.future_steps = tuple(int(step) for step in future_steps)
+        if not self.future_steps:
+            raise ValueError("future_steps must be non-empty")
+
+    @property
+    def num_future_frames(self) -> int:
+        return len(self.future_steps)
+
+    def _validate_frames(self, values: np.ndarray, name: str) -> np.ndarray:
+        if values.shape[0] != self.num_future_frames:
+            raise ValueError(
+                f"{name} has {values.shape[0]} future frames, expected "
+                f"{self.num_future_frames} from future_steps={self.future_steps}"
+            )
+        return values
+
+
+class sonic_smpl_joints_multi_future_local(
+    _SonicSmplFutureObservation,
+    namespace="sonic",
+):
+    """Root-local SMPL joint positions without a full-encoder layout."""
+
+    NUM_SMPL_JOINTS = 24
+
+    def compute(self) -> np.ndarray:
+        motion_data = self.state_processor.motion_data
+        if motion_data is None:
+            return np.zeros(
+                self.num_future_frames * self.NUM_SMPL_JOINTS * 3,
+                dtype=np.float32,
+            )
+        joints = np.asarray(motion_data.smpl_joint_pos_root[0], dtype=np.float32)
+        self._validate_frames(joints, "smpl_joint_pos_root")
+        if joints.shape[1:] != (self.NUM_SMPL_JOINTS, 3):
+            raise ValueError(
+                "smpl_joint_pos_root must have per-frame shape "
+                f"({self.NUM_SMPL_JOINTS}, 3), got {joints.shape[1:]}"
+            )
+        return joints.reshape(-1)
+
+
+class sonic_smpl_root_ori_b_multi_future(
+    _SonicSmplFutureObservation,
+    namespace="sonic",
+):
+    """Future SMPL root orientations relative to the robot root."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._heading_offset: np.ndarray | None = None
+
+    def reset(self) -> None:
+        self._heading_offset = None
+        motion_data = getattr(self.state_processor, "motion_data", None)
+        if motion_data is not None:
+            ref_root_quat_w = np.asarray(
+                motion_data.smpl_root_quat_w[0], dtype=np.float32
+            )
+            self._ensure_heading_offset(ref_root_quat_w)
+
+    def _ensure_heading_offset(self, ref_root_quat_w: np.ndarray) -> None:
+        if self._heading_offset is not None:
+            return
+        robot_root_quat_w = np.asarray(
+            self.state_processor.root_quat_w, dtype=np.float32
+        ).reshape(1, 4)
+        self._heading_offset = quat_mul(
+            projected_yaw_quat(robot_root_quat_w),
+            quat_conjugate(projected_yaw_quat(ref_root_quat_w[:1])),
+        )[0].astype(np.float32, copy=False)
+
+    def compute(self) -> np.ndarray:
+        motion_data = self.state_processor.motion_data
+        if motion_data is None:
+            return np.zeros(self.num_future_frames * 6, dtype=np.float32)
+        ref_root_quat_w = np.asarray(
+            motion_data.smpl_root_quat_w[0], dtype=np.float32
+        )
+        self._validate_frames(ref_root_quat_w, "smpl_root_quat_w")
+        self._ensure_heading_offset(ref_root_quat_w)
+        assert self._heading_offset is not None
+        heading_offset = np.broadcast_to(
+            self._heading_offset.reshape(1, 4), ref_root_quat_w.shape
+        )
+        aligned_ref_root = quat_mul(heading_offset, ref_root_quat_w)
+        robot_root_quat_w = np.broadcast_to(
+            np.asarray(self.state_processor.root_quat_w, dtype=np.float32).reshape(1, 4),
+            aligned_ref_root.shape,
+        )
+        rel_quat = quat_mul(quat_conjugate(robot_root_quat_w), aligned_ref_root)
+        return matrix_from_quat(rel_quat)[..., :, :2].reshape(-1).astype(np.float32)
+
+
+class sonic_joint_pos_multi_future_wrist_for_smpl(
+    _SonicSmplFutureObservation,
+    namespace="sonic",
+):
+    """Future G1 wrist joint targets paired with an SMPL reference."""
+
+    WRIST_JOINT_NAMES = sonic_smpl_official_encoder_input.WRIST_JOINT_NAMES
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._cached_joint_names: tuple[str, ...] | None = None
+        self._wrist_indices: np.ndarray | None = None
+
+    def reset(self) -> None:
+        self._cached_joint_names = None
+        self._wrist_indices = None
+
+    def _refresh_wrist_indices(self) -> np.ndarray:
+        joint_names = tuple(self.state_processor.motion_joint_names)
+        if self._cached_joint_names == joint_names and self._wrist_indices is not None:
+            return self._wrist_indices
+        missing = [name for name in self.WRIST_JOINT_NAMES if name not in joint_names]
+        if missing:
+            raise ValueError(f"SMPL motion joint_names missing wrist joints: {missing}")
+        self._wrist_indices = np.asarray(
+            [joint_names.index(name) for name in self.WRIST_JOINT_NAMES], dtype=int
+        )
+        self._cached_joint_names = joint_names
+        return self._wrist_indices
+
+    def compute(self) -> np.ndarray:
+        motion_data = self.state_processor.motion_data
+        if motion_data is None:
+            return np.zeros(
+                self.num_future_frames * len(self.WRIST_JOINT_NAMES), dtype=np.float32
+            )
+        joint_pos = np.asarray(motion_data.joint_pos[0], dtype=np.float32)
+        self._validate_frames(joint_pos, "joint_pos")
+        return joint_pos[:, self._refresh_wrist_indices()].reshape(-1)
+
+
+class _SonicMotionObservation(motion_obs):
     def __init__(
         self,
         future_steps: Sequence[int],
@@ -146,93 +283,38 @@ class _SonicMotionObservation(Observation):
         root_body_name: str = "pelvis",
         **kwargs,
     ):
-        super().__init__(**kwargs)
-        self.future_steps = np.asarray([int(step) for step in future_steps], dtype=int)
+        super().__init__(
+            future_steps=future_steps,
+            joint_names=joint_names,
+            body_names=[root_body_name],
+            root_body_name=root_body_name,
+            anchor_body_name=root_body_name,
+            joint_order="policy",
+            body_order="given",
+            **kwargs,
+        )
         if self.future_steps.ndim != 1 or self.future_steps.size == 0:
             raise ValueError("future_steps must be a non-empty 1D sequence")
-        self.root_body_name = root_body_name
-        self.requested_joint_names = joint_names
-        self._cached_motion_layout: tuple[tuple[str, ...], tuple[str, ...]] | None = None
-
-    def _refresh_motion_indices(self) -> None:
-        joint_names = tuple(self.state_processor.motion_joint_names)
-        body_names = tuple(self.state_processor.motion_body_names)
-        layout = (joint_names, body_names)
-        if self._cached_motion_layout == layout:
-            return
-
-        _, matched_joint_names = resolve_matching_names(
-            self.requested_joint_names,
-            joint_names,
-            preserve_order=True,
-        )
-        preferred_joint_names = list(self.env.policy_joint_names)
-        ordered_joint_names = [
-            name for name in preferred_joint_names if name in matched_joint_names
-        ]
-        if len(ordered_joint_names) != len(matched_joint_names):
-            missing = [name for name in matched_joint_names if name not in ordered_joint_names]
-            raise ValueError(f"Failed to order SONIC motion joints: {missing}")
-
-        self._joint_indices = [joint_names.index(name) for name in ordered_joint_names]
-        self._root_body_idx = body_names.index(self.root_body_name)
-        self._cached_motion_layout = layout
-
-    def _motion_slice(self, steps: np.ndarray):
-        self._refresh_motion_indices()
-        if self.state_processor.motion_backend == "npz":
-            return self.state_processor.motion_dataset.get_slice(
-                self.state_processor.motion_ids,
-                self.state_processor.motion_t,
-                steps,
-            )
-
-        motion_data: MotionData = self.state_processor.motion_data
-        available_steps = [
-            int(step) for step in self.state_processor.motion_future_steps.tolist()
-        ]
-        step_indices = []
-        for step in [int(step) for step in steps.tolist()]:
-            if step not in available_steps:
-                raise ValueError(
-                    f"SONIC requested future step {step}, "
-                    f"but motion source provides {available_steps}"
-                )
-            step_indices.append(available_steps.index(step))
-
-        return MotionData(
-            motion_id=np.take(motion_data.motion_id, step_indices, axis=1),
-            step=np.take(motion_data.step, step_indices, axis=1),
-            timestamps_ns=np.take(motion_data.timestamps_ns, step_indices, axis=1),
-            joint_pos=np.take(motion_data.joint_pos, step_indices, axis=1),
-            joint_vel=np.take(motion_data.joint_vel, step_indices, axis=1),
-            body_pos_w=np.take(motion_data.body_pos_w, step_indices, axis=1),
-            body_lin_vel_w=np.take(motion_data.body_lin_vel_w, step_indices, axis=1),
-            body_quat_w=np.take(motion_data.body_quat_w, step_indices, axis=1),
-            body_ang_vel_w=np.take(motion_data.body_ang_vel_w, step_indices, axis=1),
-        )
 
     def _playback_steps(self) -> np.ndarray:
         return self.future_steps
 
 
-class sonic_command_multi_future_nonflat(_SonicMotionObservation):
+class sonic_command_multi_future_nonflat(_SonicMotionObservation, namespace="sonic"):
     def update(self, data: Dict[str, Any]) -> None:
-        steps = self._playback_steps()
-        motion_data = self._motion_slice(steps)
-        joint_pos = motion_data.joint_pos[:, :, self._joint_indices]
-        joint_vel = motion_data.joint_vel[:, :, self._joint_indices]
+        super().update(data)
+        joint_pos = self._select(self.ref_joint_pos_future)
+        joint_vel = self._select(self.ref_joint_vel_future)
         self.command = np.concatenate([joint_pos, joint_vel], axis=1)
 
     def compute(self) -> np.ndarray:
         return self.command.reshape(-1)
 
 
-class sonic_motion_anchor_ori_b_mf_nonflat(_SonicMotionObservation):
+class sonic_motion_anchor_ori_b_mf_nonflat(_SonicMotionObservation, namespace="sonic"):
     def reset(self) -> None:
-        steps = np.zeros(1, dtype=int)
-        motion_data = self._motion_slice(steps)
-        ref_root_quat_w = motion_data.body_quat_w[0, 0, self._root_body_idx]
+        super().reset()
+        ref_root_quat_w = self.ref_root_quat_w[0]
         robot_root_quat_w = self.state_processor.root_quat_w
         self._heading_offset = quat_mul(
             projected_yaw_quat(robot_root_quat_w[None, :]),
@@ -242,9 +324,8 @@ class sonic_motion_anchor_ori_b_mf_nonflat(_SonicMotionObservation):
     def update(self, data: Dict[str, Any]) -> None:
         if not hasattr(self, "_heading_offset"):
             self.reset()
-        steps = self._playback_steps()
-        motion_data = self._motion_slice(steps)
-        ref_root_quat_w = motion_data.body_quat_w[:, :, self._root_body_idx, :]
+        super().update(data)
+        ref_root_quat_w = self._select(self.ref_root_quat_future_w)
         heading_offset = np.broadcast_to(
             self._heading_offset.reshape(1, 1, 4),
             ref_root_quat_w.shape,
@@ -287,7 +368,7 @@ class _SonicHistoryObservation(Observation):
         return self.history[self._history_indices].reshape(-1)
 
 
-class sonic_root_ang_vel_history(_SonicHistoryObservation):
+class sonic_root_ang_vel_history(_SonicHistoryObservation, namespace="sonic"):
     def __init__(self, history_steps: Sequence[int], **kwargs):
         super().__init__(history_steps=history_steps, **kwargs)
         self.history = np.zeros((self.max_lag + 1, 3), dtype=np.float32)
@@ -299,7 +380,7 @@ class sonic_root_ang_vel_history(_SonicHistoryObservation):
         return self._history_flat()
 
 
-class sonic_projected_gravity_history(_SonicHistoryObservation):
+class sonic_projected_gravity_history(_SonicHistoryObservation, namespace="sonic"):
     def __init__(self, history_steps: Sequence[int], **kwargs):
         super().__init__(history_steps=history_steps, **kwargs)
         self.history = np.zeros((self.max_lag + 1, 3), dtype=np.float32)
@@ -315,7 +396,7 @@ class sonic_projected_gravity_history(_SonicHistoryObservation):
         return self._history_flat()
 
 
-class sonic_joint_pos_rel_history(_SonicHistoryObservation):
+class sonic_joint_pos_rel_history(_SonicHistoryObservation, namespace="sonic"):
     def __init__(
         self,
         history_steps: Sequence[int],
@@ -337,7 +418,7 @@ class sonic_joint_pos_rel_history(_SonicHistoryObservation):
         return self._history_flat()
 
 
-class sonic_joint_vel_history(_SonicHistoryObservation):
+class sonic_joint_vel_history(_SonicHistoryObservation, namespace="sonic"):
     def __init__(
         self,
         history_steps: Sequence[int],
@@ -358,7 +439,7 @@ class sonic_joint_vel_history(_SonicHistoryObservation):
         return self._history_flat()
 
 
-class sonic_prev_actions_history(_SonicHistoryObservation):
+class sonic_prev_actions_history(_SonicHistoryObservation, namespace="sonic"):
     def __init__(self, history_steps: Sequence[int], **kwargs):
         super().__init__(history_steps=history_steps, **kwargs)
         self.history = np.zeros(

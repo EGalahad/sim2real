@@ -25,8 +25,10 @@ value.
 | TeleopIT | `checkpoints/teleopit/policy.yaml` | Normal G1 motion stream. |
 | Humanoid-GPT | `checkpoints/humanoid-gpt/policy.yaml` | Normal G1 motion stream. |
 | BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | Requires the checkpoint-specific MJCF override for ZMQ publishers. |
-| SONIC G1 | `checkpoints/sonic/g1/policy.yaml` | Normal G1 motion stream. |
-| SONIC SMPL | `checkpoints/sonic/smpl/policy.yaml` | Uses `motion_backend: smpl_zmq` and the SMPL publisher. |
+| SONIC release G1 | `checkpoints/sonic/release/g1/policy.yaml` | Normal G1 motion stream. |
+| SONIC release SMPL | `checkpoints/sonic/release/smpl/policy.yaml` | Uses `motion_backend: smpl_zmq` and the SMPL publisher. |
+| SONIC low-latency G1 | `checkpoints/sonic/low_latency/g1/policy.yaml` | Normal G1 motion stream with the low-latency checkpoint. |
+| SONIC low-latency SMPL | `checkpoints/sonic/low_latency/smpl/policy.yaml` | Four-frame SMPL input horizon. |
 | TWIST2 | `checkpoints/twist2/policy.yaml` | Normal G1 motion stream. |
 
 ```bash
@@ -81,7 +83,7 @@ uv run sim2real/sim_env/base_sim.py --robot g1
 ```bash
 uv run sim2real/rl_policy/tracking.py \
   --robot g1 \
-  --policy-config checkpoints/sonic/smpl/policy.yaml \
+  --policy-config checkpoints/sonic/release/smpl/policy.yaml \
   --inference-backend onnx-cpu \
   --robot-io zmq \
   --controller pico

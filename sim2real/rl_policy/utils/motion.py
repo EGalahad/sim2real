@@ -343,6 +343,7 @@ class MotionDataset:
             base_dir=base_dir,
             num_envs=1,
             full_motion=True,
+            shard=False,
         )
 
         canonical_joint_names = list(robot_cfg.joint_names)

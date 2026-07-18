@@ -39,7 +39,7 @@ def _get_simulation_joint_selection(env, joint_names: Union[str, List[str]]) -> 
     return joint_ids, ordered_joint_names
 
 
-class root_ang_vel_history(Observation):
+class root_ang_vel_history(Observation, namespace=("mimic_lite", "hdmi")):
     def __init__(self, history_steps: int, **kwargs):
         super().__init__(**kwargs)
         self.history_steps = history_steps
@@ -53,7 +53,7 @@ class root_ang_vel_history(Observation):
     def compute(self) -> np.ndarray:
         return self.root_ang_vel_history[self.history_steps].reshape(-1)
 
-class projected_gravity_history(Observation):
+class projected_gravity_history(Observation, namespace=("mimic_lite", "hdmi")):
     def __init__(self, history_steps: int, **kwargs):
         super().__init__(**kwargs)
         self.history_steps = history_steps
@@ -73,7 +73,7 @@ class projected_gravity_history(Observation):
     def compute(self) -> np.ndarray:
         return self.projected_gravity_history[self.history_steps].reshape(-1)
 
-class joint_pos_history(Observation):
+class joint_pos_history(Observation, namespace=("mimic_lite", "hdmi")):
     def __init__(self, history_steps: int, joint_names: Union[str, List[str]] = ".*", **kwargs):
         super().__init__(**kwargs)
         self.history_steps = history_steps
@@ -92,7 +92,7 @@ class joint_pos_history(Observation):
     def compute(self) -> np.ndarray:
         return self.joint_pos_multistep[self.history_steps].reshape(-1)
 
-class joint_vel_history(Observation):
+class joint_vel_history(Observation, namespace=("mimic_lite", "hdmi")):
     def __init__(self, history_steps: int, joint_names: Union[str, List[str]] = ".*", **kwargs):
         super().__init__(**kwargs)
         self.history_steps = history_steps
@@ -111,7 +111,7 @@ class joint_vel_history(Observation):
     def compute(self) -> np.ndarray:
         return self.joint_vel_multistep[self.history_steps].reshape(-1)
 
-class prev_actions(Observation):
+class prev_actions(Observation, namespace=("mimic_lite", "hdmi")):
     def __init__(self, steps: int, **kwargs):
         super().__init__(**kwargs)
         self.steps = steps

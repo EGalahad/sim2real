@@ -329,9 +329,7 @@ class IntegratedPolicyRuntime:
                 print(f"\t{obs_name}: {obs_config}")
                 obs_config = dict(obs_config)
                 obs_key = obs_config.pop("_target_", obs_name)
-                if "." in obs_key:
-                    obs_key = obs_key.split(".")[-1]
-                obs_class: Type[Observation] = Observation.registry[obs_key]
+                obs_class: Type[Observation] = Observation.resolve(obs_key)
                 obs_func = obs_class(env=self, **obs_config)
                 obs_funcs[obs_name] = obs_func
                 self._obs_items.append((obs_group, obs_name, obs_func))

@@ -5,8 +5,8 @@ from typing import Any, Dict, Sequence
 
 import numpy as np
 
+from sim2real.rl_policy.observations.motion import motion_obs
 from sim2real.rl_policy.observations.base import Observation
-from sim2real.rl_policy.utils.motion import MotionData
 from sim2real.utils.math import (
     matrix_from_quat,
     quat_conjugate,
@@ -75,7 +75,7 @@ def _batch_base_to_navi(base_to_world: np.ndarray, eps: float = 1.0e-8) -> np.nd
     return np.stack((x_axis, y_axis, z_axis), axis=-1).astype(np.float32)
 
 
-class humanoid_gpt_pns_obs(Observation):
+class humanoid_gpt_pns_obs(motion_obs, namespace="humanoid_gpt"):
     """Humanoid-GPT PNS non-privileged 136D observation.
 
     This mirrors GalaxyGeneralRobotics/Humanoid-GPT
@@ -94,9 +94,19 @@ class humanoid_gpt_pns_obs(Observation):
         reference_mjcf_path: str | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
-        self.joint_names = list(joint_names or self.env.policy_joint_names)
-        self.root_body_name = str(root_body_name)
+        resolved_joint_names = (
+            list(joint_names) if joint_names is not None else list(kwargs["env"].policy_joint_names)
+        )
+        super().__init__(
+            future_steps=None,
+            joint_names=resolved_joint_names,
+            body_names=[root_body_name],
+            root_body_name=root_body_name,
+            anchor_body_name=root_body_name,
+            joint_order="given",
+            body_order="given",
+            **kwargs,
+        )
         self.reference_cvel_source = str(reference_cvel_source).lower().strip()
         if self.reference_cvel_source not in {"motion", "mujoco"}:
             raise ValueError(
@@ -107,8 +117,11 @@ class humanoid_gpt_pns_obs(Observation):
         if self.reference_dt_s <= 0.0:
             raise ValueError(f"reference_dt_s must be positive, got {reference_dt_s}")
         self.reference_mjcf_path = reference_mjcf_path
-        self._cached_motion_layout: tuple[tuple[str, ...], tuple[str, ...]] | None = None
         self._obs = np.zeros((1, self.OBS_DIM), dtype=np.float32)
+        self._obs_parts = {
+            "proprioception": np.zeros(93, dtype=np.float32),
+            "motion_command": np.zeros(43, dtype=np.float32),
+        }
         self._robot_init_yaw: float | None = None
         self._robot_init_xy = np.zeros(2, dtype=np.float32)
         self._ref_init_yaw: float | None = None
@@ -137,8 +150,10 @@ class humanoid_gpt_pns_obs(Observation):
             )
 
     def reset(self) -> None:
-        self._cached_motion_layout = None
+        super().reset()
         self._obs[:] = 0.0
+        for part in self._obs_parts.values():
+            part[:] = 0.0
         self._robot_init_yaw = None
         self._robot_init_xy[:] = 0.0
         self._ref_init_yaw = None
@@ -208,48 +223,10 @@ class humanoid_gpt_pns_obs(Observation):
         self._reference_joint_qpos_indices = np.asarray(joint_qpos_indices, dtype=np.int64)
         self._reference_joint_dof_indices = np.asarray(joint_dof_indices, dtype=np.int64)
 
-    def _refresh_motion_indices(self) -> None:
-        joint_names = tuple(self.state_processor.motion_joint_names)
-        body_names = tuple(self.state_processor.motion_body_names)
-        layout = (joint_names, body_names)
-        if self._cached_motion_layout == layout:
-            return
-
-        self._motion_joint_indices = [joint_names.index(name) for name in self.joint_names]
-        self._root_body_idx = body_names.index(self.root_body_name)
-        self._cached_motion_layout = layout
-
-    def _motion_step(self, step: int) -> MotionData:
-        motion_data = self.state_processor.motion_data
-        if motion_data is None:
-            raise ValueError("Humanoid-GPT observation requires motion_data")
-
-        available_steps = [
-            int(available_step)
-            for available_step in self.state_processor.motion_future_steps.tolist()
-        ]
-        if int(step) not in available_steps:
-            raise ValueError(
-                f"Humanoid-GPT requested motion step {step}, "
-                f"but motion source provides {available_steps}"
-            )
-        step_idx = available_steps.index(int(step))
-        return motion_data[:, step_idx : step_idx + 1]
-
-    def _current_next_motions(self, data: Dict[str, Any]) -> tuple[MotionData, MotionData]:
-        available_steps = [
-            int(available_step)
-            for available_step in self.state_processor.motion_future_steps.tolist()
-        ]
-        if 0 not in available_steps:
-            raise ValueError(
-                "Humanoid-GPT observation requires motion.future_steps to include 0, "
-                f"got {available_steps}"
-            )
-
-        curr_step = 0
-        next_step = 1 if 1 in available_steps else 0
-        return self._motion_step(curr_step), self._motion_step(next_step)
+    def _current_next_indices(self) -> tuple[int, int]:
+        curr_idx = self._motion_step_index(0)
+        next_idx = self._motion_step_index(1) if 1 in self.available_future_steps else curr_idx
+        return curr_idx, next_idx
 
     def _ensure_root_alignment(
         self,
@@ -360,8 +337,8 @@ class humanoid_gpt_pns_obs(Observation):
         ).astype(np.float32)
 
     def update(self, data: Dict[str, Any]) -> None:
-        self._refresh_motion_indices()
-        curr_motion, next_motion = self._current_next_motions(data)
+        super().update(data)
+        curr_idx, next_idx = self._current_next_indices()
 
         robot_root_quat = np.asarray(self.state_processor.root_quat_w, dtype=np.float32)
         robot_root_pos = np.asarray(self.state_processor.root_pos_w, dtype=np.float32)
@@ -389,22 +366,10 @@ class humanoid_gpt_pns_obs(Observation):
                 f"expected {len(self.joint_names)}, got {last_action.size}"
             )
 
-        curr_root_pos = np.asarray(
-            curr_motion.body_pos_w[0, 0, self._root_body_idx],
-            dtype=np.float32,
-        )
-        curr_root_quat = np.asarray(
-            curr_motion.body_quat_w[0, 0, self._root_body_idx],
-            dtype=np.float32,
-        )
-        next_root_pos = np.asarray(
-            next_motion.body_pos_w[0, 0, self._root_body_idx],
-            dtype=np.float32,
-        )
-        next_root_quat = np.asarray(
-            next_motion.body_quat_w[0, 0, self._root_body_idx],
-            dtype=np.float32,
-        )
+        curr_root_pos = np.asarray(self.ref_root_pos_future_w[0, curr_idx], dtype=np.float32)
+        curr_root_quat = np.asarray(self.ref_root_quat_future_w[0, curr_idx], dtype=np.float32)
+        next_root_pos = np.asarray(self.ref_root_pos_future_w[0, next_idx], dtype=np.float32)
+        next_root_quat = np.asarray(self.ref_root_quat_future_w[0, next_idx], dtype=np.float32)
         curr_root_pos, curr_root_quat, yaw_offset = self._rebias_root_pose(
             curr_root_pos,
             curr_root_quat,
@@ -415,14 +380,8 @@ class humanoid_gpt_pns_obs(Observation):
             next_root_quat,
             robot_root_quat,
         )
-        next_joint_pos = np.asarray(
-            next_motion.joint_pos[0, 0, self._motion_joint_indices],
-            dtype=np.float32,
-        )
-        curr_joint_pos = np.asarray(
-            curr_motion.joint_pos[0, 0, self._motion_joint_indices],
-            dtype=np.float32,
-        )
+        next_joint_pos = np.asarray(self.ref_joint_pos_future[0, next_idx], dtype=np.float32)
+        curr_joint_pos = np.asarray(self.ref_joint_pos_future[0, curr_idx], dtype=np.float32)
 
         next_root_rot_w = matrix_from_quat(next_root_quat.reshape(1, 4))[0]
         next_gv_to_world = _batch_base_to_navi(next_root_rot_w.reshape(1, 3, 3))[0]
@@ -442,11 +401,11 @@ class humanoid_gpt_pns_obs(Observation):
             next_root_cvel_w = np.concatenate(
                 [
                     _rotate_vector_z(
-                        next_motion.body_ang_vel_w[0, 0, self._root_body_idx],
+                        self.ref_root_ang_vel_future_w[0, next_idx],
                         yaw_offset,
                     ),
                     _rotate_vector_z(
-                        next_motion.body_lin_vel_w[0, 0, self._root_body_idx],
+                        self.ref_root_lin_vel_future_w[0, next_idx],
                         yaw_offset,
                     ),
                 ],
@@ -472,22 +431,30 @@ class humanoid_gpt_pns_obs(Observation):
             dtype=np.float32,
         )
 
-        obs = np.concatenate(
-            [
+        self._obs_parts = {
+            "proprioception": np.concatenate(
+                [
                 robot_gyro,
                 robot_gravity,
                 robot_joint_pos - self._default_joint_pos,
                 robot_joint_vel,
                 last_action,
+                ],
+                axis=0,
+            ).astype(np.float32),
+            "motion_command": np.concatenate(
+                [
                 next_joint_pos - self._default_joint_pos,
                 np.asarray([next_root_pos[2]], dtype=np.float32),
                 next_ref_gravity.astype(np.float32),
                 next_root_cvel_gv,
                 np.asarray([np.cos(yaw_d), np.sin(yaw_d)], dtype=np.float32),
                 xy_d,
-            ],
-            axis=0,
-        ).astype(np.float32)
+                ],
+                axis=0,
+            ).astype(np.float32),
+        }
+        obs = np.concatenate(list(self._obs_parts.values()), axis=0)
 
         if obs.size != self.OBS_DIM:
             raise ValueError(f"Humanoid-GPT obs dim mismatch: {obs.size} != {self.OBS_DIM}")
@@ -495,3 +462,29 @@ class humanoid_gpt_pns_obs(Observation):
 
     def compute(self) -> np.ndarray:
         return self._obs
+
+
+class humanoid_gpt_pns_component_obs(Observation, namespace="humanoid_gpt"):
+    """One semantic Humanoid-GPT PNS input group."""
+
+    def __init__(self, component: str, **kwargs: Any) -> None:
+        if component not in {"proprioception", "motion_command"}:
+            raise ValueError(f"Unsupported Humanoid-GPT component: {component!r}")
+        super().__init__(env=kwargs["env"])
+        self.component = component
+        cache_name = "_humanoid_gpt_pns_semantic_observation"
+        self._owns_core = not hasattr(self.env, cache_name)
+        if self._owns_core:
+            setattr(self.env, cache_name, humanoid_gpt_pns_obs(**kwargs))
+        self._core = getattr(self.env, cache_name)
+
+    def reset(self) -> None:
+        if self._owns_core:
+            self._core.reset()
+
+    def update(self, data: Dict[str, Any]) -> None:
+        if self._owns_core:
+            self._core.update(data)
+
+    def compute(self) -> np.ndarray:
+        return self._core._obs_parts[self.component][None, :]

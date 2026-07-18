@@ -315,16 +315,15 @@ class NpzMotionPublisher:
                 "qpos": _array_payload(self.aligned_default_qpos),
             }
         )
-        if self.args.pub_vel:
-            payload.update(
-                {
-                    "joint_vel": _array_payload(np.zeros_like(self.aligned_default_joint_pos)),
-                    "body_lin_vel_w": _array_payload(np.zeros_like(self.aligned_default_body_pos_w)),
-                    "body_ang_vel_w": _array_payload(
-                        np.zeros((len(self.publish_body_names), 3), dtype=np.float32)
-                    ),
-                }
-            )
+        payload.update(
+            {
+                "joint_vel": _array_payload(np.zeros_like(self.aligned_default_joint_pos)),
+                "body_lin_vel_w": _array_payload(np.zeros_like(self.aligned_default_body_pos_w)),
+                "body_ang_vel_w": _array_payload(
+                    np.zeros((len(self.publish_body_names), 3), dtype=np.float32)
+                ),
+            }
+        )
         self.seq += 1
         return payload
 
@@ -361,18 +360,17 @@ class NpzMotionPublisher:
                     BODY_QUAT_W_KEY: _array_payload(body_quat_w),
                 }
             )
-            if self.args.pub_vel:
-                payload.update(
-                    {
-                        "joint_vel": _array_payload(motion.joint_vel[0, 0, self.motion_joint_indices]),
-                        "body_lin_vel_w": _array_payload(
-                            motion.body_lin_vel_w[0, 0, self.motion_body_indices]
-                        ),
-                        "body_ang_vel_w": _array_payload(
-                            motion.body_ang_vel_w[0, 0, self.motion_body_indices]
-                        ),
-                    }
-                )
+            payload.update(
+                {
+                    "joint_vel": _array_payload(motion.joint_vel[0, 0, self.motion_joint_indices]),
+                    "body_lin_vel_w": _array_payload(
+                        motion.body_lin_vel_w[0, 0, self.motion_body_indices]
+                    ),
+                    "body_ang_vel_w": _array_payload(
+                        motion.body_ang_vel_w[0, 0, self.motion_body_indices]
+                    ),
+                }
+            )
             self._advance_after_motion_payload(frame)
             self.seq += 1
             return payload
@@ -395,7 +393,6 @@ class PublisherArgs:
     start_frame: int = 0
     loop: bool = False
     hold_last: bool = True
-    pub_vel: bool = False
     mjcf_path: str | None = None
     initial_source: str = "default"
     keyboard: bool = True
@@ -415,7 +412,6 @@ def run_publish(args: PublisherArgs) -> None:
         f"[npz-publish] bind={args.bind} publish_hz={args.publish_hz} "
         f"motion_path={args.motion_path} frames={worker.motion_length} "
         f"loop={args.loop} hold_last={args.hold_last} "
-        f"pub_vel={args.pub_vel} "
         f"initial_source={args.initial_source} "
         f"mjcf={worker.mjcf_path}"
     )

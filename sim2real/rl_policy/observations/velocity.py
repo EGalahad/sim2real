@@ -3,7 +3,7 @@ from .base import Observation
 import numpy as np
 from typing import Any, Dict
 
-class command_lin_vel_b(Observation):
+class command_lin_vel_b(Observation, namespace="velocity"):
     def __init__(self, env: Any, **kwargs: Dict[str, Any]):
         super().__init__(env, **kwargs)
         self.command_lin_vel_b = np.zeros(2, dtype=np.float32)
@@ -38,7 +38,7 @@ class command_lin_vel_b(Observation):
     def compute(self):
         return self.command_lin_vel_b
 
-class command_ang_vel_b(Observation):
+class command_ang_vel_b(Observation, namespace="velocity"):
     def __init__(self, env: Any, **kwargs: Dict[str, Any]):
         super().__init__(env, **kwargs)
         self.command_ang_vel_b = np.zeros(1, dtype=np.float32)
@@ -66,4 +66,3 @@ class command_ang_vel_b(Observation):
     
     def compute(self):
         return self.command_ang_vel_b
-

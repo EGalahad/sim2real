@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 DEFAULT_POLICIES = {
-    "sonic_release": "checkpoints/sonic/g1/policy.yaml",
+    "sonic_release": "checkpoints/sonic/release/g1/policy.yaml",
     "sonic_trained": "checkpoints/sonic_groot_6k/policy-sonic-groot-006000.yaml",
     "lafan": "checkpoints/mimic-lite/32x8192-huge/policy.yaml",
 }
