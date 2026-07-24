@@ -62,6 +62,16 @@ uv run sim2real/rl_policy/tracking.py \
 | HEFT | `checkpoints/heft` | PMG 和 compliance 两个版本。 |
 | TWIST2 | `checkpoints/twist2/policy.yaml` | TWIST2 policy wrapper。 |
 
+![统一的跨代码库动作跟踪评测](assets/mimic_lite_cross_codebase_tracking_eval.png)
+
+为了公平比较，我们报告每个 policy 所需的 motion-lookahead latency，并将
+其定义为最远 future reference frame 对应的时间。所有数值均采用统一的
+50 Hz reference-motion contract。
+
+| Policy | MimicLite | BFM-Zero | SONIC release | SONIC low-latency | HoloMotion | TeleopIT | Humanoid-GPT | HEFT | TWIST2 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Motion-lookahead latency | 0.08 s | 0.12 s | 0.90 s | 0.18 s | 0.20 s | 0.00 s | 0.02 s | 0.12 s | 0.00 s |
+
 ## 真机环境
 
 机器人 SDK 不安装进通用 root 环境。G1 inline 部署使用

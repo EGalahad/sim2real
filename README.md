@@ -63,6 +63,8 @@ Currently supported adapted / distributed checkpoint families:
 | HEFT | `checkpoints/heft` | PMG and compliance variants. |
 | TWIST2 | `checkpoints/twist2/policy.yaml` | TWIST2 policy wrapper. |
 
+![Unified cross-codebase tracking evaluation](assets/mimic_lite_cross_codebase_tracking_eval.png)
+
 For a fair comparison, we report the motion-lookahead latency required by each
 policy, defined by its furthest required future-reference frame. All values use
 the shared 50 Hz reference-motion contract.
