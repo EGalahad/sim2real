@@ -1,6 +1,6 @@
 """Bridge Unitree low state/command channels to the sim2real ZMQ interface.
 
-This variant keeps the same ZMQ contract as scripts/real_bridge.py, but uses
+This variant keeps the same ZMQ contract as scripts/g1/real_bridge.py, but uses
 the upstream C++ unitree_interface binding for robot I/O.
 """
 
@@ -41,7 +41,7 @@ class RealBridgeCpp:
     ):
         if robot_cfg.name != "g1":
             raise NotImplementedError(
-                "real_bridge_cpp.py currently supports only robot='g1'."
+                "scripts/g1/real_bridge_cpp.py currently supports only robot='g1'."
             )
 
         self.robot_cfg = robot_cfg
@@ -58,7 +58,7 @@ class RealBridgeCpp:
     def _init_unitree_interface(self) -> None:
         if unitree_interface is None:
             raise ImportError(
-                "unitree_interface is required for real_bridge_cpp.py but is not installed."
+                "unitree_interface is required for the G1 C++ real bridge but is not installed."
             )
 
         self.robot = unitree_interface.create_robot(

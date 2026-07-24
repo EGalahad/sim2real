@@ -33,7 +33,7 @@ For a `libGLdispatch.so.0` error on `aarch64`, preload the library before
 starting Python:
 
 ```bash
-export LD_PRELOAD=/home/elijah/sim2real/venv/teleop/.venv/lib/python3.10/site-packages/torch/lib/libtorch.so:/lib/aarch64-linux-gnu/libGLdispatch.so.0:$LD_PRELOAD
+export LD_PRELOAD=/home/elijah/sim2real/venv/pico/.venv/lib/python3.10/site-packages/torch/lib/libtorch.so:/lib/aarch64-linux-gnu/libGLdispatch.so.0:$LD_PRELOAD
 ```
 
 You can also try moving `import torch` to the first import in the Python

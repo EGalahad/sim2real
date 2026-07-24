@@ -1,10 +1,10 @@
 import inspect
 import numpy as np
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Dict
+from typing import Any, Dict, Generic, TypeVar
 
-if TYPE_CHECKING:
-    from sim2real.rl_policy.base_policy import BasePolicy
+EnvT = TypeVar("EnvT")
+
 
 class _RegistryMixin:
     namespace: str | Sequence[str] | None = None
@@ -39,11 +39,11 @@ class _RegistryMixin:
                 raise ValueError(f"Term {registry_key} already registered in {location}")
 
 
-class Observation(_RegistryMixin):
-    def __init__(self, env: "BasePolicy", **kwargs):
+class Observation(Generic[EnvT], _RegistryMixin):
+    def __init__(self, env: EnvT, **kwargs):
         self.env = env
         self.state_processor = env.state_processor
-    
+
     def reset(self):
         pass
 
@@ -72,7 +72,10 @@ class Observation(_RegistryMixin):
                 )
 
         available = sorted(cls.registry)
-        raise ValueError(f"Observation target {obs_key!r} not found. Available targets: {available}")
+        raise ValueError(
+            f"Observation target {obs_key!r} not found. Available targets: {available}"
+        )
+
 
 class ObsGroup:
     def __init__(
@@ -94,3 +97,11 @@ class ObsGroup:
         # for func, tensor in zip(self.funcs.values(), tensors):
         #     print(func.__class__.__name__, tensor.shape)
         return np.concatenate(tensors, axis=-1)
+
+
+def normalize_observation_array(value: np.ndarray) -> np.ndarray:
+    """Normalize observation dtype without destroying non-floating ONNX inputs."""
+    array = np.asarray(value)
+    if np.issubdtype(array.dtype, np.floating):
+        return array.astype(np.float32)
+    return array

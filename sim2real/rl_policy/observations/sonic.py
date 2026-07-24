@@ -6,7 +6,7 @@ import numpy as np
 
 from sim2real.rl_policy.observations.base import Observation
 from sim2real.rl_policy.observations.common import _get_simulation_joint_selection
-from sim2real.rl_policy.observations.motion import motion_obs
+from sim2real.rl_policy.observations.motion import TrackingObservation, motion_obs
 from sim2real.utils.math import (
     matrix_from_quat,
     projected_yaw_quat,
@@ -34,7 +34,7 @@ class sonic_encoder_index(Observation, namespace="sonic"):
         return out
 
 
-class sonic_smpl_official_encoder_input(Observation, namespace="sonic"):
+class sonic_smpl_official_encoder_input(TrackingObservation, namespace="sonic"):
     """Full 1762D official encoder input with SMPL-mode fields populated.
 
     Official deployment exports one encoder input containing all enabled encoder
@@ -66,13 +66,13 @@ class sonic_smpl_official_encoder_input(Observation, namespace="sonic"):
         self._cached_joint_names = None
         self._wrist_indices = None
         self._heading_offset = None
-        motion_data = getattr(self.state_processor, "motion_data", None)
+        motion_data = getattr(self.env, "motion_data", None)
         if motion_data is not None:
             ref_root_quat_w = np.asarray(motion_data.smpl_root_quat_w[0], dtype=np.float32)
             self._ensure_heading_offset(ref_root_quat_w)
 
     def _refresh_wrist_indices(self) -> np.ndarray:
-        joint_names = tuple(self.state_processor.motion_joint_names)
+        joint_names = tuple(self.env.motion_joint_names)
         if self._cached_joint_names == joint_names and self._wrist_indices is not None:
             return self._wrist_indices
         missing = [name for name in self.WRIST_JOINT_NAMES if name not in joint_names]
@@ -110,7 +110,7 @@ class sonic_smpl_official_encoder_input(Observation, namespace="sonic"):
         return quat_mul(heading_offset, ref_root_quat_w)
 
     def compute(self) -> np.ndarray:
-        motion_data = self.state_processor.motion_data
+        motion_data = self.env.motion_data
         out = np.zeros(self.ENCODER_DIM, dtype=np.float32)
         if motion_data is None:
             return out
@@ -137,7 +137,7 @@ class sonic_smpl_official_encoder_input(Observation, namespace="sonic"):
         return out
 
 
-class _SonicSmplFutureObservation(Observation):
+class _SonicSmplFutureObservation(TrackingObservation):
     def __init__(self, future_steps: Sequence[int], **kwargs):
         super().__init__(**kwargs)
         self.future_steps = tuple(int(step) for step in future_steps)
@@ -166,7 +166,7 @@ class sonic_smpl_joints_multi_future_local(
     NUM_SMPL_JOINTS = 24
 
     def compute(self) -> np.ndarray:
-        motion_data = self.state_processor.motion_data
+        motion_data = self.env.motion_data
         if motion_data is None:
             return np.zeros(
                 self.num_future_frames * self.NUM_SMPL_JOINTS * 3,
@@ -194,7 +194,7 @@ class sonic_smpl_root_ori_b_multi_future(
 
     def reset(self) -> None:
         self._heading_offset = None
-        motion_data = getattr(self.state_processor, "motion_data", None)
+        motion_data = getattr(self.env, "motion_data", None)
         if motion_data is not None:
             ref_root_quat_w = np.asarray(
                 motion_data.smpl_root_quat_w[0], dtype=np.float32
@@ -213,7 +213,7 @@ class sonic_smpl_root_ori_b_multi_future(
         )[0].astype(np.float32, copy=False)
 
     def compute(self) -> np.ndarray:
-        motion_data = self.state_processor.motion_data
+        motion_data = self.env.motion_data
         if motion_data is None:
             return np.zeros(self.num_future_frames * 6, dtype=np.float32)
         ref_root_quat_w = np.asarray(
@@ -252,7 +252,7 @@ class sonic_joint_pos_multi_future_wrist_for_smpl(
         self._wrist_indices = None
 
     def _refresh_wrist_indices(self) -> np.ndarray:
-        joint_names = tuple(self.state_processor.motion_joint_names)
+        joint_names = tuple(self.env.motion_joint_names)
         if self._cached_joint_names == joint_names and self._wrist_indices is not None:
             return self._wrist_indices
         missing = [name for name in self.WRIST_JOINT_NAMES if name not in joint_names]
@@ -265,7 +265,7 @@ class sonic_joint_pos_multi_future_wrist_for_smpl(
         return self._wrist_indices
 
     def compute(self) -> np.ndarray:
-        motion_data = self.state_processor.motion_data
+        motion_data = self.env.motion_data
         if motion_data is None:
             return np.zeros(
                 self.num_future_frames * len(self.WRIST_JOINT_NAMES), dtype=np.float32

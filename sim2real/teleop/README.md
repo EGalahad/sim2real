@@ -2,7 +2,7 @@
 
 Chinese version: [README_zh.md](./README_zh.md)
 
-This package contains Pico / XR retargeting tools with built-in mjviser viewing, and motion recording utilities used by `venv/teleop`.
+This package contains Pico / XR retargeting tools with built-in mjviser viewing, and motion recording utilities used by `venv/pico`.
 
 Runtime artifacts, including JetPack 5 prebuilt packages:
 

@@ -29,7 +29,7 @@ flowchart LR
 If you choose a ZMQ bridge mode from [Robot I/O](/reference/robot-io), run the bridge on the laptop:
 
 ```bash
-uv run scripts/real_bridge.py
+uv run scripts/g1/real_bridge.py
 ```
 
 Use `ip -br link` to find the interface name, and add

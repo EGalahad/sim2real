@@ -20,7 +20,7 @@ class ref_motion_phase(motion_obs, namespace=("mimic_lite", "hdmi")):
         self.motion_steps = int(motion_duration_second * 50)
 
     def compute(self) -> np.ndarray:
-        t = self.state_processor.motion_t
+        t = self.env.motion_t
         ref_motion_phase = (t % self.motion_steps) / self.motion_steps
         return ref_motion_phase.reshape(-1)
 

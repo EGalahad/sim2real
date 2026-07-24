@@ -20,7 +20,7 @@ layout and onboard dependency notes.
 ## Quick Start
 
 ```bash
-uv sync
+uv sync --extra inference-cpu
 ```
 
 Run offline motion tracking (sim2sim):
@@ -57,6 +57,12 @@ Currently supported adapted checkpoint families:
 - SONIC low-latency SMPL: `checkpoints/sonic/low_latency/smpl/policy.yaml`
 - TeleopIT: `checkpoints/teleopit/policy.yaml`
 - TWIST2: `checkpoints/twist2/policy.yaml`
+
+## Real-robot Environments
+
+Robot SDKs are kept out of the generic root environment. G1 inline deployment
+uses `uv sync --extra inference-cpu --extra robot-g1`. See
+[Robot I/O Modes](./docs/robot_io.md) for setup and deployment commands.
 
 ## Next Steps
 

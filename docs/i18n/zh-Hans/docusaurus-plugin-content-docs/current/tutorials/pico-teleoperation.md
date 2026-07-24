@@ -5,7 +5,7 @@
 ## 1. 启动 Pico retarget publisher
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py
+uv run --project venv/pico sim2real/teleop/pico_retarget_pub.py
 ```
 
 打开 publisher 打印出来的 mjviser URL。先确认 viewer 里的 G1 retarget 动作是对的，再继续执行。

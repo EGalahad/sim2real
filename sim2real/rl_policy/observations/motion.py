@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -9,8 +9,13 @@ from sim2real.rl_policy.observations.common import sort_names_by_preferred_order
 from sim2real.rl_policy.utils.motion import MotionData
 from sim2real.utils.strings import resolve_matching_names
 
+if TYPE_CHECKING:
+    from sim2real.rl_policy.tracking import Tracking  # noqa: F401
 
-class motion_obs(Observation, namespace="motion"):
+TrackingObservation = Observation["Tracking"]
+
+
+class motion_obs(TrackingObservation, namespace="motion"):
     def __init__(
         self,
         future_steps: Optional[Union[Sequence[int], int]] = None,
@@ -24,9 +29,9 @@ class motion_obs(Observation, namespace="motion"):
     ):
         super().__init__(**kwargs)
         selected_future_steps = future_steps
-        motion_cfg = dict(getattr(self.state_processor, "motion_config", {}) or {})
+        motion_cfg = dict(getattr(self.env, "motion_config", {}) or {})
 
-        motion_future_steps = getattr(self.state_processor, "motion_future_steps", None)
+        motion_future_steps = getattr(self.env, "motion_future_steps", None)
         if motion_future_steps is None or len(motion_future_steps) == 0:
             motion_future_steps = motion_cfg.get("future_steps")
         joint_names = motion_cfg.get("joint_names") if joint_names is None else joint_names
@@ -47,14 +52,14 @@ class motion_obs(Observation, namespace="motion"):
         self.n_selected_future_steps = self.n_future_steps
         self.joint_names = self._resolve_motion_names(
             joint_names,
-            source_names=self.state_processor.motion_joint_names,
+            source_names=self.env.motion_joint_names,
             preferred_names=self._preferred_joint_order(joint_order),
             order=joint_order,
             kind="joint",
         )
         self.body_names = self._resolve_motion_names(
             body_names,
-            source_names=self.state_processor.motion_body_names,
+            source_names=self.env.motion_body_names,
             preferred_names=self._preferred_body_order(body_order),
             order=body_order,
             kind="body",
@@ -145,15 +150,15 @@ class motion_obs(Observation, namespace="motion"):
         return np.take(x, self.future_step_indices, axis=1)
 
     def reset(self):
-        # State processor reset handles motion timing; this only refreshes cached views.
+        # Tracking reset handles motion timing; this only refreshes cached views.
         self._assign_motion_views()
 
     def update(self, data: Dict[str, Any]) -> None:
         self._assign_motion_views()
 
     def _refresh_motion_indices(self) -> None:
-        joint_names = tuple(self.state_processor.motion_joint_names)
-        body_names = tuple(self.state_processor.motion_body_names)
+        joint_names = tuple(self.env.motion_joint_names)
+        body_names = tuple(self.env.motion_body_names)
         layout = (joint_names, body_names)
         if self._cached_motion_layout == layout:
             return
@@ -167,7 +172,7 @@ class motion_obs(Observation, namespace="motion"):
         self._cached_motion_layout = layout
 
     def _assign_motion_views(self):
-        motion_data: MotionData | None = self.state_processor.motion_data
+        motion_data: MotionData | None = self.env.motion_data
         if motion_data is None:
             raise ValueError("Motion source data is not ready")
         self._refresh_motion_indices()

@@ -3,48 +3,26 @@ import zmq
 import threading
 import time
 
-
 from loguru import logger
-from typing import Any, Dict, Literal, Optional
+from typing import Dict, Optional
+
 from sim2real.config.robots.base import RobotCfg
-from sim2real.rl_policy.utils.motion import MotionDataset, MotionData, motion_dataset_first_motion
-from sim2real.rl_policy.utils.motion_buffer import RealtimeMotionBuffer, RealtimeSmplMotionBuffer
-from sim2real.utils.common import ZMQSubscriber, PORTS, LowStateMessage
+from sim2real.rl_policy.robot_io import RobotIO, RobotState
+from sim2real.utils.common import ZMQSubscriber, PORTS
+
 
 class StateProcessor:
-    """Listens to the unitree sdk channels and converts observation into isaac compatible order.
-    Assumes the message in the channel follows the joint order of robot_cfg.joint_names.
-    """
+    """Copies backend robot state into the stable arrays consumed by observations."""
+
     def __init__(
         self,
         robot_cfg: RobotCfg,
-        policy_config,
-        robot_io: Literal["inline", "zmq"] = "zmq",
-        robot: Any | None = None,
+        robot_io: RobotIO,
     ):
         self.robot_cfg = robot_cfg
         self.mocap_ip = self.robot_cfg.mocap_ip
         self.robot_io = robot_io
-        self.robot = robot
-
-        self.low_state_port = self.robot_cfg.low_state_port
-        self.low_state_socket: zmq.Socket | None = None
-        if self.robot_io == "inline":
-            if self.robot is None:
-                raise ValueError("robot is required when robot_io='inline'")
-        elif self.robot_io == "zmq":
-            state_host = self.robot_cfg.low_state_host
-            state_endpoint = f"tcp://{state_host}:{self.low_state_port}"
-
-            self.zmq_context = zmq.Context.instance()
-            self.low_state_socket = self.zmq_context.socket(zmq.SUB)
-            self.low_state_socket.setsockopt(zmq.SUBSCRIBE, b"")
-            self.low_state_socket.setsockopt(zmq.CONFLATE, 1)
-            self.low_state_socket.setsockopt(zmq.RCVTIMEO, 10)
-            self.low_state_socket.connect(state_endpoint)
-        else:
-            raise ValueError(f"Unsupported robot_io: {self.robot_io}")
-        self.latest_low_state: LowStateMessage | None = None
+        self.latest_state: RobotState | None = None
 
         # Initialize joint mapping
         self.joint_names = list(self.robot_cfg.joint_names)
@@ -67,114 +45,6 @@ class StateProcessor:
         self.mocap_threads = {}      # Dictionary to store subscriber threads
         self.mocap_data = {}         # Dictionary to store received mocap data
         self.mocap_data_lock = threading.Lock()  # Lock for thread-safe access
-
-        # Motion data management
-        self.motion_config: Dict[str, Any] = dict(policy_config.get("motion", {}))
-        self.motion_data: Optional[MotionData] = None
-        self._init_motion_backend()
-    
-    def reset(self):
-        # Reset motion playback to the first frame (standing pose)
-        if self.motion_backend == "npz":
-            self.motion_t[:] = 0
-        self._update_motion_data(paused=True)
-
-    def update(self, data: Optional[Dict] = None):
-        data = data or {}
-        paused = data.get("paused", False)
-        if not paused and self.motion_backend == "npz":
-            self.motion_t += 1
-            if self.motion_backend == "npz" and self.motion_dataset is not None and self.motion_length > 0:
-                if self.motion_t[0] >= self.motion_length:
-                    self.motion_t[:] = self.motion_length - 1
-                    data["paused"] = True
-        self._update_motion_data(paused=paused)
-
-    def restart_motion(self) -> None:
-        if self.motion_backend != "npz":
-            return
-        self.motion_t[:] = 0
-        self._update_motion_data(paused=True)
-
-    def _init_motion_backend(self) -> None:
-        self.motion_future_steps = np.array(
-            self.motion_config.get("future_steps", []),
-            dtype=int,
-        )
-        if self.motion_future_steps.ndim != 1:
-            raise ValueError(
-                f"motion.future_steps must be 1D, got shape={self.motion_future_steps.shape}"
-            )
-
-        motion_backend = str(self.motion_config.get("motion_backend", "npz")).lower().strip()
-        self.motion_config["motion_backend"] = self.motion_backend = motion_backend
-
-        if motion_backend == "npz":
-            motion_path = self.motion_config.get("motion_path")
-            if motion_path is None:
-                raise ValueError("motion_path is required for npz motion backend")
-            self.motion_dataset = MotionDataset.create_from_path(
-                motion_path,
-                robot_cfg=self.robot_cfg,
-                mjcf_path=self.motion_config.get("mjcf_path"),
-            )
-            self.motion_dataset = motion_dataset_first_motion(self.motion_dataset)
-            assert self.motion_dataset.num_motions == 1, "Only one motion is supported"
-            self.motion_ids = np.array([0], dtype=int)
-            self.motion_t = np.array([0], dtype=int)
-            self.motion_length = self.motion_dataset.num_steps
-
-            self.motion_joint_names = list(self.motion_dataset.joint_names)
-            self.motion_body_names = list(self.motion_dataset.body_names)
-        elif self.motion_backend == "zmq":
-            self.motion_buffer = RealtimeMotionBuffer(
-                robot_cfg=self.robot_cfg,
-                future_steps=self.motion_future_steps,
-                motion_zmq_connect=self.motion_config.get("motion_zmq_connect", "tcp://127.0.0.1:28701"),
-                motion_zmq_hwm=int(self.motion_config.get("motion_zmq_hwm", 1)),
-                dt_s=float(self.motion_config.get("motion_dt_s", 0.02)),
-                tolerance_s=float(self.motion_config.get("motion_tolerance_s", 0.04)),
-                root_body_name=str(self.motion_config.get("root_body_name", "pelvis")),
-            )
-
-            self.motion_joint_names = list(self.motion_buffer.joint_names)
-            self.motion_body_names = list(self.motion_buffer.body_names)
-        elif self.motion_backend == "smpl_zmq":
-            self.motion_buffer = RealtimeSmplMotionBuffer(
-                robot_cfg=self.robot_cfg,
-                future_steps=self.motion_future_steps,
-                motion_zmq_connect=self.motion_config.get("motion_zmq_connect", "tcp://127.0.0.1:28702"),
-                motion_zmq_hwm=int(self.motion_config.get("motion_zmq_hwm", 1)),
-                dt_s=float(self.motion_config.get("motion_dt_s", 0.02)),
-                tolerance_s=float(self.motion_config.get("motion_tolerance_s", 0.04)),
-            )
-            self.motion_joint_names = self.motion_buffer.joint_names
-            self.motion_body_names = []
-        else:
-            raise ValueError(f"Unsupported motion_backend: {motion_backend}")
-
-    def _update_motion_data(self, *, paused: bool = False):
-        if self.motion_backend == "npz":
-            motion_steps = self.motion_future_steps
-            if paused:
-                motion_steps = np.zeros_like(self.motion_future_steps)
-            self.motion_data = self.motion_dataset.get_slice(
-                self.motion_ids,
-                self.motion_t,
-                motion_steps,
-            )
-            if paused:
-                self.motion_data.joint_vel[:] = 0.0
-                self.motion_data.body_lin_vel_w[:] = 0.0
-                self.motion_data.body_ang_vel_w[:] = 0.0
-        elif self.motion_backend == "zmq":
-            self.motion_data = self.motion_buffer.get_obs()
-            self.motion_joint_names = list(self.motion_buffer.joint_names)
-            self.motion_body_names = list(self.motion_buffer.body_names)
-        elif self.motion_backend == "smpl_zmq":
-            self.motion_data = self.motion_buffer.get_obs()
-            self.motion_joint_names = list(self.motion_buffer.joint_names)
-            self.motion_body_names = []
 
     def register_subscriber(self, object_name: str, port: Optional[int] = None):
         if object_name in self.mocap_subscribers:
@@ -210,62 +80,34 @@ class StateProcessor:
         with self.mocap_data_lock:
             return self.mocap_data.get(key, None)
 
-    def _prepare_low_state(self):
-        if self.robot_io == "inline":
-            low_state = self._read_inline_low_state()
-        elif self.robot_io == "zmq":
-            self._receive_low_state()
-            low_state = self.latest_low_state
-            if low_state is None:
-                return False
-        else:
-            raise ValueError(f"Unsupported robot_io: {self.robot_io}")
-
-        self.latest_low_state = low_state
-        self._apply_low_state(low_state)
+    def _prepare_low_state(self) -> bool:
+        state = self.robot_io.read_state()
+        if state is None:
+            return False
+        self._apply_state(state)
         return True
 
-    def _read_inline_low_state(self) -> LowStateMessage:
-        if self.robot is None:
-            raise RuntimeError("Inline robot is not initialized")
-
-        low_state = self.robot.read_low_state()
-        joint_count = self.num_dof
-        return LowStateMessage(
-            quaternion=np.asarray(low_state.imu.quat, dtype=np.float32).copy(),
-            gyroscope=np.asarray(low_state.imu.omega, dtype=np.float32).copy(),
-            joint_positions=np.asarray(
-                low_state.motor.q[:joint_count],
-                dtype=np.float32,
-            ).copy(),
-            joint_velocities=np.asarray(
-                low_state.motor.dq[:joint_count],
-                dtype=np.float32,
-            ).copy(),
-            joint_torques=np.asarray(
-                low_state.motor.tau_est[:joint_count],
-                dtype=np.float32,
-            ).copy(),
-            tick=int(time.time_ns() // 1_000_000),
+    def _apply_state(self, state: RobotState) -> None:
+        qpos = np.asarray(state.qpos, dtype=np.float32)
+        qvel = np.asarray(state.qvel, dtype=np.float32)
+        joint_torque = np.asarray(state.joint_torque, dtype=np.float32)
+        if qpos.shape != self.qpos.shape:
+            raise ValueError(
+                f"Robot qpos shape {qpos.shape} != expected {self.qpos.shape}"
+            )
+        if qvel.shape != self.qvel.shape:
+            raise ValueError(
+                f"Robot qvel shape {qvel.shape} != expected {self.qvel.shape}"
+            )
+        if joint_torque.shape != (self.num_dof,):
+            raise ValueError(
+                f"Robot joint_torque shape {joint_torque.shape} != expected {(self.num_dof,)}"
+            )
+        self.qpos[:] = qpos
+        self.qvel[:] = qvel
+        self.latest_state = RobotState(
+            qpos=qpos.copy(),
+            qvel=qvel.copy(),
+            joint_torque=joint_torque.copy(),
+            tick=int(state.tick),
         )
-
-    def _apply_low_state(self, low_state: LowStateMessage) -> None:
-        self.root_quat_w[:] = low_state.quaternion
-        self.root_ang_vel_b[:] = low_state.gyroscope
-        self.joint_pos[:] = low_state.joint_positions
-        self.joint_vel[:] = low_state.joint_velocities
-
-    def _receive_low_state(self):
-        """Fetch the most recent low state message from the ZMQ socket."""
-        if self.low_state_socket is None:
-            return
-
-        while True:
-            try:
-                data = self.low_state_socket.recv(flags=zmq.DONTWAIT)
-            except zmq.Again:
-                break
-            try:
-                self.latest_low_state = LowStateMessage.from_bytes(data)
-            except Exception as exc:
-                logger.warning(f"Failed to decode low state message: {exc}")

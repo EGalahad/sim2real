@@ -18,28 +18,26 @@ dependencies = [
     "pyzmq",
     "tqdm",
     "tyro",
-    "unitree-sdk2py @ git+https://github.com/EGalahad/unitree_sdk2_python.git",
-    "any4hdmi @ git+https://github.com/EGalahad/any4hdmi.git@main",
+    # "any4hdmi @ git+https://github.com/EGalahad/any4hdmi.git@main",
+    "any4hdmi",
 ]
 
-[dependency-groups]
-cpu = [
+[project.optional-dependencies]
+inference-cpu = [
     "onnxruntime",
 ]
-g1 = [
-    "onnxruntime",
-    "unitree-interface==0.1.0; sys_platform == 'linux' and platform_machine == 'aarch64'",
-]
-g1-gpu = [
+inference-gpu = [
     "numpy<2",
-    "onnxruntime-gpu==1.16.0; sys_platform == 'linux' and platform_machine == 'aarch64'",
-    "unitree-interface==0.1.0; sys_platform == 'linux' and platform_machine == 'aarch64'",
+    "onnxruntime-gpu==1.24.0; sys_platform == 'linux' and platform_machine == 'aarch64'",
 ]
-
-# [project.optional-dependencies]
-# tensorrt = [
-    # "tensorrt ; sys_platform == 'linux' and platform_machine == 'x86_64'",
-# ]
+inference-tensorrt = [
+    "numpy<2",
+    "onnxruntime-gpu==1.24.0; sys_platform == 'linux' and platform_machine == 'aarch64'",
+]
+robot-g1 = [
+    "unitree-interface==0.1.0; sys_platform == 'linux' and platform_machine == 'aarch64'",
+    "unitree-sdk2py @ git+https://github.com/EGalahad/unitree_sdk2_python.git",
+]
 
 [build-system]
 requires = ["setuptools>=61"]
@@ -62,5 +60,14 @@ name = "jetson-ai-lab-jp6-cu126"
 url = "https://pypi.jetson-ai-lab.io/jp6/cu126"
 explicit = true
 
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.uv.sources]
 tensorrt = { index = "nvidia-pypi" }
+any4hdmi = { path = "../any4hdmi", editable = true }
+torch = [
+    { index = "pytorch-cpu", marker = "platform_machine == 'aarch64'" },
+]

@@ -15,7 +15,8 @@ from sim2real.rl_policy.controllers.keyboard import KeyboardController
 from sim2real.rl_policy.controllers.pico import PicoController
 from sim2real.rl_policy.controllers.unitree_joystick import UnitreeJoystickController
 from sim2real.rl_policy.inference import Timer, build_inference_module
-from sim2real.rl_policy.observations import Observation, ObsGroup
+from sim2real.rl_policy.observations import Observation, ObsGroup, normalize_observation_array
+from sim2real.rl_policy.robot_io import create_robot_io
 from sim2real.rl_policy.utils.command_sender import ActionManager
 from sim2real.rl_policy.utils.state_processor import StateProcessor
 from sim2real.utils.common import PORTS
@@ -67,46 +68,22 @@ class BasePolicy:
         self.joint_names_simulation = list(policy_config["joint_names_simulation"])
         self.body_names_simulation = list(policy_config["body_names_simulation"])
 
-        self.robot_io = args.robot_io
-        if self.robot_io == "inline":
-            if args.robot != "g1":
-                raise NotImplementedError(
-                    "robot_io='inline' is currently implemented only for robot='g1'."
-                )
-            try:
-                import unitree_interface
-            except ImportError as exc:
-                raise ImportError(
-                    "unitree_interface is required for robot_io='inline' but is not installed."
-                ) from exc
-            self.robot = unitree_interface.create_robot(
-                args.robot_interface,
-                unitree_interface.RobotType.G1,
-                unitree_interface.MessageType.HG,
-            )
-            self.robot.set_control_mode(unitree_interface.ControlMode.PR)
-            self.robot.read_low_state()
-            logger.info(
-                "Initialized inline robot I/O on {} with {} joints",
-                args.robot_interface,
-                len(self.robot_cfg.joint_names),
-            )
-        elif self.robot_io == "zmq":
-            self.robot = None
-        else:
-            raise ValueError(f"Unsupported robot_io: {self.robot_io}")
+        self.robot_io_mode = args.robot_io
+        self.robot_io = create_robot_io(
+            mode=args.robot_io,
+            robot_name=args.robot,
+            robot_cfg=self.robot_cfg,
+            interface=args.robot_interface,
+        )
 
         self.state_processor = StateProcessor(
             self.robot_cfg,
-            policy_config,
             robot_io=self.robot_io,
-            robot=self.robot,
         )
         self.action_manager = ActionManager(
             self.robot_cfg,
             policy_config,
             robot_io=self.robot_io,
-            robot=self.robot,
         )
         self.rl_dt = 1.0 / float(args.rl_rate)
         self.inference_backend = args.inference_backend
@@ -259,9 +236,6 @@ class BasePolicy:
         self.reset_callbacks = []
         self.update_callbacks = []
 
-        self.reset_callbacks.append(self.state_processor.reset)
-        self.update_callbacks.append(self.state_processor.update)
-
         # Create observation instances based on config
         for obs_group, obs_items in obs_cfg.items():
             print(f"obs_group: {obs_group}")
@@ -292,7 +266,7 @@ class BasePolicy:
             group_components: dict[str, np.ndarray] = {}
             group_values: list[np.ndarray] = []
             for obs_name, obs_func in obs_group.funcs.items():
-                obs = obs_func.compute().astype(np.float32)
+                obs = normalize_observation_array(obs_func.compute())
                 group_components[obs_name] = obs
                 group_values.append(obs)
 
@@ -363,15 +337,10 @@ class BasePolicy:
         if self._record_start_time_ns is None:
             self._record_start_time_ns = now_ns
 
-        low_state = getattr(self.state_processor, "latest_low_state", None)
-        joint_torque = getattr(low_state, "joint_torques", None) if low_state is not None else None
+        robot_state = self.state_processor.latest_state
+        joint_torque = robot_state.joint_torque if robot_state is not None else None
         if joint_torque is None:
             joint_torque = np.full(self.num_dofs, np.nan, dtype=np.float32)
-
-        motion_t = getattr(self.state_processor, "motion_t", None)
-        motion_t_value = -1
-        if motion_t is not None:
-            motion_t_value = int(np.asarray(motion_t).reshape(-1)[0])
 
         self._record_frames.append(
             {
@@ -383,7 +352,7 @@ class BasePolicy:
                     "joint_torque": _copy_array(joint_torque),
                     "root_quat_w": _copy_array(self.state_processor.root_quat_w),
                     "root_ang_vel_b": _copy_array(self.state_processor.root_ang_vel_b),
-                    "low_state_tick": int(getattr(low_state, "tick", -1)),
+                    "low_state_tick": int(robot_state.tick if robot_state is not None else -1),
                 },
                 "policy": {
                     "action": _copy_array(action),
@@ -400,12 +369,18 @@ class BasePolicy:
                     },
                 },
                 "runtime": {
-                    "motion_t": int(motion_t_value),
                     "control_mode": str(self.state_dict.get("control_mode", "")),
                     "paused": bool(self.state_dict.get("paused", False)),
+                    **self._record_runtime_fields(),
                 },
             }
         )
+
+    def _record_runtime_fields(self) -> dict[str, Any]:
+        return {}
+
+    def _record_metadata_fields(self) -> dict[str, Any]:
+        return {}
 
     def _build_record_data(self) -> dict[str, Any]:
         frames = self._record_frames
@@ -439,6 +414,14 @@ class BasePolicy:
                 for obs_name in obs_names
             }
 
+        runtime_keys = sorted(
+            {
+                key
+                for frame in frames
+                for key in frame.get("runtime", {})
+            }
+        )
+
         return {
             "metadata": {
                 "schema": "policy_tracking_record_v1",
@@ -448,15 +431,10 @@ class BasePolicy:
                 "rl_rate": float(self.args.rl_rate),
                 "joint_names_simulation": list(self.joint_names_simulation),
                 "body_names_simulation": list(self.body_names_simulation),
-                "motion_backend": str(
-                    getattr(self.state_processor, "motion_backend", "")
-                ),
-                "motion_path": str(
-                    getattr(self.state_processor, "motion_config", {}).get("motion_path", "")
-                ),
                 "frame_count": int(len(frames)),
                 "recorded_at_unix_ns": int(time.time_ns()),
                 "record_start_unix_ns": int(self._record_start_time_ns or 0),
+                **self._record_metadata_fields(),
             },
             "robot": {
                 "joint_names": list(self.state_processor.joint_names),
@@ -478,9 +456,8 @@ class BasePolicy:
                 "obs": obs,
             },
             "runtime": {
-                "motion_t": collect("runtime", "motion_t"),
-                "control_mode": collect("runtime", "control_mode"),
-                "paused": collect("runtime", "paused"),
+                key: _record_array([frame.get("runtime", {}).get(key) for frame in frames])
+                for key in runtime_keys
             },
         }
 
@@ -526,10 +503,13 @@ class BasePolicy:
         except KeyboardInterrupt:
             pass
         finally:
-            self._save_recording()
-            self.controller.close()
-            if self.robot is not None and hasattr(self.robot, "close"):
-                self.robot.close()
+            try:
+                self._save_recording()
+            finally:
+                try:
+                    self.controller.close()
+                finally:
+                    self.robot_io.close()
 
     def step(self):
         with ScopedTimer("rl_policy.step") as step_timer:

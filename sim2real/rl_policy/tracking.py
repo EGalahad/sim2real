@@ -9,6 +9,16 @@ from loguru import logger
 from sim2real.rl_policy.base_policy import BasePolicyArgs, BasePolicy
 from sim2real.rl_policy.controllers.keyboard import KeyboardController
 from sim2real.rl_policy.controllers.unitree_joystick import UnitreeJoystickController
+from sim2real.rl_policy.utils.motion import (
+    MotionData,
+    MotionDataset,
+    motion_dataset_first_motion,
+)
+from sim2real.rl_policy.utils.motion_buffer import (
+    RealtimeMotionBuffer,
+    RealtimeSmplMotionBuffer,
+)
+
 np.set_printoptions(precision=3, suppress=True, linewidth=1000)
 
 
@@ -106,6 +116,7 @@ def _apply_runtime_motion_config(
 
 class Tracking(BasePolicy):
     args: "TrackingArgs"
+
     def prepare_policy_config(self, policy_config):
         policy_config = super().prepare_policy_config(policy_config)
         policy_config = _apply_runtime_motion_config(
@@ -126,13 +137,123 @@ class Tracking(BasePolicy):
             )
         return policy_config
 
+    def setup_observations(self, obs_cfg):
+        self._init_motion_backend()
+        super().setup_observations(obs_cfg)
+
+    def _init_motion_backend(self) -> None:
+        self.motion_config = dict(self.policy_config.get("motion", {}))
+        self.motion_data: MotionData | None = None
+        self.motion_future_steps = np.asarray(
+            self.motion_config.get("future_steps", []),
+            dtype=int,
+        )
+        if self.motion_future_steps.ndim != 1:
+            raise ValueError(
+                f"motion.future_steps must be 1D, got shape={self.motion_future_steps.shape}"
+            )
+
+        self.motion_backend = str(
+            self.motion_config.get("motion_backend", "npz")
+        ).lower().strip()
+        self.motion_config["motion_backend"] = self.motion_backend
+
+        if self.motion_backend == "npz":
+            motion_path = self.motion_config.get("motion_path")
+            if motion_path is None:
+                raise ValueError("motion_path is required for npz motion backend")
+            self.motion_dataset = MotionDataset.create_from_path(
+                motion_path,
+                robot_cfg=self.robot_cfg,
+                mjcf_path=self.motion_config.get("mjcf_path"),
+            )
+            self.motion_dataset = motion_dataset_first_motion(self.motion_dataset)
+            assert self.motion_dataset.num_motions == 1, "Only one motion is supported"
+            self.motion_ids = np.asarray([0], dtype=int)
+            self.motion_t = np.asarray([0], dtype=int)
+            self.motion_length = self.motion_dataset.num_steps
+            self.motion_joint_names = list(self.motion_dataset.joint_names)
+            self.motion_body_names = list(self.motion_dataset.body_names)
+            return
+
+        if self.motion_backend == "zmq":
+            self.motion_buffer = RealtimeMotionBuffer(
+                robot_cfg=self.robot_cfg,
+                future_steps=self.motion_future_steps,
+                motion_zmq_connect=self.motion_config.get(
+                    "motion_zmq_connect", DEFAULT_MOTION_ZMQ_CONNECT
+                ),
+                motion_zmq_hwm=int(self.motion_config.get("motion_zmq_hwm", 1)),
+                dt_s=float(self.motion_config.get("motion_dt_s", 0.02)),
+                tolerance_s=float(self.motion_config.get("motion_tolerance_s", 0.04)),
+                root_body_name=str(self.motion_config.get("root_body_name", "pelvis")),
+            )
+            self.motion_joint_names = list(self.motion_buffer.joint_names)
+            self.motion_body_names = list(self.motion_buffer.body_names)
+            return
+
+        if self.motion_backend == "smpl_zmq":
+            self.motion_buffer = RealtimeSmplMotionBuffer(
+                robot_cfg=self.robot_cfg,
+                future_steps=self.motion_future_steps,
+                motion_zmq_connect=self.motion_config.get(
+                    "motion_zmq_connect", DEFAULT_SMPL_MOTION_ZMQ_CONNECT
+                ),
+                motion_zmq_hwm=int(self.motion_config.get("motion_zmq_hwm", 1)),
+                dt_s=float(self.motion_config.get("motion_dt_s", 0.02)),
+                tolerance_s=float(self.motion_config.get("motion_tolerance_s", 0.04)),
+            )
+            self.motion_joint_names = list(self.motion_buffer.joint_names)
+            self.motion_body_names = []
+            return
+
+        raise ValueError(f"Unsupported motion_backend: {self.motion_backend}")
+
+    def _update_motion_data(self, *, paused: bool = False) -> None:
+        if self.motion_backend == "npz":
+            motion_steps = self.motion_future_steps
+            if paused:
+                motion_steps = np.zeros_like(self.motion_future_steps)
+            self.motion_data = self.motion_dataset.get_slice(
+                self.motion_ids,
+                self.motion_t,
+                motion_steps,
+            )
+            if paused:
+                self.motion_data.joint_vel[:] = 0.0
+                self.motion_data.body_lin_vel_w[:] = 0.0
+                self.motion_data.body_ang_vel_w[:] = 0.0
+            return
+
+        self.motion_data = self.motion_buffer.get_obs()
+        self.motion_joint_names = list(self.motion_buffer.joint_names)
+        if self.motion_backend == "zmq":
+            self.motion_body_names = list(self.motion_buffer.body_names)
+        else:
+            self.motion_body_names = []
+
+    def _reset_motion(self) -> None:
+        if self.motion_backend == "npz":
+            self.motion_t[:] = 0
+        self._update_motion_data(paused=True)
+
+    def restart_motion(self) -> None:
+        if self.motion_backend != "npz":
+            return
+        self.motion_t[:] = 0
+        self._update_motion_data(paused=True)
+
+    def reset(self) -> None:
+        self._reset_motion()
+        super().reset()
+
     def toggle_paused(self, *, source: str) -> None:
         paused = not bool(self.state_dict.get("paused", False))
         self.state_dict["paused"] = paused
         logger.info(f"Paused state toggled to {paused} via {source}")
 
     def _motion_update_state(self) -> dict[str, Any]:
-        if getattr(self.state_processor, "motion_backend", "") in {"zmq", "smpl_zmq"}:
+        if self.motion_backend in {"zmq", "smpl_zmq"}:
             state = dict(self.state_dict)
             state["paused"] = False
             return state
@@ -140,10 +261,30 @@ class Tracking(BasePolicy):
 
     def update(self):
         state = self._motion_update_state()
-        self.state_processor.update(state)
+        paused = bool(state.get("paused", False))
+        if not paused and self.motion_backend == "npz":
+            self.motion_t += 1
+            if self.motion_length > 0 and self.motion_t[0] >= self.motion_length:
+                self.motion_t[:] = self.motion_length - 1
+                state["paused"] = True
+                self.state_dict["paused"] = True
+        self._update_motion_data(paused=paused)
         for obs_group in self.observations.values():
             for obs_func in obs_group.funcs.values():
                 obs_func.update(state)
+
+    def _record_runtime_fields(self) -> dict[str, Any]:
+        motion_t = getattr(self, "motion_t", None)
+        value = -1
+        if motion_t is not None:
+            value = int(np.asarray(motion_t).reshape(-1)[0])
+        return {"motion_t": value}
+
+    def _record_metadata_fields(self) -> dict[str, Any]:
+        return {
+            "motion_backend": self.motion_backend,
+            "motion_path": str(self.motion_config.get("motion_path", "")),
+        }
 
     def process_controllers(self) -> None:
         super().process_controllers()

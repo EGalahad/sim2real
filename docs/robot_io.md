@@ -18,9 +18,9 @@ For sim2real deployment, choose one of the three modes below.
 
 | Mode | Processes | Use when |
 | --- | --- | --- |
-| `--robot-io inline` | policy only | Preferred real-robot path when the policy runs on a machine with `unitree_interface`; avoids the extra ZMQ bridge hop. |
-| `--robot-io zmq` + `scripts/real_bridge.py` | policy + Python DDS bridge | Use when you want the original split-process bridge based on `unitree_sdk2py`, or when `unitree_interface` is unavailable. |
-| `--robot-io zmq` + `scripts/real_bridge_cpp.py` | policy + `unitree_interface` bridge | Use when you want the split-process ZMQ contract but prefer the `unitree_interface` robot binding in the bridge. |
+| `--robot-io inline --robot g1` | policy only | Preferred G1 path when the policy runs on a machine with `unitree_interface`; avoids the extra ZMQ bridge hop. |
+| `--robot-io zmq` + `scripts/g1/real_bridge.py` | policy + Python DDS bridge | Use the G1 split-process bridge based on `unitree_sdk2py`. |
+| `--robot-io zmq` + `scripts/g1/real_bridge_cpp.py` | policy + `unitree_interface` bridge | Keep the ZMQ contract while using the `unitree_interface` robot binding. |
 
 :::tip
 If hardware tests show violent joint shaking, or high-dynamic / high-speed
@@ -30,9 +30,9 @@ Try `--robot-io inline` before retuning the policy or gains.
 
 ## Inline
 
-Inline mode creates the Unitree robot object inside `BasePolicy`. The policy
-loop calls `robot.read_low_state()` and `robot.write_low_command()` directly.
-No real bridge process is started.
+Inline mode creates the G1 `RobotIO` backend inside `BasePolicy`. The policy
+runtime reads normalized `RobotState` values and sends commands through the
+backend without starting a bridge process.
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
@@ -44,7 +44,7 @@ Use this path first for real deployment when latency jitter matters. Add
 `--robot-interface <robot_network_interface>` only when the robot network
 interface is not the default `eth0`.
 
-## ZMQ With `real_bridge.py`
+## ZMQ With `scripts/g1/real_bridge.py`
 
 This mode keeps the policy and robot bridge in separate processes. The bridge
 uses `unitree_sdk2py`, publishes `low_state` over ZMQ, and applies `low_cmd`
@@ -53,7 +53,7 @@ from ZMQ to the robot.
 Terminal 1:
 
 ```bash
-uv run scripts/real_bridge.py
+uv run scripts/g1/real_bridge.py
 ```
 
 Terminal 2:
@@ -66,15 +66,15 @@ uv run sim2real/rl_policy/tracking.py \
 Add `--interface <robot_network_interface>` to the bridge command only when the
 robot network interface is not the default `eth0`.
 
-## ZMQ With `real_bridge_cpp.py`
+## ZMQ With `scripts/g1/real_bridge_cpp.py`
 
-This mode keeps the same ZMQ contract as `real_bridge.py`, but the bridge uses
+This mode keeps the same ZMQ contract as `scripts/g1/real_bridge.py`, but the bridge uses
 `unitree_interface` for robot I/O.
 
 Terminal 1:
 
 ```bash
-uv run scripts/real_bridge_cpp.py
+uv run scripts/g1/real_bridge_cpp.py
 ```
 
 Terminal 2:

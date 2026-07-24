@@ -420,7 +420,7 @@ BaseSimulator + SimulationBridge
 真机下游由 `--robot-io` 决定：
 
 - `inline`：`BasePolicy` 直接持有 robot object，直接读状态、写命令。
-- `zmq`：`BasePolicy` 继续走 `low_state` / `low_cmd` ZMQ，总线另一端可以是 `scripts/real_bridge.py` 或 `scripts/real_bridge_cpp.py`。
+- `zmq`：`BasePolicy` 继续走 `low_state` / `low_cmd` ZMQ，总线另一端可以是 `scripts/g1/real_bridge.py` 或 `scripts/g1/real_bridge_cpp.py`。
 
 三种部署方式的命令集中维护在 [Robot I/O](/reference/robot-io)。
 
@@ -464,7 +464,7 @@ uv run sim2real/sim_env/base_sim.py
 如果 tracking 的参考动作不再来自离线 any4hdmi qpos `.npz`，而是来自 VR teleop，那么还需要额外启动：
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py
+uv run --project venv/pico sim2real/teleop/pico_retarget_pub.py
 ```
 
 它负责：

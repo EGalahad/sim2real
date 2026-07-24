@@ -25,13 +25,14 @@ third_party/
 `find-links = ["third_party/wheels"]` 解析这些包。G1 上安装基础真机依赖：
 
 ```bash
-uv sync --group g1
+uv sync --extra inference-cpu --extra robot-g1
 ```
 
-如果 onboard 环境还要安装 JetPack 6 的 ONNX Runtime GPU wheel，用：
+如果 onboard 环境还要安装 JetPack 6 的 ONNX Runtime GPU wheel，同时选择 GPU
+inference extra 和 G1 robot extra：
 
 ```bash
-uv sync --group g1-gpu
+uv sync --extra inference-gpu --extra robot-g1
 ```
 
 `third_party/prebuilt/` 里放非 Python wheel 的预编译包。JetPack 5 的 Pico onboard

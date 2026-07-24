@@ -400,7 +400,7 @@ def _resolve_motion_data_step_indices(
     required_steps: np.ndarray,
 ) -> tuple[MotionData, np.ndarray]:
     if motion_data is None:
-        raise ValueError("BFM-Zero window obs requires state_processor.motion_data")
+        raise ValueError("BFM-Zero window obs requires env.motion_data")
     available_steps = [int(step) for step in np.asarray(motion_future_steps, dtype=np.int64).reshape(-1)]
     if not available_steps:
         raise ValueError("BFM-Zero window obs requires motion.future_steps")
@@ -418,7 +418,7 @@ def _resolve_motion_data_step_indices(
 
 def _backward_window_query(
     *,
-    state_processor: Any,
+    env: Any,
     seq_length: int,
     motion_t_offset: int,
 ) -> tuple[np.ndarray, list[str], list[str]]:
@@ -426,19 +426,19 @@ def _backward_window_query(
         int(seq_length) + 1,
         dtype=np.int64,
     )
-    source_joint_names = list(getattr(state_processor, "motion_joint_names", ()))
-    source_body_names = list(getattr(state_processor, "motion_body_names", ()))
+    source_joint_names = list(getattr(env, "motion_joint_names", ()))
+    source_body_names = list(getattr(env, "motion_body_names", ()))
     if not source_joint_names or not source_body_names:
         raise ValueError(
             "BFM-Zero window obs requires motion_joint_names and "
-            "motion_body_names on state_processor"
+            "motion_body_names on env"
         )
     return required_steps, source_joint_names, source_body_names
 
 
 def _get_motion_data_backward_observation_window(
     *,
-    state_processor: Any,
+    env: Any,
     joint_names: Sequence[str],
     default_joint_pos: np.ndarray,
     target_fps: float,
@@ -450,15 +450,15 @@ def _get_motion_data_backward_observation_window(
         raise ValueError("BFM-Zero MotionData window obs currently requires clamp_to_final=True")
 
     required_steps, source_joint_names, source_body_names = _backward_window_query(
-        state_processor=state_processor,
+        env=env,
         seq_length=seq_length,
         motion_t_offset=motion_t_offset,
     )
 
     motion_data, support_indices = _resolve_motion_data_step_indices(
-        motion_data=getattr(state_processor, "motion_data", None),
+        motion_data=getattr(env, "motion_data", None),
         motion_future_steps=getattr(
-            state_processor,
+            env,
             "motion_future_steps",
             np.asarray([], dtype=np.int64),
         ),
@@ -489,8 +489,8 @@ def _get_motion_data_backward_observation_window(
         tuple(joint_names),
         tuple(np.asarray(default_joint_pos, dtype=np.float32).round(8).tolist()),
     )
-    if getattr(state_processor, "_bfm_zero_motion_data_window_obs_cache_key", None) == cache_key:
-        return getattr(state_processor, "_bfm_zero_motion_data_window_obs_cache_value")
+    if getattr(env, "_bfm_zero_motion_data_window_obs_cache_key", None) == cache_key:
+        return getattr(env, "_bfm_zero_motion_data_window_obs_cache_value")
 
     joint_indices = [source_joint_names.index(name) for name in joint_names]
     body_indices = [
@@ -534,8 +534,8 @@ def _get_motion_data_backward_observation_window(
         target_fps=target_fps,
         target_frame_indices=np.arange(1, int(seq_length) + 1, dtype=np.int64),
     )
-    setattr(state_processor, "_bfm_zero_motion_data_window_obs_cache_key", cache_key)
-    setattr(state_processor, "_bfm_zero_motion_data_window_obs_cache_value", obs)
+    setattr(env, "_bfm_zero_motion_data_window_obs_cache_key", cache_key)
+    setattr(env, "_bfm_zero_motion_data_window_obs_cache_value", obs)
     return obs
 
 
@@ -696,8 +696,8 @@ class _BFMZeroMotionSelection(motion_obs):
         pass
 
     def _refresh_motion_indices(self) -> None:
-        joint_names = tuple(self.state_processor.motion_joint_names)
-        body_names = tuple(self.state_processor.motion_body_names)
+        joint_names = tuple(self.env.motion_joint_names)
+        body_names = tuple(self.env.motion_body_names)
         layout = (joint_names, body_names)
         if self._cached_motion_layout == layout:
             return
@@ -716,12 +716,12 @@ class _BFMZeroMotionSelection(motion_obs):
         self._cached_motion_layout = layout
 
     def _motion_data(self) -> MotionData:
-        motion_data = self.state_processor.motion_data
+        motion_data = self.env.motion_data
         if motion_data is None:
             raise ValueError("BFM-Zero fused observations require motion_data")
         if self.motion_t_offset != 0:
             motion_ids, motion_t, motion_steps = self._motion_query()
-            motion_data = self.state_processor.motion_dataset.get_slice(
+            motion_data = self.env.motion_dataset.get_slice(
                 motion_ids,
                 motion_t,
                 motion_steps,
@@ -742,10 +742,10 @@ class _BFMZeroMotionSelection(motion_obs):
         return motion_data
 
     def _motion_query(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        motion_ids = np.asarray(self.state_processor.motion_ids, dtype=np.int64).reshape(-1)
-        motion_t = np.asarray(self.state_processor.motion_t, dtype=np.int64).reshape(-1)
+        motion_ids = np.asarray(self.env.motion_ids, dtype=np.int64).reshape(-1)
+        motion_t = np.asarray(self.env.motion_t, dtype=np.int64).reshape(-1)
         motion_steps = np.asarray(
-            getattr(self.state_processor, "motion_future_steps", np.asarray([0], dtype=int)),
+            getattr(self.env, "motion_future_steps", np.asarray([0], dtype=int)),
             dtype=np.int64,
         ).reshape(-1)
         return motion_ids, motion_t + self.motion_t_offset, motion_steps
@@ -758,7 +758,7 @@ class _BFMZeroMotionSelection(motion_obs):
         motion_t: np.ndarray,
         motion_steps: np.ndarray,
     ) -> MotionData:
-        dataset = getattr(self.state_processor, "motion_dataset", None)
+        dataset = getattr(self.env, "motion_dataset", None)
         if dataset is None:
             return motion_data
 
@@ -787,7 +787,7 @@ class _BFMZeroMotionSelection(motion_obs):
         return MotionData(**result)
 
     def _humanoidverse_velocity_cache(self, local_motion_id: int) -> dict[str, np.ndarray]:
-        dataset = self.state_processor.motion_dataset
+        dataset = self.env.motion_dataset
         cache = getattr(dataset, "_bfm_zero_humanoidverse_velocity_cache", None)
         if cache is None:
             cache = {}
@@ -1099,7 +1099,7 @@ class _BFMZeroMinimalBackwardFutureWindow(motion_obs):
 
     def compute(self) -> np.ndarray:
         obs = _get_motion_data_backward_observation_window(
-            state_processor=self.state_processor,
+            env=self.env,
             joint_names=self.joint_names,
             default_joint_pos=self._default_joint_pos,
             target_fps=self.target_fps,
@@ -1157,14 +1157,14 @@ class bfm_zero_minimal_future_window_weight(motion_obs, namespace="bfm_zero"):
             return np.ones((self.seq_length, 1), dtype=np.float32)
 
         required_steps, _, _ = _backward_window_query(
-            state_processor=self.state_processor,
+            env=self.env,
             seq_length=self.seq_length,
             motion_t_offset=self.motion_t_offset,
         )
         motion_data, support_indices = _resolve_motion_data_step_indices(
-            motion_data=getattr(self.state_processor, "motion_data", None),
+            motion_data=getattr(self.env, "motion_data", None),
             motion_future_steps=getattr(
-                self.state_processor,
+                self.env,
                 "motion_future_steps",
                 np.asarray([], dtype=np.int64),
             ),

@@ -11,15 +11,15 @@ hosts such as `g1-cable` or `g1-deploy`.
 ## Operating Rules
 
 1. Treat the local checkout as the source of truth for code. Use
-   `sim2real/sync-g1.sh` or explicit `rsync` for deployment. Do not make
+   `sim2real/sync-robot.sh g1` or explicit `rsync` for deployment. Do not make
    persistent source edits only on the robot unless the change is a
    host-local environment workaround.
 2. Use `g1-deploy` when Ethernet is disconnected. Use `bash -lc` over SSH so
    `uv`, `.profile`, and robot shell defaults load.
 3. Keep root policy deployment and teleop separate:
-   - root project: `~/sim2real` plus `~/any4hdmi`, `uv sync --group g1`,
+   - root project: `~/sim2real` plus `~/any4hdmi`, `uv sync --extra inference-cpu --extra robot-g1`,
      CycloneDDS, HF asset cache, ONNX inference smoke.
-   - teleop project: `~/sim2real/venv/teleop`, GMR/smplx dependencies,
+   - teleop project: `~/sim2real/venv/pico`, GMR/smplx dependencies,
      XRoboToolkit service and `xrobotoolkit_sdk`.
 4. If a command needs `sudo`, provide the exact command and use the user's
    interactive sudo tmux only when available. Do not hide a blocked sudo prompt
@@ -42,17 +42,17 @@ hosts such as `g1-cable` or `g1-deploy`.
      cache directory.
 3. Configure the root project.
    - Build or locate CycloneDDS, export `CYCLONEDDS_HOME` and
-     `LD_LIBRARY_PATH`, run `uv sync --group g1`, then verify imports.
+     `LD_LIBRARY_PATH`, run `uv sync --extra inference-cpu --extra robot-g1`, then verify imports.
    - Run the onboard ONNX CPU benchmark before claiming root deployment is
      ready.
 4. Sync motion assets.
    - Put G1-targeted motion datasets under `any4hdmi/output/g1/...`.
-   - Add explicit include rules to `sim2real/sync-g1.sh` for any new dataset
+   - Add explicit include rules to `sim2real/sync-robot.sh` for any new dataset
      path and run the sync against `G1_HOST=g1-deploy`.
    - If the sync script excludes `sync*.sh`, copy the updated sync script to
      the robot explicitly after editing it.
 5. Configure teleop.
-   - Run `uv --project venv/teleop sync`.
+   - Run `uv sync --project venv/pico`.
    - If remote GitHub fetches hang, seed local source copies for GMR and smplx
      on the robot and patch only the robot's teleop dependency files to
      `file:///home/elijah/src/...`.
@@ -67,12 +67,12 @@ hosts such as `g1-cable` or `g1-deploy`.
   shows the intended shell defaults and `uv`.
 - `mjhub.resolve_asset_reference("hf://elijahgalahad/g1_xmls@main/g1-mode_13_15.xml")`
   returns a local cached file.
-- `cd ~/sim2real && uv sync --group g1` is complete and the root env imports
+- `cd ~/sim2real && uv sync --extra inference-cpu --extra robot-g1` is complete and the root env imports
   `sim2real`, `any4hdmi`, `mujoco`, `onnxruntime`, `cyclonedds`,
   `unitree_sdk2py`, and `unitree_interface`.
 - `scripts/test_policy_inference.py` runs with `--inference_backend onnx-cpu`
   on the robot.
-- `uv --project venv/teleop run python -c 'import xrobotoolkit_sdk'` succeeds.
+- `uv run --project venv/pico python -c 'import xrobotoolkit_sdk'` succeeds.
 - Teleop scripts at least compile with `py_compile`; real teleop still needs
   the XRoboToolkit service running and hardware state ready.
 

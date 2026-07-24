@@ -60,7 +60,7 @@ uv run sim2real/teleop/npz_pub.py \
 ```
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py \
+uv run --project venv/pico sim2real/teleop/pico_retarget_pub.py \
   --mjcf-path checkpoints/bfm-zero/exp_lafan40-100style_update_z10/mjcf/g1_for_reward_inference.xml
 ```
 
@@ -73,7 +73,7 @@ SMPL policy config, keep its `motion_backend: smpl_zmq` setting, or pass
 Minimal sim2sim Pico test:
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py --publish-smpl
+uv run --project venv/pico sim2real/teleop/pico_retarget_pub.py --publish-smpl
 ```
 
 ```bash

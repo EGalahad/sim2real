@@ -8,7 +8,7 @@ This tutorial records the retargeted G1 motion stream published by `sim2real/tel
 ## 1. Start the live publisher
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py
+uv run --project venv/pico sim2real/teleop/pico_retarget_pub.py
 ```
 
 ## 2. Record the motion stream

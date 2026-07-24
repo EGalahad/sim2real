@@ -46,6 +46,8 @@ class RobotCfg:
     joint_pos_upper_limit: Mapping[str, float]
     joint_velocity_limit: Mapping[str, float]
     joint_effort_limit: Mapping[str, float]
+    safe_joint_kp: Mapping[str, float] = field(default_factory=dict)
+    safe_joint_kd: Mapping[str, float] = field(default_factory=dict)
     joint_armature: Mapping[str, float] = field(default_factory=dict)
     joint_frictionloss: Mapping[str, float] = field(default_factory=dict)
     mjcf_path: AssetReference | None = None

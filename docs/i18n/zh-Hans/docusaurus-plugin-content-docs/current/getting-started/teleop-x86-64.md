@@ -1,11 +1,11 @@
 # Teleop Project (x86_64 PC)
 
-`venv/teleop` 用来在 laptop / desktop 上跑 Pico / XR body tracking 和 realtime retarget 检查。录制和回放 motion clip 请切到 root project，用 any4hdmi-backed scripts。
+`venv/pico` 用来在 laptop / desktop 上跑 Pico / XR body tracking 和 realtime retarget 检查。录制和回放 motion clip 请切到 root project，用 any4hdmi-backed scripts。
 
 ## Setup
 
 ```bash
-uv --project venv/teleop sync
+uv sync --project venv/pico
 ```
 
 ### 安装 XRoboToolkit PC Service
@@ -50,7 +50,7 @@ bash scripts/setup/setup_xrobot_pybind.sh
 先启动 live retarget publisher：
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py
+uv run --project venv/pico sim2real/teleop/pico_retarget_pub.py
 ```
 
 打开 publisher 打印出来的 mjviser URL。如果 viewer 里能看到实时更新的 G1 retarget 动作，teleop 环境就通了。

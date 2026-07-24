@@ -89,7 +89,7 @@ Expected result: a local path under
 
 ## 3. Root Project Setup
 
-Build CycloneDDS if `uv sync --group g1` or imports cannot locate it:
+Build CycloneDDS if `uv sync --extra inference-cpu --extra robot-g1` or imports cannot locate it:
 
 ```bash
 ssh g1-deploy 'bash -lc "
@@ -111,7 +111,7 @@ ssh g1-deploy 'bash -lc "
   cd ~/sim2real
   export CYCLONEDDS_HOME=$HOME/cyclonedds/install
   export LD_LIBRARY_PATH=$CYCLONEDDS_HOME/lib:\${LD_LIBRARY_PATH:-}
-  uv sync --group g1
+  uv sync --extra inference-cpu --extra robot-g1
 "'
 ```
 
@@ -152,7 +152,7 @@ mkdir -p any4hdmi/output/g1/root_tracking_test
 rsync -a --delete any4hdmi/output/root_tracking_test/ any4hdmi/output/g1/root_tracking_test/
 ```
 
-Add a sync include in `sim2real/sync-g1.sh` near the other `any4hdmi/output`
+Add a sync include in `sim2real/sync-robot.sh` near the other `any4hdmi/output`
 includes:
 
 ```bash
@@ -162,13 +162,13 @@ includes:
 Sync to the robot:
 
 ```bash
-G1_HOST=g1-deploy bash sim2real/sync-g1.sh
+G1_HOST=g1-deploy bash sim2real/sync-robot.sh g1
 ```
 
 If the sync script excludes `sync*.sh`, copy the script itself after editing:
 
 ```bash
-rsync -az sim2real/sync-g1.sh g1-deploy:/home/elijah/sim2real/sync-g1.sh
+rsync -az sim2real/sync-robot.sh g1-deploy:/home/elijah/sim2real/sync-robot.sh
 ```
 
 Verify the remote dataset:
@@ -187,7 +187,7 @@ Start with the normal sync:
 ```bash
 ssh g1-deploy 'bash -lc "
   cd ~/sim2real
-  uv --project venv/teleop sync
+  uv sync --project venv/pico
 "'
 ```
 
@@ -230,7 +230,7 @@ general_motion_retargeting @ file:///home/elijah/src/GMR
 smplx @ file:///home/elijah/src/smplx
 ```
 
-Place the first line in `~/sim2real/venv/teleop/pyproject.toml` and the second
+Place the first line in `~/sim2real/venv/pico/pyproject.toml` and the second
 line in `~/src/GMR/pyproject.toml`. Make backups before editing. Do not commit
 these file URLs to the local repo unless the project intentionally vendors
 those dependencies.
@@ -240,8 +240,8 @@ Run the sync again and verify core imports:
 ```bash
 ssh g1-deploy 'bash -lc "
   cd ~/sim2real
-  uv --project venv/teleop sync
-  uv --project venv/teleop run python - <<PY
+  uv sync --project venv/pico
+  uv run --project venv/pico python - <<PY
 for name in [\"sim2real.teleop\", \"general_motion_retargeting\", \"smplx\", \"mjviser\", \"mjhub\", \"mujoco\", \"pybind11\", \"torch\"]:
     __import__(name)
     print(\"ok\", name)
@@ -287,7 +287,7 @@ Build and install the Python binding:
 ssh g1-deploy 'bash -lc "
   cd ~/sim2real
   bash scripts/setup/setup_xrobot_pybind.sh --arch aarch64
-  uv --project venv/teleop run python - <<PY
+  uv run --project venv/pico python - <<PY
 import xrobotoolkit_sdk
 print(\"xrobot import ok\", xrobotoolkit_sdk.__file__)
 PY
@@ -310,7 +310,7 @@ Compile teleop scripts:
 ```bash
 ssh g1-deploy 'bash -lc "
   cd ~/sim2real
-  uv --project venv/teleop run python -m py_compile \
+  uv run --project venv/pico python -m py_compile \
     sim2real/teleop/pico_retarget_pub.py \
     sim2real/teleop/record_smplx.py \
     sim2real/teleop/benchmark_smplx_retarget.py
@@ -323,13 +323,13 @@ ssh g1-deploy 'bash -lc "
   startup: fix HF endpoint/proxy/cache and then set `HF_HUB_OFFLINE=1`.
 - `ALL_PROXY=socks5://127.0.0.1:7890` plus missing `socksio`: unset
   `ALL_PROXY/all_proxy` for `uv run` or use HTTP(S) proxy variables only.
-- `uv --project venv/teleop sync` hangs on GitHub: prefer repo-local
+- `uv sync --project venv/pico` hangs on GitHub: prefer repo-local
   `external/GMR` with an editable `tool.uv.sources` path. Use `/home/elijah/src`
   `file://` dependencies only as a temporary robot-local recovery path.
 - `ParseXML: Error opening file ... site-packages/general_motion_retargeting/../assets/unitree_g1/g1_mocap_29dof.xml`:
   GMR was installed as a non-editable wheel and its top-level assets were not
   installed. Fix by making GMR editable from `external/GMR` and rerunning
-  `uv --project venv/teleop sync`.
+  `uv sync --project venv/pico`.
 - CMake path mismatch under `PXREARobotSDK/build`: remove the stale build
   directory copied from another machine.
 - `runtime_version.h` missing during XRoboToolkit build: replace the SDK gRPC
@@ -346,10 +346,10 @@ ssh g1-deploy 'bash -lc "
 
 ## 8. Ready State Summary
 
-Root project is ready when the HF resolver, `uv sync --group g1`, imports, and
+Root project is ready when the HF resolver, `uv sync --extra inference-cpu --extra robot-g1`, imports, and
 ONNX CPU benchmark all pass on `g1-deploy`.
 
-Teleop Python is ready when `uv --project venv/teleop sync`, core imports,
+Teleop Python is ready when `uv sync --project venv/pico`, core imports,
 `xrobotoolkit_sdk` import, and teleop script compilation pass.
 
 Teleop hardware is ready only after the XRoboToolkit `.deb` is installed,

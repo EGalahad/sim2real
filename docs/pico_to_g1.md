@@ -22,9 +22,9 @@ then passes that dictionary into GMR with:
 Relevant sources:
 
 - `sim2real/teleop/pico_retarget_pub.py`
-- `venv/teleop/.venv/lib/python3.10/site-packages/general_motion_retargeting/xrobot_utils.py`
-- `venv/teleop/.venv/lib/python3.10/site-packages/general_motion_retargeting/motion_retarget.py`
-- `venv/teleop/.venv/lib/python3.10/site-packages/general_motion_retargeting/ik_configs/xrobot_to_g1.json`
+- `venv/pico/.venv/lib/python3.10/site-packages/general_motion_retargeting/xrobot_utils.py`
+- `venv/pico/.venv/lib/python3.10/site-packages/general_motion_retargeting/motion_retarget.py`
+- `venv/pico/.venv/lib/python3.10/site-packages/general_motion_retargeting/ik_configs/xrobot_to_g1.json`
 
 ## PICO Body Points
 

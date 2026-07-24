@@ -26,7 +26,7 @@ flowchart LR
 如果你在 [Robot I/O](/reference/robot-io) 里选择了 ZMQ bridge 模式，就在 laptop 上运行 bridge：
 
 ```bash
-uv run scripts/real_bridge.py
+uv run scripts/g1/real_bridge.py
 ```
 
 可以用 `ip -br link` 查看网卡名。只有有线网卡不是默认 `eth0` 时，才加

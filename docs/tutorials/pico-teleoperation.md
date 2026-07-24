@@ -8,7 +8,7 @@ This tutorial uses the teleop publisher for live Pico / XR retargeting, its buil
 ## 1. Start the Pico retarget publisher
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py
+uv run --project venv/pico sim2real/teleop/pico_retarget_pub.py
 ```
 
 Open the mjviser URL printed by the publisher and keep it open until the retargeted G1 motion looks correct.

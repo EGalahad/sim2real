@@ -26,14 +26,14 @@ assume these paths exist locally, for example
 `uv` through `find-links = ["third_party/wheels"]`. On G1, use:
 
 ```bash
-uv sync --group g1
+uv sync --extra inference-cpu --extra robot-g1
 ```
 
-Use the GPU group when the onboard environment should install the JetPack 6
-ONNX Runtime GPU wheel:
+Use the GPU inference extra with the G1 robot extra when the onboard environment
+should install the JetPack 6 ONNX Runtime GPU wheel:
 
 ```bash
-uv sync --group g1-gpu
+uv sync --extra inference-gpu --extra robot-g1
 ```
 
 `third_party/prebuilt/` contains prebuilt packages that are not Python wheels.

@@ -1,6 +1,6 @@
 # sim2real
 
-root project 负责 inference、tracking policy，以及 MuJoCo 的 sim / sim2real runtime。Pico / XR teleoperation 工具请使用 `venv/teleop`。
+root project 负责 inference、tracking policy，以及 MuJoCo 的 sim / sim2real runtime。Pico / XR teleoperation 工具请使用 `venv/pico`。
 
 English version: [README.md](./README.md)
 
@@ -19,7 +19,7 @@ Full documentation: [https://egalahad.github.io/sim2real/](https://egalahad.gith
 ## 快速开始
 
 ```bash
-uv sync
+uv sync --extra inference-cpu
 ```
 
 运行离线动作跟踪（sim2sim）：
@@ -56,6 +56,12 @@ skills/adapt-policy-to-sim2real
 - SONIC low-latency SMPL: `checkpoints/sonic/low_latency/smpl/policy.yaml`
 - TeleopIT: `checkpoints/teleopit/policy.yaml`
 - TWIST2: `checkpoints/twist2/policy.yaml`
+
+## 真机环境
+
+机器人 SDK 不安装进通用 root 环境。G1 inline 部署使用
+`uv sync --extra inference-cpu --extra robot-g1`。安装与部署命令见
+[Robot I/O 模式](./docs/robot_io.md)。
 
 安装到本机 Codex skills 目录：
 

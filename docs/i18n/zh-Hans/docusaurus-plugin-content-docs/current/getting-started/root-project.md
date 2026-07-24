@@ -5,14 +5,14 @@ root project 用来跑 inference、tracking policy、MuJoCo simulation，以及 
 ## Setup
 
 ```bash
-uv sync
+uv sync --extra inference-cpu
 ```
 
-如果这台机器要跑 `--robot-io inline` 或 `scripts/real_bridge_cpp.py`，还需要安装
-G1 dependency group：
+如果这台机器要跑 `--robot-io inline` 或 `scripts/g1/real_bridge_cpp.py`，还需要安装
+G1 robot extra：
 
 ```bash
-uv sync --group g1
+uv sync --extra inference-cpu --extra robot-g1
 ```
 
 如果 `unitree_sdk2py` setup 找不到 `cyclonedds`，可以参考上游 FAQ：
@@ -43,7 +43,7 @@ export CYCLONEDDS_HOME="$HOME/cyclonedds/install"
 ### Test ankle swing
 
 ```bash
-uv run scripts/ankle_swing.py
+uv run scripts/g1/test_ankle_swing.py
 ```
 
 ### Test inference time

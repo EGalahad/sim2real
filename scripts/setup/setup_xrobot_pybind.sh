@@ -6,7 +6,7 @@ usage() {
   cat <<'EOF'
 Usage: bash scripts/setup/setup_xrobot_pybind.sh [--arch x86_64|aarch64]
 
-Build and install xrobotoolkit_sdk into venv/teleop.
+Build and install xrobotoolkit_sdk into venv/pico.
 
 Expected repos:
   external/XRoboToolkit-PC-Service
@@ -66,7 +66,7 @@ esac
 SERVICE_DIR="$ROOT_DIR/external/XRoboToolkit-PC-Service"
 PYBIND_DIR="$ROOT_DIR/external/XRoboToolkit-PC-Service-Pybind"
 SDK_DIR="$SERVICE_DIR/RoboticsService/PXREARobotSDK"
-PYTHON_BIN="$ROOT_DIR/venv/teleop/.venv/bin/python"
+PYTHON_BIN="$ROOT_DIR/venv/pico/.venv/bin/python"
 UV_BIN=$(command -v uv || true)
 
 if [[ -z "$UV_BIN" && -x "$HOME/.local/bin/uv" ]]; then
@@ -89,7 +89,7 @@ if [[ ! -d "$SDK_DIR" ]]; then
 fi
 
 if [[ ! -x "$PYTHON_BIN" ]]; then
-  echo "Missing teleop environment at $PYTHON_BIN. Run 'uv --project venv/teleop sync' first." >&2
+  echo "Missing teleop environment at $PYTHON_BIN. Run 'uv sync --project venv/pico' first." >&2
   exit 1
 fi
 
@@ -148,11 +148,11 @@ fi
 
 export pybind11_DIR
 pybind11_DIR=$(
-  "$UV_BIN" --project "$ROOT_DIR/venv/teleop" run python -c "import pybind11; print(pybind11.get_cmake_dir())"
+  "$UV_BIN" --project "$ROOT_DIR/venv/pico" run python -c "import pybind11; print(pybind11.get_cmake_dir())"
 )
 
 echo "[setup_xrobot_pybind] pybind11_DIR=$pybind11_DIR"
-"$UV_BIN" --project "$ROOT_DIR/venv/teleop" pip uninstall --python "$PYTHON_BIN" xrobotoolkit_sdk >/dev/null 2>&1 || true
-"$UV_BIN" --project "$ROOT_DIR/venv/teleop" pip install --python "$PYTHON_BIN" -e "$PYBIND_DIR"
+"$UV_BIN" --project "$ROOT_DIR/venv/pico" pip uninstall --python "$PYTHON_BIN" xrobotoolkit_sdk >/dev/null 2>&1 || true
+"$UV_BIN" --project "$ROOT_DIR/venv/pico" pip install --python "$PYTHON_BIN" -e "$PYBIND_DIR"
 
 echo "[setup_xrobot_pybind] xrobotoolkit_sdk installed"

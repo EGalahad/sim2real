@@ -3,12 +3,12 @@ title: Teleop Project (x86_64 PC)
 sidebar_position: 3
 ---
 
-Use `venv/teleop` for Pico / XR body tracking and realtime retarget inspection on a laptop or desktop. Record and replay motion clips from the root project with the any4hdmi-backed scripts.
+Use `venv/pico` for Pico / XR body tracking and realtime retarget inspection on a laptop or desktop. Record and replay motion clips from the root project with the any4hdmi-backed scripts.
 
 ## Setup
 
 ```bash
-uv --project venv/teleop sync
+uv sync --project venv/pico
 ```
 
 ### Install XRoboToolkit PC Service
@@ -52,7 +52,7 @@ The script expects the two repos above to exist under `external/`.
 Start the live retarget publisher:
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py
+uv run --project venv/pico sim2real/teleop/pico_retarget_pub.py
 ```
 
 Open the mjviser URL printed by the publisher. If it updates with live G1 retargeted motion, the teleop stack is ready.

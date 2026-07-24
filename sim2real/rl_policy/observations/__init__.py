@@ -1,4 +1,4 @@
-from .base import Observation, ObsGroup
+from .base import Observation, ObsGroup, normalize_observation_array
 
 from .heft import *
 from .bfm_zero import *

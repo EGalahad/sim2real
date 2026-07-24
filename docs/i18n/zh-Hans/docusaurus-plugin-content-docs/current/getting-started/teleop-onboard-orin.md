@@ -1,11 +1,11 @@
 # Teleop Project (Onboard Orin)
 
-当 Pico / XR 工具直接跑在 G1 的 onboard Orin 上时，使用这条路径。root project 仍然负责 policy runtime 和 `scripts/real_bridge.py`。
+当 Pico / XR 工具直接跑在 G1 的 onboard Orin 上时，使用这条路径。root project 仍然负责 policy runtime 和 `scripts/g1/real_bridge.py`。
 
 ## Setup
 
 ```bash
-uv --project venv/teleop sync
+uv sync --project venv/pico
 ```
 
 根据 onboard Orin 上的 JetPack 版本选择对应路径：
@@ -78,7 +78,7 @@ bash scripts/setup/setup_xrobot_pybind.sh --arch aarch64
 先在 G1 onboard Orin 上启动 live retarget publisher：
 
 ```bash
-uv --project venv/teleop run sim2real/teleop/pico_retarget_pub.py
+uv run --project venv/pico sim2real/teleop/pico_retarget_pub.py
 ```
 
 打开 publisher 打印出来的 mjviser URL。如果 viewer 里能看到实时更新的 G1 retarget 动作，说明 onboard teleop 环境已经打通。
@@ -92,8 +92,8 @@ uv run scripts/view_motion.py --motion g1_motion_YYYYMMDD_HHMMSS/motions/motion.
 
 ## Notes
 
-- 如果 onboard 机器也跑 policy 和 bridge，请同时在 repo 根目录执行 `uv sync`
-- 如果 onboard 机器要跑 `--robot-io inline` 或 `scripts/real_bridge_cpp.py`，repo 根目录要执行 `uv sync --group g1`
+- 如果 onboard 机器也跑 policy 和 bridge，请同时在 repo 根目录执行 `uv sync --extra inference-cpu`
+- 如果 onboard 机器要跑 `--robot-io inline` 或 `scripts/g1/real_bridge_cpp.py`，repo 根目录要执行 `uv sync --extra inference-cpu --extra robot-g1`
 - 如果 Pico publisher 跑在另一台 PC 上，记得把 policy 的 `--motion_zmq_connect` 指到那台机器
 
 ## Next Steps

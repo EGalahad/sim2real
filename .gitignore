@@ -6,7 +6,12 @@ stubs
 /legacy
 /g1_motion*
 /infra.drawio.png
-/tests/
+!/tests/
+/tests/*
+!/tests/test_robot_io.py
+!/tests/test_command_sender.py
+!/tests/test_motion_buffer.py
+!/tests/test_sonic_dict_policy.py
 /third_party/
 .omx
 prebuilt

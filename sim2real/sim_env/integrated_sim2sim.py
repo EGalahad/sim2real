@@ -17,7 +17,7 @@ from loguru import logger
 
 from sim2real.config.robots import get_robot_cfg
 from sim2real.config.robots.base import RobotCfg
-from sim2real.rl_policy.observations import Observation, ObsGroup
+from sim2real.rl_policy.observations import Observation, ObsGroup, normalize_observation_array
 from sim2real.rl_policy.utils.motion import (
     MotionData,
     MotionDataset,
@@ -274,6 +274,30 @@ class IntegratedPolicyRuntime:
         self.setup_policy(self.model_path)
         self.setup_observations(self.policy_config["observation"])
 
+    @property
+    def motion_config(self) -> Dict[str, Any]:
+        return self.state_processor.motion_config
+
+    @property
+    def motion_future_steps(self) -> np.ndarray:
+        return self.state_processor.motion_future_steps
+
+    @property
+    def motion_joint_names(self) -> list[str]:
+        return self.state_processor.motion_joint_names
+
+    @property
+    def motion_body_names(self) -> list[str]:
+        return self.state_processor.motion_body_names
+
+    @property
+    def motion_data(self) -> MotionData | None:
+        return self.state_processor.motion_data
+
+    @property
+    def motion_t(self) -> np.ndarray:
+        return self.state_processor.motion_t
+
     def _resolve_joint_array(self, key: str) -> np.ndarray:
         values_dict = self.policy_config[key]
         joint_indices, _joint_names, values = resolve_matching_names_values(
@@ -381,7 +405,7 @@ class IntegratedPolicyRuntime:
             group_values: list[np.ndarray] = []
             for obs_name, obs_func in obs_group.funcs.items():
                 start = time.perf_counter()
-                obs = obs_func.compute().astype(np.float32)
+                obs = normalize_observation_array(obs_func.compute())
                 if timings is not None:
                     timings.append((f"compute:{obs_group.name}.{obs_name}", time.perf_counter() - start))
                 group_components[obs_name] = obs

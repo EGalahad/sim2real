@@ -8,14 +8,14 @@ Use the root project for inference, tracking policy, MuJoCo simulation, and robo
 ## Setup
 
 ```bash
-uv sync
+uv sync --extra inference-cpu
 ```
 
-If this machine will run `--robot-io inline` or `scripts/real_bridge_cpp.py`,
-install the G1 dependency group as well:
+If this machine will run `--robot-io inline` or `scripts/g1/real_bridge_cpp.py`,
+install the G1 robot extra as well:
 
 ```bash
-uv sync --group g1
+uv sync --extra inference-cpu --extra robot-g1
 ```
 
 If `unitree_sdk2py` setup cannot locate `cyclonedds`, refer to the upstream
@@ -47,7 +47,7 @@ Then rerun your environment setup.
 ### Test ankle swing
 
 ```bash
-uv run scripts/ankle_swing.py
+uv run scripts/g1/test_ankle_swing.py
 ```
 
 ### Test inference time
