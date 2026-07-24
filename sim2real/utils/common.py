@@ -48,10 +48,12 @@ PORTS = {
     "low_state": 5590,
     "low_cmd": 5591,
     "pico_controller": 5592,
+    "hand_grip": 5593,
 }
 
 
 _PICO_CONTROLLER_STATE_STRUCT = struct.Struct('<QBBBB')
+_HAND_GRIP_STRUCT = struct.Struct('<Qff')
 
 
 class PicoControllerStateMessage:
@@ -99,6 +101,58 @@ class PicoControllerStateMessage:
             X=bool(x),
             Y=bool(y),
         )
+
+
+class HandGripMessage:
+    """Binary message containing normalized left/right hand grip commands."""
+
+    def __init__(
+        self,
+        timestamp_ns: int = 0,
+        left_grip: float = 0.0,
+        right_grip: float = 0.0,
+    ):
+        self.timestamp_ns = int(timestamp_ns)
+        self.left_grip = float(left_grip)
+        self.right_grip = float(right_grip)
+        self._validate()
+
+    def _validate(self) -> None:
+        if not 0 <= self.timestamp_ns <= (2**64 - 1):
+            raise ValueError("HandGripMessage timestamp_ns must fit uint64")
+        for name, value in (
+            ("left_grip", self.left_grip),
+            ("right_grip", self.right_grip),
+        ):
+            if not np.isfinite(value):
+                raise ValueError(f"HandGripMessage {name} must be finite")
+            if not 0.0 <= value <= 1.0:
+                raise ValueError(f"HandGripMessage {name} must be within [0, 1]")
+
+    def to_bytes(self) -> bytes:
+        self._validate()
+        return _HAND_GRIP_STRUCT.pack(
+            self.timestamp_ns,
+            self.left_grip,
+            self.right_grip,
+        )
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> 'HandGripMessage':
+        expected_size = _HAND_GRIP_STRUCT.size
+        if len(data) != expected_size:
+            raise ValueError(
+                "HandGripMessage data has invalid size: "
+                f"expected {expected_size} bytes, got {len(data)}"
+            )
+
+        timestamp_ns, left_grip, right_grip = _HAND_GRIP_STRUCT.unpack(data)
+        return cls(
+            timestamp_ns=timestamp_ns,
+            left_grip=left_grip,
+            right_grip=right_grip,
+        )
+
 
 class PoseMessage:
     """Message format for body pose (position + quaternion)"""

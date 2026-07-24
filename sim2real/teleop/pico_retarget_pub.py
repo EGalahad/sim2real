@@ -50,7 +50,7 @@ from sim2real.teleop.smpl_stream import (
     pack_pose_message,
 )
 from sim2real.utils.mjviser_viewer import MjviserMujocoViewer
-from sim2real.utils.common import PORTS, PicoControllerStateMessage
+from sim2real.utils.common import HandGripMessage, PORTS, PicoControllerStateMessage
 from sim2real.utils.math import quat_conjugate, quat_mul, quat_rotate_inverse_numpy, quat_rotate_numpy, yaw_quat
 from sim2real.utils.profiling import ScopedTimer
 
@@ -208,6 +208,25 @@ def _controller_button_pressed(controller_data: object, controller_name: str, ke
     return bool(controller.get(key_name, False))
 
 
+def _controller_float(
+    controller_data: object,
+    controller_name: str,
+    key_name: str,
+) -> float:
+    if not isinstance(controller_data, dict):
+        return 0.0
+    controller = controller_data.get(controller_name)
+    if not isinstance(controller, dict):
+        return 0.0
+    try:
+        value = float(controller.get(key_name, 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+    if not np.isfinite(value):
+        return 0.0
+    return float(np.clip(value, 0.0, 1.0))
+
+
 def _pico_controller_state_from_data(controller_data: object) -> PicoControllerStateMessage:
     timestamp_ns = 0
     if isinstance(controller_data, dict):
@@ -219,6 +238,18 @@ def _pico_controller_state_from_data(controller_data: object) -> PicoControllerS
         B=_controller_button_pressed(controller_data, "RightController", "key_two"),
         X=_controller_button_pressed(controller_data, "LeftController", "key_one"),
         Y=_controller_button_pressed(controller_data, "LeftController", "key_two"),
+    )
+
+
+def _hand_grip_message_from_data(controller_data: object) -> HandGripMessage:
+    timestamp_ns = 0
+    if isinstance(controller_data, dict):
+        timestamp_ns = int(controller_data.get("timestamp", 0) or time.time_ns())
+
+    return HandGripMessage(
+        timestamp_ns=timestamp_ns,
+        left_grip=_controller_float(controller_data, "LeftController", "index_trig"),
+        right_grip=_controller_float(controller_data, "RightController", "index_trig"),
     )
 
 
@@ -291,6 +322,12 @@ class LiveRetargetPublisher:
         self._controller_sock.setsockopt(zmq.SNDHWM, int(args.controller_hwm))
         self._controller_sock.setsockopt(zmq.CONFLATE, 1)
         self._controller_sock.bind(args.controller_bind)
+
+        self._hand_grip_sock = zmq.Context.instance().socket(zmq.PUB)
+        self._hand_grip_sock.setsockopt(zmq.LINGER, 0)
+        self._hand_grip_sock.setsockopt(zmq.SNDHWM, int(args.hand_grip_hwm))
+        self._hand_grip_sock.setsockopt(zmq.CONFLATE, 1)
+        self._hand_grip_sock.bind(args.hand_grip_bind)
 
         self._smpl_frame_index = 0
         self._last_smpl_frame: dict[str, np.ndarray] | None = None
@@ -485,14 +522,22 @@ class LiveRetargetPublisher:
                 return False
 
             controller_state = _pico_controller_state_from_data(controller_data)
+            hand_grip_message = _hand_grip_message_from_data(controller_data)
             self._latest_controller_t_ns = int(controller_state.timestamp_ns)
             self._publish_controller_state(controller_state)
+            self._publish_hand_grip(hand_grip_message)
 
             return controller_state.X
 
     def _publish_controller_state(self, controller_state: PicoControllerStateMessage) -> None:
         try:
             self._controller_sock.send(controller_state.to_bytes(), flags=zmq.NOBLOCK)
+        except zmq.Again:
+            pass
+
+    def _publish_hand_grip(self, hand_grip_message: HandGripMessage) -> None:
+        try:
+            self._hand_grip_sock.send(hand_grip_message.to_bytes(), flags=zmq.NOBLOCK)
         except zmq.Again:
             pass
 
@@ -872,6 +917,7 @@ class LiveRetargetPublisher:
 
     def close(self) -> None:
         self._controller_sock.close(0)
+        self._hand_grip_sock.close(0)
         if self._smpl_sock is not None:
             self._smpl_sock.close(0)
 
@@ -983,6 +1029,7 @@ def run_publish(args: "PublisherArgs") -> None:
     print(
         f"[publish] bind={args.bind} publish_hz={args.publish_hz} "
         f"controller_bind={args.controller_bind} "
+        f"hand_grip_bind={args.hand_grip_bind} "
         f"robot_mjcf={worker.robot_cfg.mjcf_path} "
         f"publish_fk_mjcf={worker.mjcf_path}"
     )
@@ -1030,9 +1077,11 @@ class PublisherArgs:
     robot: str = "g1"
     bind: str = "tcp://*:28701"
     controller_bind: str = f"tcp://*:{PORTS['pico_controller']}"
+    hand_grip_bind: str = f"tcp://*:{PORTS['hand_grip']}"
     publish_hz: float = 30.0
     hwm: int = 1
     controller_hwm: int = 1
+    hand_grip_hwm: int = 1
     startup_sleep_s: float = 0.5
     viewer: bool = True
     show_xrobot_frames: bool = True

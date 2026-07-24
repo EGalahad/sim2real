@@ -1,0 +1,18 @@
+[project]
+name = "sim2real-dh116s-runtime"
+version = "0.1.0"
+description = "Minimal runtime for sim2real DH116S hand control"
+requires-python = "==3.10.*"
+dependencies = [
+    "numpy<2",
+    "python-can~=4.6.1",
+    "pyzmq",
+]
+
+[tool.uv]
+package = false
+
+[[tool.uv.index]]
+name = "tsinghua"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
