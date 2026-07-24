@@ -45,17 +45,20 @@ skills/adapt-policy-to-sim2real
 [sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e)
 目录里。
 
-目前已经支持的 adapted checkpoint：
+目前已经支持的 adapted / distributed checkpoint：
 
-- BFM-Zero: `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml`
-- HEFT: `checkpoints/heft/pmg/policy.yaml`, `checkpoints/heft/compliance/policy.yaml`
-- Humanoid-GPT: `checkpoints/humanoid-gpt/policy.yaml`
-- SONIC release G1: `checkpoints/sonic/release/g1/policy.yaml`
-- SONIC release SMPL: `checkpoints/sonic/release/smpl/policy.yaml`
-- SONIC low-latency G1: `checkpoints/sonic/low_latency/g1/policy.yaml`
-- SONIC low-latency SMPL: `checkpoints/sonic/low_latency/smpl/policy.yaml`
-- TeleopIT: `checkpoints/teleopit/policy.yaml`
-- TWIST2: `checkpoints/twist2/policy.yaml`
+| Policy family | Config path(s) | 说明 |
+| --- | --- | --- |
+| BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | Latent-conditioned motion tracker。 |
+| HEFT | `checkpoints/heft/pmg/policy.yaml`, `checkpoints/heft/compliance/policy.yaml` | PMG 和 compliance 两个版本。 |
+| HoloMotion v1.4.0 | `checkpoints/holomotion/v1_4_0/policy.yaml` | 使用官方未修改 ONNX：[HorizonRobotics/HoloMotion_models](https://huggingface.co/HorizonRobotics/HoloMotion_models/resolve/main/HoloMotion_motion_tracking_model_v1.4.0/exported/model_14000.onnx)，下载后放到 `checkpoints/holomotion/v1_4_0/policy.onnx`。 |
+| Humanoid-GPT | `checkpoints/humanoid-gpt/policy.yaml` | Humanoid-GPT policy wrapper。 |
+| Mimic-Lite | `checkpoints/mimic-lite/4x8192-large/policy.yaml`, `checkpoints/mimic-lite/8x8192-huge/policy.yaml`, `checkpoints/mimic-lite/32x8192-huge/policy.yaml` | Native mimic-lite tracking checkpoints。 |
+| SONIC release | `checkpoints/sonic/release/g1/policy.yaml`, `checkpoints/sonic/release/smpl/policy.yaml` | Release G1 和 SMPL encoder variants。 |
+| SONIC low-latency | `checkpoints/sonic/low_latency/g1/policy.yaml`, `checkpoints/sonic/low_latency/smpl/policy.yaml` | Low-latency G1 和 SMPL variants。 |
+| TeleopIT | `checkpoints/teleopit/policy.yaml` | TeleopIT policy wrapper。 |
+| TWIST2 | `checkpoints/twist2/policy.yaml` | TWIST2 policy wrapper。 |
+| 2026-07-23 deploy pipeline | `checkpoints/deploy_2026_07_23/huge_mixture_pipeline/g1_8gpu/ppo/policy.yaml`, `checkpoints/deploy_2026_07_23/huge_mixture_pipeline/g1_8gpu/ppo_roa_student/policy.yaml`, `checkpoints/deploy_2026_07_23/huge_mixture_pipeline/g1_32gpu/ppo/policy.yaml`, `checkpoints/deploy_2026_07_23/huge_mixture_pipeline/g1_32gpu/ppo_roa_student/policy.yaml`, `checkpoints/deploy_2026_07_23/huge_mixture_pipeline/rp1_24dof/ppo/policy.yaml`, `checkpoints/deploy_2026_07_23/huge_mixture_pipeline/rp1_24dof/ppo_roa_student/policy.yaml` | G1/RP1 PPO 和 ROA student deploy exports。 |
 
 ## 真机环境
 
