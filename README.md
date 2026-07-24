@@ -23,6 +23,9 @@ layout and onboard dependency notes.
 uv sync --extra inference-cpu
 ```
 
+For G1 onboard installation or repair, invoke the repository Codex skill
+`$configure-g1-sim2real` from `.agents/skills/configure-g1-sim2real`.
+
 Run offline motion tracking (sim2sim):
 
 ```bash
@@ -39,7 +42,7 @@ After both processes are up, press `]` in the policy terminal to start. Open the
 This repo includes a Codex skill for adapting policies trained in external codebases into `sim2real`:
 
 ```text
-skills/adapt-policy-to-sim2real
+.agents/skills/adapt-policy-to-sim2real
 ```
 
 Converted checkpoints are distributed through the shared

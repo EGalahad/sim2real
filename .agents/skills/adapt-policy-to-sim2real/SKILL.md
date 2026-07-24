@@ -63,7 +63,7 @@ Use this skill when bringing a policy checkpoint from any training repo into `/h
 - If re-export is not practical, convert the already-exported ONNX and compare outputs:
 
   ```bash
-  uv run --with onnx --with onnxruntime --with numpy python skills/adapt-policy-to-sim2real/scripts/convert_onnx_compat.py \
+  uv run --with onnx --with onnxruntime --with numpy python .agents/skills/adapt-policy-to-sim2real/scripts/convert_onnx_compat.py \
     checkpoints/.../policy.onnx \
     --suffix -ort116 \
     --target-opset 19 \
@@ -107,7 +107,7 @@ Use this skill when bringing a policy checkpoint from any training repo into `/h
 - If only split selected ONNX files are available, merge them with the bundled helper script:
 
   ```bash
-  uv run --with onnx --with numpy python skills/adapt-policy-to-sim2real/scripts/merge_encoder_decoder_onnx.py \
+  uv run --with onnx --with numpy python .agents/skills/adapt-policy-to-sim2real/scripts/merge_encoder_decoder_onnx.py \
     --encoder <selected_encoder.onnx> \
     --decoder <selected_decoder.onnx> \
     --output <merged_policy.onnx> \
@@ -130,7 +130,7 @@ Use this skill when bringing a policy checkpoint from any training repo into `/h
 - For a universal low-latency encoder, specialize and merge it in the same command. The helper inserts the mode selector, zero-fills inactive encoder fields, fuses the decoder, and exposes both outputs:
 
   ```bash
-  uv run --with onnx --with numpy python skills/adapt-policy-to-sim2real/scripts/merge_encoder_decoder_onnx.py \
+  uv run --with onnx --with numpy python .agents/skills/adapt-policy-to-sim2real/scripts/merge_encoder_decoder_onnx.py \
     --encoder <low_latency_encoder.onnx> \
     --decoder <low_latency_decoder.onnx> \
     --mode g1 \
@@ -142,7 +142,7 @@ Use this skill when bringing a policy checkpoint from any training repo into `/h
 - To convert an already merged release graph in one pass, including semantic inputs, action aliasing, and token exposure:
 
   ```bash
-  uv run --with onnx --with numpy python skills/adapt-policy-to-sim2real/scripts/merge_encoder_decoder_onnx.py \
+  uv run --with onnx --with numpy python .agents/skills/adapt-policy-to-sim2real/scripts/merge_encoder_decoder_onnx.py \
     --flat-source <flat_policy.onnx> \
     --source-input-name obs_dict \
     --input g1_input=640 \

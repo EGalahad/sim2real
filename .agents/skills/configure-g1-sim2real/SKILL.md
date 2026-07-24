@@ -36,7 +36,7 @@ Run locally against the checkout:
 
 ```bash
 ssh <host> 'bash -s -- "$HOME/sim2real"' \
-  < skills/configure-g1-sim2real/scripts/inspect_host.sh
+  < .agents/skills/configure-g1-sim2real/scripts/inspect_host.sh
 ```
 
 Record the OS, architecture, Python, uv, disk space, interfaces,
@@ -121,7 +121,7 @@ Run the verifier inside the selected root environment:
 
 ```bash
 uv run --no-sync python \
-  skills/configure-g1-sim2real/scripts/verify_install.py \
+  .agents/skills/configure-g1-sim2real/scripts/verify_install.py \
   --profile g1-cpu \
   --asset hf://elijahgalahad/g1_xmls@main/g1-mode_13_15.xml
 ```
@@ -138,7 +138,7 @@ ssh <host> 'bash -lc '"'"'
   cd "$HOME/sim2real"
   source "$HOME/.config/sim2real/env.sh"
   uv run --no-sync python - --profile g1-cpu
-'"'"'' < skills/configure-g1-sim2real/scripts/verify_install.py
+'"'"'' < .agents/skills/configure-g1-sim2real/scripts/verify_install.py
 ```
 
 Only after this passes, and only with user authorization, test inline startup

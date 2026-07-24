@@ -21,7 +21,7 @@ Run the bundled read-only inspection script:
 
 ```bash
 ssh <host> 'bash -s -- "$HOME/sim2real"' \
-  < skills/configure-g1-sim2real/scripts/inspect_host.sh
+  < .agents/skills/configure-g1-sim2real/scripts/inspect_host.sh
 ```
 
 Verify:
@@ -172,7 +172,7 @@ Run the bundled verifier:
 
 ```bash
 uv run --no-sync python \
-  skills/configure-g1-sim2real/scripts/verify_install.py \
+  .agents/skills/configure-g1-sim2real/scripts/verify_install.py \
   --profile g1-cpu \
   --asset hf://elijahgalahad/g1_xmls@main/g1-mode_13_15.xml \
   --onnx checkpoints/mimic-lite/32x8192-huge/policy.onnx
@@ -189,7 +189,7 @@ ssh <host> 'bash -lc '"'"'
   cd "$HOME/sim2real"
   source "$HOME/.config/sim2real/env.sh"
   uv run --no-sync python - --profile g1-cpu
-'"'"'' < skills/configure-g1-sim2real/scripts/verify_install.py
+'"'"'' < .agents/skills/configure-g1-sim2real/scripts/verify_install.py
 ```
 
 If ORT reports `Unsupported model IR version`, prefer installing the intended

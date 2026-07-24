@@ -22,6 +22,9 @@ Full documentation: [https://egalahad.github.io/sim2real/](https://egalahad.gith
 uv sync --extra inference-cpu
 ```
 
+在 G1 上安装或修复环境时，可以调用 repo 内置的 Codex skill
+`$configure-g1-sim2real`；它位于 `.agents/skills/configure-g1-sim2real`。
+
 运行离线动作跟踪（sim2sim）：
 
 ```bash
@@ -38,7 +41,7 @@ uv run sim2real/rl_policy/tracking.py \
 这个 repo 内置了一个 Codex skill，用来把外部训练 codebase 里的 policy 适配到 `sim2real`：
 
 ```text
-skills/adapt-policy-to-sim2real
+.agents/skills/adapt-policy-to-sim2real
 ```
 
 已经转好的 checkpoints 统一放在共享的
@@ -65,14 +68,9 @@ skills/adapt-policy-to-sim2real
 `uv sync --extra inference-cpu --extra robot-g1`。安装与部署命令见
 [Robot I/O 模式](./docs/robot_io.md)。
 
-安装到本机 Codex skills 目录：
-
-```bash
-mkdir -p ~/.codex/skills
-cp -r skills/adapt-policy-to-sim2real ~/.codex/skills/
-```
-
-安装后重新打开一个 Codex session，即可通过 policy adaptation 相关请求触发；也可以显式提到 `adapt-policy-to-sim2real`。
+Repo skills 统一放在 `.agents/skills/`，无需手动复制到
+`~/.codex/skills/`。可以在 Codex 中显式调用
+`$adapt-policy-to-sim2real`。
 
 ## 下一步
 
