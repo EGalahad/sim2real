@@ -66,3 +66,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+!/third_party/wheels/
+!/third_party/wheels/README.md
+/third_party/wheels/*.whl

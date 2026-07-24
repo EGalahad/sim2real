@@ -18,8 +18,7 @@ dependencies = [
     "pyzmq",
     "tqdm",
     "tyro",
-    # "any4hdmi @ git+https://github.com/EGalahad/any4hdmi.git@main",
-    "any4hdmi",
+    "any4hdmi @ git+https://github.com/EGalahad/any4hdmi.git@main",
 ]
 
 [project.optional-dependencies]
@@ -67,7 +66,6 @@ explicit = true
 
 [tool.uv.sources]
 tensorrt = { index = "nvidia-pypi" }
-any4hdmi = { path = "../any4hdmi", editable = true }
 torch = [
     { index = "pytorch-cpu", marker = "platform_machine == 'aarch64'" },
 ]

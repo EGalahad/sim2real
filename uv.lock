@@ -30,7 +30,7 @@ wheels = [
 [[package]]
 name = "any4hdmi"
 version = "0.1.0"
-source = { editable = "../any4hdmi" }
+source = { git = "https://github.com/EGalahad/any4hdmi.git?rev=main#5d0ae1915c904c64f2480a055aa1693523b9e4b4" }
 dependencies = [
     { name = "huggingface-hub" },
     { name = "matplotlib" },
@@ -47,26 +47,6 @@ dependencies = [
     { name = "tyro" },
     { name = "viser" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "huggingface-hub" },
-    { name = "matplotlib" },
-    { name = "mjhub", git = "https://github.com/EGalahad/mjhub.git?rev=main" },
-    { name = "mjviser" },
-    { name = "mujoco" },
-    { name = "mujoco-warp", marker = "extra == 'warp'", specifier = ">=3.5.0.2" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "scikit-learn" },
-    { name = "tensordict" },
-    { name = "torch" },
-    { name = "tqdm" },
-    { name = "tyro" },
-    { name = "viser" },
-    { name = "warp-lang", marker = "extra == 'warp'" },
-]
-provides-extras = ["warp"]
 
 [[package]]
 name = "anyio"
@@ -461,7 +441,7 @@ robot-g1 = [
 
 [package.metadata]
 requires-dist = [
-    { name = "any4hdmi", editable = "../any4hdmi" },
+    { name = "any4hdmi", git = "https://github.com/EGalahad/any4hdmi.git?rev=main" },
     { name = "loguru" },
     { name = "mjhub", git = "https://github.com/EGalahad/mjhub.git?rev=main" },
     { name = "mjviser" },
