@@ -1,89 +1,160 @@
 ---
 name: configure-g1-sim2real
-description: Configure and repair the G1 sim2real robot computer environment for root policy deployment and teleop. Use when a task mentions g1-cable, g1-deploy, deploy_5G WiFi, Hugging Face or g1_xmls cache failures, sim2real root project setup, any4hdmi sync to G1, teleop uv sync, GMR or smplx GitHub hangs, XRoboToolkit, xrobotoolkit_sdk, or JetPack 5 G1 deployment bringup.
+description: Install, repair, and verify sim2real on G1 robot computers. Use for root uv environments and inference extras, robot-g1 dependencies, CycloneDDS builds, G1 network interfaces, Hugging Face offline assets, ONNX Runtime compatibility, inline RobotIO or MotionSwitcher DDS failures, local-to-robot sync, isolated PICO or DH116S environments, and G1 deployment bring-up.
 ---
 
 # Configure G1 sim2real
 
-Use this skill for G1 onboard setup and repair on JetPack 5 / Ubuntu 20.04
-hosts such as `g1-cable` or `g1-deploy`.
+Configure the G1 host from current evidence. Do not infer its OS, network
+interface, Python environment, or GPU runtime from its SSH alias.
 
-## Operating Rules
+## Operating rules
 
-1. Treat the local checkout as the source of truth for code. Use
-   `sim2real/sync-robot.sh g1` or explicit `rsync` for deployment. Do not make
-   persistent source edits only on the robot unless the change is a
-   host-local environment workaround.
-2. Use `g1-deploy` when Ethernet is disconnected. Use `bash -lc` over SSH so
-   `uv`, `.profile`, and robot shell defaults load.
-3. Keep root policy deployment and teleop separate:
-   - root project: `~/sim2real` plus `~/any4hdmi`, `uv sync --extra inference-cpu --extra robot-g1`,
-     CycloneDDS, HF asset cache, ONNX inference smoke.
-   - teleop project: `~/sim2real/venv/pico`, GMR/smplx dependencies,
-     XRoboToolkit service and `xrobotoolkit_sdk`.
-4. If a command needs `sudo`, provide the exact command and use the user's
-   interactive sudo tmux only when available. Do not hide a blocked sudo prompt
-   behind a "done" claim.
+1. Treat the local checkout as the source of truth. Make source edits locally,
+   then use the repository sync script. Never sync `.venv` directories.
+2. Run `scripts/inspect_host.sh` before installing or repairing anything.
+3. Keep these environments separate:
+   - root project: policy, simulation, ZMQ RobotIO, and optional G1 inline SDK;
+   - `venv/pico`: XRoboToolkit, GMR, SMPL-X, and PICO publisher;
+   - `venv/dh116s`: LHandPro/DH116S control.
+4. Default G1 deployment to CPU inference unless the user explicitly requests
+   GPU inference. A listed CUDA provider is not proof that its shared libraries
+   load.
+5. Never store sudo, Wi-Fi, user, or SDK credentials in this skill or the
+   repository. Let the operator enter secrets interactively.
+6. Do not start a policy, switch modes, home a hand, or send motor commands
+   during installation unless the user explicitly requests a hardware test.
+7. Use `bash -lc` for remote commands, but explicitly source the sim2real
+   environment file. Do not assume variables appended to `.bashrc` are visible
+   to noninteractive shells.
 
 ## Workflow
 
-1. Establish network access.
-   - If WiFi is not connected, ask the operator to run:
-     `sudo nmcli dev wifi connect deploy_5G password 88888888 ifname wlan0`
-     and then set low route metrics for `deploy_5G`.
-   - If Hugging Face or GitHub hangs, create a reverse proxy tunnel from the
-     local machine to the robot, normally local `127.0.0.1:7890` to remote
-     `127.0.0.1:7891`.
-2. Fix Hugging Face first.
-   - Ensure `elijahgalahad/g1_xmls` is cached on the robot.
-   - Set persistent robot shell defaults for `HF_ENDPOINT`,
-     `HF_HUB_DISABLE_TELEMETRY`, and deploy-time `HF_HUB_OFFLINE=1`.
-   - Verify with `mjhub.resolve_asset_reference(...)`, not only by listing the
-     cache directory.
-3. Configure the root project.
-   - Build or locate CycloneDDS, export `CYCLONEDDS_HOME` and
-     `LD_LIBRARY_PATH`, run `uv sync --extra inference-cpu --extra robot-g1`, then verify imports.
-   - Run the onboard ONNX CPU benchmark before claiming root deployment is
-     ready.
-4. Sync motion assets.
-   - Put G1-targeted motion datasets under `any4hdmi/output/g1/...`.
-   - Add explicit include rules to `sim2real/sync-robot.sh` for any new dataset
-     path and run the sync against `G1_HOST=g1-deploy`.
-   - If the sync script excludes `sync*.sh`, copy the updated sync script to
-     the robot explicitly after editing it.
-5. Configure teleop.
-   - Run `uv sync --project venv/pico`.
-   - If remote GitHub fetches hang, seed local source copies for GMR and smplx
-     on the robot and patch only the robot's teleop dependency files to
-     `file:///home/elijah/src/...`.
-   - Install the XRoboToolkit service `.deb` with sudo, copy/build the
-     pybind project, and verify `xrobotoolkit_sdk` import in the teleop env.
-6. Read `references/g1-setup-runbook.md` for concrete commands and failure
-   mappings before touching a live robot.
+### 1. Inspect and choose a profile
 
-## Completion Checks
+Run locally against the checkout:
 
-- `ssh g1-deploy 'bash -lc "echo $HF_HUB_OFFLINE $HF_ENDPOINT; uv --version"'`
-  shows the intended shell defaults and `uv`.
-- `mjhub.resolve_asset_reference("hf://elijahgalahad/g1_xmls@main/g1-mode_13_15.xml")`
-  returns a local cached file.
-- `cd ~/sim2real && uv sync --extra inference-cpu --extra robot-g1` is complete and the root env imports
-  `sim2real`, `any4hdmi`, `mujoco`, `onnxruntime`, `cyclonedds`,
-  `unitree_sdk2py`, and `unitree_interface`.
-- `scripts/test_policy_inference.py` runs with `--inference_backend onnx-cpu`
-  on the robot.
-- `uv run --project venv/pico python -c 'import xrobotoolkit_sdk'` succeeds.
-- Teleop scripts at least compile with `py_compile`; real teleop still needs
-  the XRoboToolkit service running and hardware state ready.
+```bash
+ssh <host> 'bash -s -- "$HOME/sim2real"' \
+  < skills/configure-g1-sim2real/scripts/inspect_host.sh
+```
 
-## Failure Reading
+Record the OS, architecture, Python, uv, disk space, interfaces,
+`CYCLONEDDS_HOME`, HF settings, native library paths, and existing environments.
+Read `references/g1-setup-runbook.md` before modifying a live host.
 
-- `low state not ready` after policy startup is a robot/bridge low-state issue,
-  not a Hugging Face issue.
-- `Keyboard listener stopped unexpectedly: Inappropriate ioctl` during SSH
-  smoke tests usually means noninteractive SSH and is not itself a deploy
-  failure.
-- GitHub dependency hangs during `uv sync` are better handled by local source
-  seeding than by waiting indefinitely on the robot network.
-- `runtime_version.h` missing or protobuf `stubs` compile failures in
-  XRoboToolkit mean the SDK is using the wrong or incomplete bundled gRPC tree.
+Choose exactly one root profile:
+
+- generic/ZMQ CPU: `--extra inference-cpu`
+- G1 inline CPU: `--extra inference-cpu --extra robot-g1`
+- G1 inline GPU: `--extra inference-gpu --extra robot-g1`
+
+Do not install both inference extras in one environment.
+
+### 2. Sync code without environments or large artifacts
+
+Use the current repository sync entry point, normally:
+
+```bash
+G1_HOST=<host> SYNC_CHECKPOINTS=0 SYNC_ANY4HDMI=0 ./sync-robot.sh g1
+```
+
+Inspect the sync script before running it. Preserve remote-only checkpoints and
+exclude `.venv`, caches, logs, and large motion datasets unless the user placed
+them in scope. Transfer large assets separately and resumably.
+
+### 3. Configure native and shell dependencies
+
+For `robot-g1`, install CycloneDDS first if the required installation is
+missing. Put persistent variables in `~/.config/sim2real/env.sh`, source it
+from `~/.profile`, and source it explicitly in automation:
+
+```bash
+source "$HOME/.config/sim2real/env.sh"
+```
+
+Verify the variables with a fresh `bash -lc`; checking the current interactive
+shell is insufficient.
+
+### 4. Install the selected root profile
+
+Run from `~/sim2real`:
+
+```bash
+source "$HOME/.config/sim2real/env.sh"
+uv sync --extra inference-cpu --extra robot-g1
+```
+
+Replace `inference-cpu` only when the selected profile requires another
+backend. Do not use the legacy `--group g1`.
+
+If Git or package downloads hang, use a bounded HTTP(S) proxy tunnel or seed
+the required source/cache from the local machine. Do not wait indefinitely.
+
+### 5. Prepare deploy-time assets
+
+Resolve required Hugging Face assets once while online, then run deployments
+with `HF_HUB_OFFLINE=1` and `HF_HUB_DISABLE_TELEMETRY=1`. Validate with the
+actual `mjhub.resolve_asset_reference()` call rather than cache directory
+names.
+
+Treat an HF stall, an ONNX model-format error, a missing CUDA library, a DDS
+interface error, and missing low state as different failures. Use the failure
+map in the runbook.
+
+### 6. Install isolated peripherals only when requested
+
+Use:
+
+```bash
+uv sync --project venv/pico
+uv sync --project venv/dh116s
+```
+
+Keep XRoboToolkit/GMR native dependencies out of root. Keep LHandPro libraries
+out of root. Verify PICO and DH116S with imports or dry-run modes before any
+hardware action.
+
+### 7. Verify without commanding hardware
+
+Run the verifier inside the selected root environment:
+
+```bash
+uv run --no-sync python \
+  skills/configure-g1-sim2real/scripts/verify_install.py \
+  --profile g1-cpu \
+  --asset hf://elijahgalahad/g1_xmls@main/g1-mode_13_15.xml
+```
+
+For a policy artifact, add `--onnx <path>`. The verifier imports dependencies,
+resolves optional cached assets, and loads the ONNX session; it never creates
+RobotIO or sends commands.
+
+When the skill files have not been synced yet, stream the verifier instead of
+assuming its remote path exists:
+
+```bash
+ssh <host> 'bash -lc '"'"'
+  cd "$HOME/sim2real"
+  source "$HOME/.config/sim2real/env.sh"
+  uv run --no-sync python - --profile g1-cpu
+'"'"'' < skills/configure-g1-sim2real/scripts/verify_install.py
+```
+
+Only after this passes, and only with user authorization, test inline startup
+using the real robot interface. Confirm no old `tracking.py` or
+`real_bridge.py` process is active first.
+
+## Completion report
+
+Report:
+
+- host, OS, architecture, Python, uv, and selected install profile;
+- exact sync and install commands used;
+- installed, skipped, and failed components;
+- environment variables visible in a fresh login shell;
+- import, HF resolver, and ONNX load results;
+- whether any real hardware action was intentionally not tested;
+- a directly runnable next command.
+
+Do not claim readiness from a successful `uv sync` alone.

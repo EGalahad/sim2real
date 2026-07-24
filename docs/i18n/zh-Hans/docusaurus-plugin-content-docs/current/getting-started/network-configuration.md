@@ -87,11 +87,14 @@ flowchart LR
 bash scripts/setup/setup_g1_hotspot.sh \
   --interface wlan1 \
   --upstream wlan0 \
-  --ssid hdmi-deploy \
-  --password hdmi1234
+  --ssid hdmi-deploy
 ```
 
-默认配置会在 `wlan1` 上创建热点，地址段为 `10.42.7.1/24`，并把 client 流量通过 `wlan0` 转发出去。Laptop 和 Pico 都连接这个热点后，Pico 和 Orin 会直接通过 Orin 上的无线网卡通信，不再依赖实验室 Wi-Fi。
+脚本会隐藏式读取 WPA-PSK，不会回显。非交互运行时，通过运行环境或
+secret manager 提供 `G1_WIFI_PASSWORD`，不要写进仓库。默认配置会在
+`wlan1` 上创建热点，地址段为 `10.42.7.1/24`，并把 client 流量通过
+`wlan0` 转发出去。Laptop 和 Pico 都连接这个热点后，Pico 和 Orin
+会直接通过 Orin 上的无线网卡通信，不再依赖实验室 Wi-Fi。
 
 ## 手动开启 G1 内置网卡热点 + Laptop 出口
 
@@ -144,8 +147,7 @@ cd ~/sim2real
 ```bash
 bash scripts/setup/setup_g1_hotspot_via_laptop.sh \
   --interface wlan0 \
-  --ssid hdmi-deploy \
-  --password hdmi1234
+  --ssid hdmi-deploy
 ```
 
 这个 profile 故意不设置成开机自动连接。G1 重启后，只有在 laptop gateway 已经准备好的情况下，才重新运行脚本，或者手动执行 `sudo nmcli con up hdmi-g1-ap-via-laptop`。
@@ -156,8 +158,7 @@ bash scripts/setup/setup_g1_hotspot_via_laptop.sh \
 bash scripts/setup/setup_laptop_g1_gateway.sh \
   --wifi-interface <laptop_usb_wifi_interface> \
   --upstream-interface <laptop_internet_interface> \
-  --ssid hdmi-deploy \
-  --password hdmi1234
+  --ssid hdmi-deploy
 ```
 
 默认配置会让 G1 使用 `10.42.7.1/24`，laptop 的 USB Wi-Fi 网卡使用 `10.42.7.2/24`。G1 的默认路由指向 `10.42.7.2`；laptop 保留自己的默认路由在 `<laptop_internet_interface>` 上，只把 G1 热点网段的流量 NAT 到这个上游网卡。

@@ -24,7 +24,6 @@ Required:
 
 Options:
   --ssid SSID                Hotspot SSID (default: hdmi-deploy)
-  --password PASSWORD        WPA-PSK password, 8+ chars (default: hdmi1234)
   --address CIDR             G1 AP IPv4 address (default: 10.42.7.1/24)
   --laptop-ip IP             Laptop IP on this hotspot subnet (default: 10.42.7.2)
   --dns DNS                  DNS server for G1 while using laptop egress (default: 8.8.8.8)
@@ -41,7 +40,7 @@ EOF
 
 AP_IFACE=""
 SSID="hdmi-deploy"
-PASSWORD="hdmi1234"
+PASSWORD="${G1_WIFI_PASSWORD:-}"
 ADDRESS="10.42.7.1/24"
 LAPTOP_IP="10.42.7.2"
 DNS_SERVER="8.8.8.8"
@@ -64,11 +63,6 @@ while [[ $# -gt 0 ]]; do
     --ssid)
       [[ $# -ge 2 ]] || { echo "Missing value for --ssid" >&2; exit 1; }
       SSID="$2"
-      shift 2
-      ;;
-    --password)
-      [[ $# -ge 2 ]] || { echo "Missing value for --password" >&2; exit 1; }
-      PASSWORD="$2"
       shift 2
       ;;
     --address)
@@ -139,6 +133,19 @@ if [[ -z "$AP_IFACE" ]]; then
   exit 1
 fi
 
+if [[ $EUID -ne 0 ]]; then
+  exec sudo --preserve-env=PATH,G1_WIFI_PASSWORD bash "$0" "${ORIGINAL_ARGS[@]}"
+fi
+
+if [[ -z "$PASSWORD" ]]; then
+  if [[ ! -t 0 ]]; then
+    echo "Set G1_WIFI_PASSWORD for noninteractive use." >&2
+    exit 1
+  fi
+  read -r -s -p "Wi-Fi hotspot password: " PASSWORD
+  printf '\n'
+fi
+
 if [[ ${#PASSWORD} -lt 8 ]]; then
   echo "Wi-Fi hotspot password must be at least 8 characters." >&2
   exit 1
@@ -150,10 +157,6 @@ for cmd in nmcli ip iptables python3; do
     exit 1
   fi
 done
-
-if [[ $EUID -ne 0 ]]; then
-  exec sudo --preserve-env=PATH bash "$0" "${ORIGINAL_ARGS[@]}"
-fi
 
 echo "[setup_g1_hotspot_via_laptop] WARNING: this changes G1 network interfaces."
 echo "[setup_g1_hotspot_via_laptop] Keep an Ethernet cable connected to G1 before continuing."
@@ -249,7 +252,6 @@ PY
 
 echo "[setup_g1_hotspot_via_laptop] interface=$AP_IFACE"
 echo "[setup_g1_hotspot_via_laptop] ssid=$SSID"
-echo "[setup_g1_hotspot_via_laptop] password=$PASSWORD"
 echo "[setup_g1_hotspot_via_laptop] g1_address=$ADDRESS"
 echo "[setup_g1_hotspot_via_laptop] laptop_gateway=$LAPTOP_IP"
 echo "[setup_g1_hotspot_via_laptop] subnet=$HOTSPOT_SUBNET"

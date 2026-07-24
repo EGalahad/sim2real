@@ -1,4 +1,4 @@
 interface:
   display_name: "Configure G1 sim2real"
-  short_description: "Set up G1 deploy and teleop runtime"
-  default_prompt: "Use $configure-g1-sim2real to configure the G1 sim2real root and teleop environments."
+  short_description: "Install and verify G1 sim2real runtimes"
+  default_prompt: "Use $configure-g1-sim2real to inspect this G1 host, install the requested sim2real profile, and verify it without commanding hardware."

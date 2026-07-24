@@ -12,7 +12,7 @@ before running it so you do not lose access if Wi-Fi setup fails.
 
 Defaults:
   SSID:       hdmi-deploy
-  Password:   hdmi1234
+  Password:   prompted securely
   Interface:  wlan1
   Upstream:   wlan0
   Address:    10.42.7.1/24
@@ -21,7 +21,6 @@ Options:
   --interface IFACE      Wi-Fi interface to use for AP mode
   --upstream IFACE       Interface that hotspot clients use for internet egress
   --ssid SSID            Hotspot SSID
-  --password PASSWORD    WPA-PSK password, 8+ chars
   --address CIDR         Static IPv4 address for the AP
   --connection NAME      NetworkManager connection name
   -h, --help             Show this help
@@ -31,7 +30,7 @@ EOF
 WIFI_IFACE="wlan1"
 UPSTREAM_IFACE="wlan0"
 SSID="hdmi-deploy"
-PASSWORD="hdmi1234"
+PASSWORD="${G1_WIFI_PASSWORD:-}"
 ADDRESS="10.42.7.1/24"
 CONNECTION_NAME="hdmi-deploy"
 CHANNEL="6"
@@ -65,14 +64,6 @@ while [[ $# -gt 0 ]]; do
       SSID="$2"
       shift 2
       ;;
-    --password)
-      if [[ $# -lt 2 ]]; then
-        echo "Missing value for --password" >&2
-        exit 1
-      fi
-      PASSWORD="$2"
-      shift 2
-      ;;
     --address)
       if [[ $# -lt 2 ]]; then
         echo "Missing value for --address" >&2
@@ -101,6 +92,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ $EUID -ne 0 ]]; then
+  exec sudo --preserve-env=PATH,G1_WIFI_PASSWORD bash "$0" "${ORIGINAL_ARGS[@]}"
+fi
+
+if [[ -z "$PASSWORD" ]]; then
+  if [[ ! -t 0 ]]; then
+    echo "Set G1_WIFI_PASSWORD for noninteractive use." >&2
+    exit 1
+  fi
+  read -r -s -p "Wi-Fi hotspot password: " PASSWORD
+  printf '\n'
+fi
+
 if [[ ${#PASSWORD} -lt 8 ]]; then
   echo "Wi-Fi hotspot password must be at least 8 characters." >&2
   exit 1
@@ -112,10 +116,6 @@ for cmd in nmcli ip iptables python3; do
     exit 1
   fi
 done
-
-if [[ $EUID -ne 0 ]]; then
-  exec sudo --preserve-env=PATH bash "$0" "${ORIGINAL_ARGS[@]}"
-fi
 
 echo "[setup_g1_hotspot] WARNING: this changes G1 network interfaces."
 echo "[setup_g1_hotspot] Keep an Ethernet cable connected to G1 before continuing."
@@ -149,7 +149,6 @@ fi
 echo "[setup_g1_hotspot] interface=$WIFI_IFACE"
 echo "[setup_g1_hotspot] upstream=$UPSTREAM_IFACE"
 echo "[setup_g1_hotspot] ssid=$SSID"
-echo "[setup_g1_hotspot] password=$PASSWORD"
 echo "[setup_g1_hotspot] address=$ADDRESS"
 
 if nmcli -t -f NAME con show | grep -Fxq "$CONNECTION_NAME"; then

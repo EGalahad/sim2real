@@ -91,11 +91,15 @@ Any operation that changes G1 network interfaces should be done with an Ethernet
 bash scripts/setup/setup_g1_hotspot.sh \
   --interface wlan1 \
   --upstream wlan0 \
-  --ssid hdmi-deploy \
-  --password hdmi1234
+  --ssid hdmi-deploy
 ```
 
-The defaults create the hotspot on `wlan1` with `10.42.7.1/24` and route client traffic through `wlan0`. Connect the laptop and Pico to the hotspot. Pico and Orin then communicate directly through the Orin Wi-Fi adapter instead of the lab Wi-Fi.
+The script prompts for the WPA-PSK without echoing it. For noninteractive use,
+provide `G1_WIFI_PASSWORD` through the runtime environment or a secret manager;
+never commit it to the repository. The defaults create the hotspot on `wlan1`
+with `10.42.7.1/24` and route client traffic through `wlan0`. Connect the laptop
+and Pico to the hotspot. Pico and Orin then communicate directly through the
+Orin Wi-Fi adapter instead of the lab Wi-Fi.
 
 ## Manual Built-In G1 Hotspot With Laptop Internet Egress
 
@@ -148,8 +152,7 @@ This step switches the G1 built-in Wi-Fi interface from client mode to hotspot m
 ```bash
 bash scripts/setup/setup_g1_hotspot_via_laptop.sh \
   --interface wlan0 \
-  --ssid hdmi-deploy \
-  --password hdmi1234
+  --ssid hdmi-deploy
 ```
 
 This profile is intentionally not configured to autoconnect. After a reboot, rerun the script or manually start the profile with `sudo nmcli con up hdmi-g1-ap-via-laptop` only when the laptop gateway is available.
@@ -160,8 +163,7 @@ On the laptop, connect the laptop's USB Wi-Fi adapter to the G1 hotspot and enab
 bash scripts/setup/setup_laptop_g1_gateway.sh \
   --wifi-interface <laptop_usb_wifi_interface> \
   --upstream-interface <laptop_internet_interface> \
-  --ssid hdmi-deploy \
-  --password hdmi1234
+  --ssid hdmi-deploy
 ```
 
 The defaults use `10.42.7.1/24` on G1 and `10.42.7.2/24` on the laptop USB Wi-Fi adapter. The G1 default route points at `10.42.7.2`. The laptop keeps its own default route on `<laptop_internet_interface>` and only NATs the G1 hotspot subnet through that interface.

@@ -15,7 +15,6 @@ Required:
 
 Options:
   --ssid SSID                 G1 hotspot SSID (default: hdmi-deploy)
-  --password PASSWORD         WPA-PSK password, 8+ chars (default: hdmi1234)
   --address CIDR              Laptop IP on G1 hotspot subnet (default: 10.42.7.2/24)
   --g1-ip IP                  G1 AP IP on this subnet (default: 10.42.7.1)
   --connection NAME           NetworkManager connection name (default: hdmi-g1-client)
@@ -26,7 +25,7 @@ EOF
 WIFI_IFACE=""
 UPSTREAM_IFACE=""
 SSID="hdmi-deploy"
-PASSWORD="hdmi1234"
+PASSWORD="${G1_WIFI_PASSWORD:-}"
 ADDRESS="10.42.7.2/24"
 G1_IP="10.42.7.1"
 CONNECTION_NAME="hdmi-g1-client"
@@ -47,11 +46,6 @@ while [[ $# -gt 0 ]]; do
     --ssid)
       [[ $# -ge 2 ]] || { echo "Missing value for --ssid" >&2; exit 1; }
       SSID="$2"
-      shift 2
-      ;;
-    --password)
-      [[ $# -ge 2 ]] || { echo "Missing value for --password" >&2; exit 1; }
-      PASSWORD="$2"
       shift 2
       ;;
     --address)
@@ -87,6 +81,19 @@ if [[ -z "$WIFI_IFACE" || -z "$UPSTREAM_IFACE" ]]; then
   exit 1
 fi
 
+if [[ $EUID -ne 0 ]]; then
+  exec sudo --preserve-env=PATH,G1_WIFI_PASSWORD bash "$0" "${ORIGINAL_ARGS[@]}"
+fi
+
+if [[ -z "$PASSWORD" ]]; then
+  if [[ ! -t 0 ]]; then
+    echo "Set G1_WIFI_PASSWORD for noninteractive use." >&2
+    exit 1
+  fi
+  read -r -s -p "Wi-Fi password: " PASSWORD
+  printf '\n'
+fi
+
 if [[ ${#PASSWORD} -lt 8 ]]; then
   echo "Wi-Fi password must be at least 8 characters." >&2
   exit 1
@@ -98,10 +105,6 @@ for cmd in nmcli ip iptables python3; do
     exit 1
   fi
 done
-
-if [[ $EUID -ne 0 ]]; then
-  exec sudo --preserve-env=PATH bash "$0" "${ORIGINAL_ARGS[@]}"
-fi
 
 for iface in "$WIFI_IFACE" "$UPSTREAM_IFACE"; do
   if ! ip link show "$iface" >/dev/null 2>&1; then
@@ -127,7 +130,6 @@ PY
 echo "[setup_laptop_g1_gateway] wifi_interface=$WIFI_IFACE"
 echo "[setup_laptop_g1_gateway] upstream_interface=$UPSTREAM_IFACE"
 echo "[setup_laptop_g1_gateway] ssid=$SSID"
-echo "[setup_laptop_g1_gateway] password=$PASSWORD"
 echo "[setup_laptop_g1_gateway] laptop_address=$ADDRESS"
 echo "[setup_laptop_g1_gateway] g1_ip=$G1_IP"
 echo "[setup_laptop_g1_gateway] subnet=$HOTSPOT_SUBNET"

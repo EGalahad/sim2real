@@ -1,357 +1,272 @@
-# G1 sim2real Setup Runbook
+# G1 sim2real setup runbook
 
-This runbook captures the G1 setup path validated on the `g1-deploy` JetPack 5
-host. Prefer current host inspection over blind replay, but keep this order:
-network and HF cache first, root env second, dataset sync third, teleop last.
+Use this reference after `scripts/inspect_host.sh`. Commands assume the remote
+checkout is `~/sim2real`; adjust only after verifying the actual path.
 
-## 1. Connect and Check the Host
+## Contents
 
-Use `g1-deploy` when the Ethernet route to `g1-cable` is unavailable.
+1. Host and network inspection
+2. Code synchronization
+3. CycloneDDS and shell environment
+4. Root uv profiles
+5. Hugging Face assets
+6. ONNX Runtime validation
+7. Inline G1 validation
+8. PICO and DH116S isolation
+9. Failure map
+
+## 1. Host and network inspection
+
+Run the bundled read-only inspection script:
 
 ```bash
-ssh g1-deploy 'bash -lc "
-  hostname
-  cat /etc/nv_tegra_release || true
-  ip -br addr
-  ip route
-  uv --version
-"'
+ssh <host> 'bash -s -- "$HOME/sim2real"' \
+  < skills/configure-g1-sim2real/scripts/inspect_host.sh
 ```
 
-If WiFi is not already connected, have the operator run:
+Verify:
+
+- `/etc/os-release`, `uname -m`, Python 3.10, and uv;
+- available interfaces and the interface connected to the G1 control network;
+- sufficient free space for the selected dependencies and artifacts;
+- whether `~/cyclonedds/install` and `third_party/wheels` exist;
+- current and fresh-login values of `CYCLONEDDS_HOME`,
+  `LD_LIBRARY_PATH`, `HF_HUB_OFFLINE`, and `HF_ENDPOINT`.
+
+On `g1-ygx`, the interface validated for inline control was `enP8p1s0`.
+Recheck it every time; do not turn this observation into a universal default.
+
+If the local workstation is on the wrong Wi-Fi, inspect saved NetworkManager
+profiles and switch to the operator-approved G1 network. Never embed the Wi-Fi
+password in scripts or documentation.
+
+## 2. Code synchronization
+
+Make all persistent code changes in the local checkout, then inspect and run:
 
 ```bash
-sudo nmcli dev wifi connect deploy_5G password 88888888 ifname wlan0
-sudo nmcli connection modify deploy_5G ipv4.route-metric 50 ipv6.route-metric 50
-sudo nmcli connection up deploy_5G
+cd /path/to/local/sim2real
+G1_HOST=<host> SYNC_CHECKPOINTS=0 SYNC_ANY4HDMI=0 ./sync-robot.sh g1
 ```
 
-Check that `wlan0` has internet egress and that robot-control interfaces remain
-on their robot subnet.
+The sync must not:
 
-## 2. Proxy and Hugging Face Cache
+- copy root, PICO, or DH116S virtual environments;
+- delete remote-only checkpoints;
+- transfer SONIC or other large datasets by default;
+- overwrite host-local credentials or shell configuration.
 
-Direct `huggingface.co` from the robot may hang. If the local machine has an
-HTTP proxy on `127.0.0.1:7890`, forward it to the robot as `127.0.0.1:7891`:
+Transfer explicitly requested large assets separately, with a resumable
+command. Verify the destination and file size after transfer.
+
+## 3. CycloneDDS and shell environment
+
+The G1 Python SDK needs a native CycloneDDS installation while its Python
+binding builds. Install it when inspection shows no usable installation:
 
 ```bash
-ssh -N -R 127.0.0.1:7891:127.0.0.1:7890 g1-deploy
+mkdir -p "$HOME/src"
+git clone --branch releases/0.10.x \
+  https://github.com/eclipse-cyclonedds/cyclonedds.git \
+  "$HOME/src/cyclonedds"
+cmake -S "$HOME/src/cyclonedds" -B "$HOME/src/cyclonedds/build" \
+  -DCMAKE_INSTALL_PREFIX="$HOME/cyclonedds/install" \
+  -DBUILD_TESTING=OFF
+cmake --build "$HOME/src/cyclonedds/build" \
+  --target install -j"$(nproc)"
 ```
 
-In another shell, verify from the robot:
+If the source directory already exists, inspect it instead of cloning over it.
+
+Create `~/.config/sim2real/env.sh`:
 
 ```bash
-ssh g1-deploy 'bash -lc "
-  HTTPS_PROXY=http://127.0.0.1:7891 \
-  HTTP_PROXY=http://127.0.0.1:7891 \
-  curl -I --max-time 20 https://huggingface.co/api/models/elijahgalahad/g1_xmls
-"'
-```
-
-Refresh the G1 XML cache online, then default deploy shells back to offline:
-
-```bash
-ssh g1-deploy 'bash -lc "
-  unset HF_HUB_OFFLINE
-  export HF_ENDPOINT=https://hf-mirror.com
-  export HF_HUB_DISABLE_TELEMETRY=1
-  export HTTPS_PROXY=http://127.0.0.1:7891
-  export HTTP_PROXY=http://127.0.0.1:7891
-  python3 - <<PY
-from huggingface_hub import snapshot_download
-print(snapshot_download(\"elijahgalahad/g1_xmls\"))
-PY
-"'
-```
-
-Persist deploy defaults in `~/.profile` and `~/.bashrc` if they are absent:
-
-```bash
-export HF_ENDPOINT=https://hf-mirror.com
+mkdir -p "$HOME/.config/sim2real"
+install -m 0644 /dev/stdin "$HOME/.config/sim2real/env.sh" <<'EOF'
+export CYCLONEDDS_HOME="$HOME/cyclonedds/install"
+export LD_LIBRARY_PATH="$CYCLONEDDS_HOME/lib:${LD_LIBRARY_PATH:-}"
 export HF_HUB_DISABLE_TELEMETRY=1
 export HF_HUB_OFFLINE=1
+EOF
 ```
 
-Verify through the actual asset resolver:
+Add this exact source line once to `~/.profile`:
 
 ```bash
-ssh g1-deploy 'bash -lc "
-  cd ~/sim2real
-  uv run python - <<PY
+[ -f "$HOME/.config/sim2real/env.sh" ] && . "$HOME/.config/sim2real/env.sh"
+```
+
+Add it to interactive shell configuration as well if desired. A standard
+Ubuntu `.bashrc` returns early for noninteractive shells, so appending exports
+to its end does not make them visible to `ssh host 'bash -lc ...'`.
+
+Verify a new login shell:
+
+```bash
+ssh <host> 'bash -lc '"'"'
+  source "$HOME/.config/sim2real/env.sh"
+  printf "CYCLONEDDS_HOME=%s\n" "$CYCLONEDDS_HOME"
+  printf "HF_HUB_OFFLINE=%s\n" "$HF_HUB_OFFLINE"
+'"'"''
+```
+
+## 4. Root uv profiles
+
+Run exactly one:
+
+```bash
+# Generic or ZMQ RobotIO
+uv sync --extra inference-cpu
+
+# G1 inline, CPU ONNX Runtime
+uv sync --extra inference-cpu --extra robot-g1
+
+# G1 inline, GPU ONNX Runtime
+uv sync --extra inference-gpu --extra robot-g1
+```
+
+Prefer the CPU profile for bring-up. The root project intentionally keeps
+PICO and DH116S dependencies out of this environment.
+
+If GitHub downloads hang, establish a bounded reverse HTTP proxy tunnel:
+
+```bash
+ssh -N -R 127.0.0.1:7891:127.0.0.1:7890 <host>
+```
+
+Use `HTTP_PROXY` and `HTTPS_PROXY` for the affected install command. Avoid
+inheriting `ALL_PROXY=socks5://...` unless `socksio` is installed.
+
+## 5. Hugging Face assets
+
+Refresh a missing asset once while online:
+
+```bash
+source "$HOME/.config/sim2real/env.sh"
+unset HF_HUB_OFFLINE
+HTTPS_PROXY=http://127.0.0.1:7891 \
+HTTP_PROXY=http://127.0.0.1:7891 \
+uv run --no-sync python - <<'PY'
+from huggingface_hub import snapshot_download
+print(snapshot_download("elijahgalahad/g1_xmls"))
+PY
+```
+
+Then restore offline deployment and resolve through the consuming library:
+
+```bash
+source "$HOME/.config/sim2real/env.sh"
+uv run --no-sync python - <<'PY'
 from mjhub import resolve_asset_reference
-print(resolve_asset_reference(\"hf://elijahgalahad/g1_xmls@main/g1-mode_13_15.xml\"))
+print(resolve_asset_reference(
+    "hf://elijahgalahad/g1_xmls@main/g1-mode_13_15.xml"
+))
 PY
-"'
 ```
 
-Expected result: a local path under
-`~/.cache/huggingface/hub/models--elijahgalahad--g1_xmls/snapshots/...`.
+Do not diagnose an asset-resolution stall by repeatedly starting a policy.
 
-## 3. Root Project Setup
+## 6. ONNX Runtime validation
 
-Build CycloneDDS if `uv sync --extra inference-cpu --extra robot-g1` or imports cannot locate it:
+Run the bundled verifier:
 
 ```bash
-ssh g1-deploy 'bash -lc "
-  mkdir -p ~/src
-  if [ ! -d ~/src/cyclonedds ]; then
-    git clone --branch releases/0.10.x https://github.com/eclipse-cyclonedds/cyclonedds.git ~/src/cyclonedds
-  fi
-  cmake -S ~/src/cyclonedds -B ~/src/cyclonedds/build \
-    -DCMAKE_INSTALL_PREFIX=$HOME/cyclonedds/install \
-    -DBUILD_TESTING=OFF
-  cmake --build ~/src/cyclonedds/build --target install -j\$(nproc)
-"'
+uv run --no-sync python \
+  skills/configure-g1-sim2real/scripts/verify_install.py \
+  --profile g1-cpu \
+  --asset hf://elijahgalahad/g1_xmls@main/g1-mode_13_15.xml \
+  --onnx checkpoints/mimic-lite/32x8192-huge/policy.onnx
 ```
 
-Run the root sync:
+For GPU, use `--profile g1-gpu`. The verifier must create an
+`InferenceSession`; `ort.get_available_providers()` alone can report CUDA even
+when `libcublasLt`, cuDNN, or another runtime library is missing.
+
+If the skill directory has not been synced, stream the local verifier:
 
 ```bash
-ssh g1-deploy 'bash -lc "
-  cd ~/sim2real
-  export CYCLONEDDS_HOME=$HOME/cyclonedds/install
-  export LD_LIBRARY_PATH=$CYCLONEDDS_HOME/lib:\${LD_LIBRARY_PATH:-}
-  uv sync --extra inference-cpu --extra robot-g1
-"'
+ssh <host> 'bash -lc '"'"'
+  cd "$HOME/sim2real"
+  source "$HOME/.config/sim2real/env.sh"
+  uv run --no-sync python - --profile g1-cpu
+'"'"'' < skills/configure-g1-sim2real/scripts/verify_install.py
 ```
 
-If these variables are needed outside the current shell, append them to
-`~/.profile` and `~/.bashrc`:
+If ORT reports `Unsupported model IR version`, prefer installing the intended
+runtime version. Convert the model IR/opset only when compatibility has been
+checked and output equivalence has been measured.
+
+## 7. Inline G1 validation
+
+Do not perform this section during an install-only request.
+
+Before an authorized real test:
 
 ```bash
-export CYCLONEDDS_HOME=$HOME/cyclonedds/install
-export LD_LIBRARY_PATH=$CYCLONEDDS_HOME/lib:${LD_LIBRARY_PATH:-}
+pgrep -af 'tracking.py|real_bridge.py|g1_debug_mode' || true
+ip -br link
 ```
 
-Verify imports and a CPU ONNX smoke:
+Use the inspected G1 interface:
 
 ```bash
-ssh g1-deploy 'bash -lc "
-  cd ~/sim2real
-  export CYCLONEDDS_HOME=$HOME/cyclonedds/install
-  export LD_LIBRARY_PATH=$CYCLONEDDS_HOME/lib:\${LD_LIBRARY_PATH:-}
-  uv run python - <<PY
-for name in [\"sim2real\", \"any4hdmi\", \"mujoco\", \"onnxruntime\", \"cyclonedds\", \"unitree_sdk2py\", \"unitree_interface\"]:
-    __import__(name)
-    print(\"ok\", name)
-PY
-  uv run scripts/test_policy_inference.py \
-    --policy_config checkpoints/lafan-aa/policy-ec592bb4_lafan_100style_student-5000.yaml \
-    --inference_backend onnx-cpu \
-    --warmup 20 --runs 100
-"'
+HF_HUB_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1 \
+uv run --no-sync sim2real/rl_policy/tracking.py \
+  --robot g1 \
+  --policy-config <policy.yaml> \
+  --inference-backend onnx-cpu \
+  --motion-backend zmq \
+  --robot-io inline \
+  --robot-interface <interface> \
+  --controller keyboard
 ```
 
-## 4. Dataset Placement and Sync
+The Python `unitree_sdk2py` MotionSwitcher participant and the C++
+`unitree_interface` participant cannot safely initialize in the same process
+on the validated G1 stack. Inline startup therefore switches to debug mode in
+a short-lived helper process, lets that DDS participant exit, and only then
+imports `unitree_interface`.
 
-For root tracking tests, keep the G1-specific copy under
-`any4hdmi/output/g1/root_tracking_test/`:
+Typical DDS interpretations:
+
+- `eth0: does not match an available interface`: wrong interface;
+- `DDS_RETCODE_BAD_PARAMETER` or `PRECONDITION_NOT_MET` on MotionSwitcher:
+  `unitree_interface` initialized DDS too early;
+- `Failed to create domain explicitly` after MotionSwitcher succeeds:
+  the Python DDS participant is still alive when the C++ SDK starts.
+
+## 8. PICO and DH116S isolation
+
+Install PICO separately:
 
 ```bash
-mkdir -p any4hdmi/output/g1/root_tracking_test
-rsync -a --delete any4hdmi/output/root_tracking_test/ any4hdmi/output/g1/root_tracking_test/
+uv sync --project venv/pico
+uv run --project venv/pico --no-sync python -c \
+  'import xrobotoolkit_sdk, general_motion_retargeting, smplx'
 ```
 
-Add a sync include in `sim2real/sync-robot.sh` near the other `any4hdmi/output`
-includes:
+Install DH116S separately:
 
 ```bash
---include='output/g1/root_tracking_test/***'
+bash third_party/dh116s_sdk/install.sh
+uv sync --project venv/dh116s
+uv run --project venv/dh116s --no-sync \
+  scripts/dh116s_control.py --dry-run
 ```
 
-Sync to the robot:
+Verify the expected `libLHandProLib.so` path before a hardware run. Do not home
+or enable the hand during environment verification.
 
-```bash
-G1_HOST=g1-deploy bash sim2real/sync-robot.sh g1
-```
+## 9. Failure map
 
-If the sync script excludes `sync*.sh`, copy the script itself after editing:
-
-```bash
-rsync -az sim2real/sync-robot.sh g1-deploy:/home/elijah/sim2real/sync-robot.sh
-```
-
-Verify the remote dataset:
-
-```bash
-ssh g1-deploy 'bash -lc "
-  find ~/any4hdmi/output/g1/root_tracking_test -maxdepth 1 -type f -printf \"%f\n\" | sort
-  du -sh ~/any4hdmi/output/g1/root_tracking_test
-"'
-```
-
-## 5. Teleop uv Dependencies
-
-Start with the normal sync:
-
-```bash
-ssh g1-deploy 'bash -lc "
-  cd ~/sim2real
-  uv sync --project venv/pico
-"'
-```
-
-The preferred repository shape is for teleop to install GMR, smplx, and
-xrobotoolkit-sdk as editable path sources from `sim2real/external/GMR`,
-`sim2real/external/smplx`, and
-`sim2real/external/XRoboToolkit-PC-Service-Pybind`:
-
-```toml
-[project]
-dependencies = [
-  "general_motion_retargeting",
-]
-
-[tool.uv.sources]
-general-motion-retargeting = { path = "../../external/GMR", editable = true }
-smplx = { path = "../../external/smplx", editable = true }
-xrobotoolkit-sdk = { path = "../../external/XRoboToolkit-PC-Service-Pybind", editable = true }
-```
-
-This matches the GMR README's `pip install -e .` expectation, avoids remote
-GitHub fetches for both GMR and smplx, and prevents exact `uv sync` from
-removing `xrobotoolkit_sdk`. A non-editable GMR wheel install can import the
-Python package but miss top-level `assets/`, which breaks
-`g1_mocap_29dof.xml` lookup at runtime.
-
-If `uv` hangs on GitHub fetches for `EGalahad/GMR` or `vchoutas/smplx`, seed
-local source copies on the robot and patch only the robot-side dependency files
-as a temporary recovery path:
-
-```bash
-rsync -az --delete --exclude='.git' <local-GMR>/ g1-deploy:/home/elijah/src/GMR/
-rsync -az --delete --exclude='.git' <local-smplx>/ g1-deploy:/home/elijah/src/smplx/
-```
-
-Remote-only dependency rewrites:
-
-```toml
-general_motion_retargeting @ file:///home/elijah/src/GMR
-smplx @ file:///home/elijah/src/smplx
-```
-
-Place the first line in `~/sim2real/venv/pico/pyproject.toml` and the second
-line in `~/src/GMR/pyproject.toml`. Make backups before editing. Do not commit
-these file URLs to the local repo unless the project intentionally vendors
-those dependencies.
-
-Run the sync again and verify core imports:
-
-```bash
-ssh g1-deploy 'bash -lc "
-  cd ~/sim2real
-  uv sync --project venv/pico
-  uv run --project venv/pico python - <<PY
-for name in [\"sim2real.teleop\", \"general_motion_retargeting\", \"smplx\", \"mjviser\", \"mjhub\", \"mujoco\", \"pybind11\", \"torch\"]:
-    __import__(name)
-    print(\"ok\", name)
-PY
-"'
-```
-
-## 6. XRoboToolkit Service and Pybind
-
-Install the service package with sudo:
-
-```bash
-sudo apt install -y /home/elijah/sim2real/third_party/prebuilt/jetpack5-aarch64/xrobotservice/XRoboToolkit-PC-Service_1.0.0.0_arm64_ubuntu20.04.deb
-```
-
-If sudo is only available in a user-created tmux, send the command there and
-wait for the user to enter the password. Do not claim the service is installed
-until `/opt/apps/roboticsservice` exists.
-
-If the robot lacks the external sources, sync them from local:
-
-```bash
-rsync -az --delete sim2real/external/XRoboToolkit-PC-Service/ g1-deploy:/home/elijah/sim2real/external/XRoboToolkit-PC-Service/
-rsync -az --delete sim2real/external/XRoboToolkit-PC-Service-Pybind/ g1-deploy:/home/elijah/sim2real/external/XRoboToolkit-PC-Service-Pybind/
-```
-
-On JetPack 5, ensure the SDK uses the repo's prebuilt aarch64 gRPC tree:
-
-```bash
-ssh g1-deploy 'bash -lc "
-  cd ~/sim2real
-  rm -rf external/XRoboToolkit-PC-Service/RoboticsService/PXREARobotSDK/build
-  rm -rf external/XRoboToolkit-PC-Service/RoboticsService/Redistributable/linux_aarch64/grpc
-  cp -a third_party/prebuilt/jetpack5-aarch64/xrobot-grpc \
-    external/XRoboToolkit-PC-Service/RoboticsService/Redistributable/linux_aarch64/grpc
-  test -f external/XRoboToolkit-PC-Service/RoboticsService/Redistributable/linux_aarch64/grpc/include/google/protobuf/stubs/common.h
-"'
-```
-
-Build and install the Python binding:
-
-```bash
-ssh g1-deploy 'bash -lc "
-  cd ~/sim2real
-  bash scripts/setup/setup_xrobot_pybind.sh --arch aarch64
-  uv run --project venv/pico python - <<PY
-import xrobotoolkit_sdk
-print(\"xrobot import ok\", xrobotoolkit_sdk.__file__)
-PY
-"'
-```
-
-Start or check the service after the `.deb` is installed:
-
-```bash
-ssh g1-deploy 'bash -lc "
-  test -d /opt/apps/roboticsservice
-  pgrep -af \"roboticsservice|runService|xrobot\" || true
-  # Start manually only when needed:
-  # bash /opt/apps/roboticsservice/runService.sh
-"'
-```
-
-Compile teleop scripts:
-
-```bash
-ssh g1-deploy 'bash -lc "
-  cd ~/sim2real
-  uv run --project venv/pico python -m py_compile \
-    sim2real/teleop/pico_retarget_pub.py \
-    sim2real/teleop/record_smplx.py \
-    sim2real/teleop/benchmark_smplx_retarget.py
-"'
-```
-
-## 7. Failure Map
-
-- `LocalEntryNotFoundError`, connection stalls, or asset fetch during policy
-  startup: fix HF endpoint/proxy/cache and then set `HF_HUB_OFFLINE=1`.
-- `ALL_PROXY=socks5://127.0.0.1:7890` plus missing `socksio`: unset
-  `ALL_PROXY/all_proxy` for `uv run` or use HTTP(S) proxy variables only.
-- `uv sync --project venv/pico` hangs on GitHub: prefer repo-local
-  `external/GMR` with an editable `tool.uv.sources` path. Use `/home/elijah/src`
-  `file://` dependencies only as a temporary robot-local recovery path.
-- `ParseXML: Error opening file ... site-packages/general_motion_retargeting/../assets/unitree_g1/g1_mocap_29dof.xml`:
-  GMR was installed as a non-editable wheel and its top-level assets were not
-  installed. Fix by making GMR editable from `external/GMR` and rerunning
-  `uv sync --project venv/pico`.
-- CMake path mismatch under `PXREARobotSDK/build`: remove the stale build
-  directory copied from another machine.
-- `runtime_version.h` missing during XRoboToolkit build: replace the SDK gRPC
-  directory with `third_party/prebuilt/jetpack5-aarch64/xrobot-grpc`.
-- Protobuf errors mentioning `OnShutdownDelete`, `StrongReference`, or
-  `google/protobuf/stubs`: the build is mixing system and bundled protobuf
-  headers or the bundled `stubs` directory is incomplete. Restore the prebuilt
-  gRPC include tree and rebuild from a clean build directory.
-- `low state not ready` after a policy enters the loop: robot low-state or
-  bridge is not publishing. Do not keep debugging HF for this symptom.
-- `Keyboard listener stopped unexpectedly: Inappropriate ioctl`: common in
-  noninteractive SSH smoke tests. Re-test in an interactive terminal only if
-  keyboard control is required for that specific run.
-
-## 8. Ready State Summary
-
-Root project is ready when the HF resolver, `uv sync --extra inference-cpu --extra robot-g1`, imports, and
-ONNX CPU benchmark all pass on `g1-deploy`.
-
-Teleop Python is ready when `uv sync --project venv/pico`, core imports,
-`xrobotoolkit_sdk` import, and teleop script compilation pass.
-
-Teleop hardware is ready only after the XRoboToolkit `.deb` is installed,
-`/opt/apps/roboticsservice` exists, the service is running, and the Pico/robot
-devices are connected.
+| Symptom | Likely boundary | Action |
+| --- | --- | --- |
+| `Could not locate cyclonedds` | native build env | Install native CycloneDDS and export its prefix |
+| HF request hangs | network/cache | Forward HTTP proxy or seed cache, then deploy offline |
+| `Unsupported model IR version` | model/runtime | Align ORT or validate a converted model |
+| CUDA provider listed but session fails | GPU shared libraries | Inspect loader error; use CPU for bring-up |
+| DDS interface mismatch | RobotIO network | Use the inspected control interface |
+| MotionSwitcher topic error | mixed DDS participants | Run mode switch in the helper process |
+| `low state not ready` | robot/bridge state | Stop debugging HF; inspect low-state publisher |
+| keyboard `Inappropriate ioctl` | noninteractive SSH | Use a TTY or non-keyboard controller for smoke tests |
+| `libLHandProLib.so` missing | DH116S SDK layout | Run/repair the isolated SDK installer |

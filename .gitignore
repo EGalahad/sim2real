@@ -42,6 +42,14 @@ docs/.eslintcache
 docs/npm-debug.log*
 docs/yarn-*.log
 
+# Local credentials and network profiles must never be committed.
+.env
+.env.*
+!.env.example
+*.nmconnection
+secrets.local.*
+credentials.local.*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
