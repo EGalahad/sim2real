@@ -15,6 +15,7 @@ stubs
 !/tests/test_hand_grip.py
 !/tests/test_pico_hand_grip.py
 !/tests/test_dh116s_keyboard_control.py
+!/tests/test_bfm_zero_observations.py
 /third_party/*
 !/third_party/dh116s_sdk/
 /third_party/dh116s_sdk/*

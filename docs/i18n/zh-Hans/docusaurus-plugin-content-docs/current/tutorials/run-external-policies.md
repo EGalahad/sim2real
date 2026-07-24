@@ -50,6 +50,16 @@ BFM-Zero 的 motion observation 里用 MuJoCo FK，所以需要使用它 checkpo
 MJCF。direct NPZ playback 时，这个路径写在 policy YAML 里；如果通过 ZMQ publisher
 发 motion，就把同一个 MJCF override 传给 publisher。
 
+BFM-Zero 计算量较大。CUDA ONNX Runtime 可用时，policy 推理建议使用
+`--inference_backend onnx-gpu`。只有目标机器没有可用 GPU provider 时，才使用
+`onnx-cpu` 作为兼容 fallback。
+
+```bash
+uv run sim2real/rl_policy/tracking.py \
+  --policy_config checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml \
+  --inference_backend onnx-gpu
+```
+
 ```bash
 uv run sim2real/teleop/npz_pub.py \
   --motion_path ../any4hdmi/output/g1/lafan/motions/walk1_subject1.npz \

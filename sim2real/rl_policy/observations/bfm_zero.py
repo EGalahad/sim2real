@@ -192,20 +192,44 @@ def _minimal_calc_angular_velocity_wxyz(
     quat_prev: np.ndarray,
     dt: float,
 ) -> np.ndarray:
-    from scipy.spatial.transform import Rotation as R
-
-    quat_cur = np.asarray(quat_cur, dtype=np.float32)
-    quat_prev = np.asarray(quat_prev, dtype=np.float32)
+    quat_cur = np.asarray(quat_cur, dtype=np.float64)
+    quat_prev = np.asarray(quat_prev, dtype=np.float64)
     original_shape = quat_cur.shape
     if quat_cur.ndim == 1:
         quat_cur = quat_cur.reshape(1, 4)
         quat_prev = quat_prev.reshape(1, 4)
     flat_cur = quat_cur.reshape(-1, 4)
     flat_prev = quat_prev.reshape(-1, 4)
-    quat_cur_xyzw = flat_cur[:, [1, 2, 3, 0]]
-    quat_prev_xyzw = flat_prev[:, [1, 2, 3, 0]]
-    delta = R.from_quat(quat_prev_xyzw).inv() * R.from_quat(quat_cur_xyzw)
-    ang_vel = (delta.as_rotvec() / float(dt)).astype(np.float32)
+    cur_norm = np.linalg.norm(flat_cur, axis=-1, keepdims=True)
+    prev_norm = np.linalg.norm(flat_prev, axis=-1, keepdims=True)
+    if np.any(cur_norm == 0.0) or np.any(prev_norm == 0.0):
+        raise ValueError("Found zero norm quaternions in `quat`.")
+    cur = flat_cur / cur_norm
+    prev = flat_prev / prev_norm
+
+    prev_w, prev_x, prev_y, prev_z = prev.T
+    cur_w, cur_x, cur_y, cur_z = cur.T
+    delta_w = prev_w * cur_w + prev_x * cur_x + prev_y * cur_y + prev_z * cur_z
+    delta_xyz = np.stack(
+        [
+            prev_w * cur_x - prev_x * cur_w - prev_y * cur_z + prev_z * cur_y,
+            prev_w * cur_y + prev_x * cur_z - prev_y * cur_w - prev_z * cur_x,
+            prev_w * cur_z - prev_x * cur_y + prev_y * cur_x - prev_z * cur_w,
+        ],
+        axis=-1,
+    )
+    canonical_sign = np.where(delta_w < 0.0, -1.0, 1.0)
+    delta_w *= canonical_sign
+    delta_xyz *= canonical_sign[:, None]
+    delta_xyz_norm = np.linalg.norm(delta_xyz, axis=-1)
+    angle = 2.0 * np.arctan2(delta_xyz_norm, delta_w)
+    scale = np.divide(
+        angle,
+        delta_xyz_norm,
+        out=np.full_like(angle, 2.0),
+        where=delta_xyz_norm > 0.0,
+    )
+    ang_vel = (delta_xyz * scale[:, None] / float(dt)).astype(np.float32)
     if original_shape == (4,):
         return ang_vel[0]
     return ang_vel.reshape(original_shape[:-1] + (3,))
@@ -218,9 +242,12 @@ def _minimal_projected_gravity_and_ang_vel(
     from scipy.spatial.transform import Rotation as R
 
     root_quat_wxyz = np.asarray(root_quat_wxyz, dtype=np.float32)
-    rotation = R.from_quat(root_quat_wxyz[[1, 2, 3, 0]])
-    projected_gravity = rotation.inv().apply(np.asarray([0.0, 0.0, -1.0], dtype=np.float32))
-    ang_vel = rotation.apply(np.asarray(root_ang_vel_local, dtype=np.float32))
+    root_ang_vel_local = np.asarray(root_ang_vel_local, dtype=np.float32)
+    rotation = R.from_quat(root_quat_wxyz[..., [1, 2, 3, 0]])
+    gravity = np.zeros_like(root_ang_vel_local)
+    gravity[..., 2] = -1.0
+    projected_gravity = rotation.inv().apply(gravity)
+    ang_vel = rotation.apply(root_ang_vel_local)
     return projected_gravity.astype(np.float32), ang_vel.astype(np.float32)
 
 
@@ -230,7 +257,8 @@ def _minimal_local_root_ang_vel(
 ) -> np.ndarray:
     from scipy.spatial.transform import Rotation as R
 
-    rotation = R.from_quat(np.asarray(root_quat_wxyz, dtype=np.float32)[[1, 2, 3, 0]])
+    root_quat_wxyz = np.asarray(root_quat_wxyz, dtype=np.float32)
+    rotation = R.from_quat(root_quat_wxyz[..., [1, 2, 3, 0]])
     return rotation.inv().apply(np.asarray(root_ang_vel_w, dtype=np.float32)).astype(np.float32)
 
 
@@ -241,22 +269,35 @@ def _minimal_privileged_state(
     body_ang_vel: np.ndarray,
 ) -> np.ndarray:
     body_pos = np.asarray(body_pos, dtype=np.float32)
-    body_rot_xyzw = np.asarray(body_quat_wxyz, dtype=np.float32)[:, [1, 2, 3, 0]]
+    body_rot_xyzw = np.asarray(body_quat_wxyz, dtype=np.float32)[..., [1, 2, 3, 0]]
     body_vel = np.asarray(body_vel, dtype=np.float32)
     body_ang_vel = np.asarray(body_ang_vel, dtype=np.float32)
 
-    root_pos = body_pos[0:1]
-    root_rot = body_rot_xyzw[0:1]
+    batch_shape = body_pos.shape[:-2]
+    root_pos = body_pos[..., 0:1, :]
+    root_rot = body_rot_xyzw[..., 0:1, :]
     heading_inv = _heading_inv_quat_xyzw(root_rot)
     heading_inv_expand = np.broadcast_to(heading_inv, body_rot_xyzw.shape)
 
     local_body_pos = body_pos - root_pos
-    local_body_pos = _quat_rotate_xyzw(heading_inv_expand, local_body_pos).reshape(1, -1)[:, 3:]
+    local_body_pos = _quat_rotate_xyzw(
+        heading_inv_expand,
+        local_body_pos,
+    ).reshape(*batch_shape, -1)[..., 3:]
     local_body_rot = _quat_mul_xyzw(heading_inv_expand, body_rot_xyzw)
-    local_body_rot_obs = _quat_to_tan_norm_xyzw(local_body_rot).reshape(1, -1)
-    local_body_vel = _quat_rotate_xyzw(heading_inv_expand, body_vel).reshape(1, -1)
-    local_body_ang_vel = _quat_rotate_xyzw(heading_inv_expand, body_ang_vel).reshape(1, -1)
-    root_h = root_pos[:, 2:3]
+    local_body_rot_obs = _quat_to_tan_norm_xyzw(local_body_rot).reshape(
+        *batch_shape,
+        -1,
+    )
+    local_body_vel = _quat_rotate_xyzw(
+        heading_inv_expand,
+        body_vel,
+    ).reshape(*batch_shape, -1)
+    local_body_ang_vel = _quat_rotate_xyzw(
+        heading_inv_expand,
+        body_ang_vel,
+    ).reshape(*batch_shape, -1)
+    root_h = root_pos[..., 0, 2:3]
 
     privileged_state = np.concatenate(
         [
@@ -267,11 +308,11 @@ def _minimal_privileged_state(
             local_body_ang_vel,
         ],
         axis=-1,
-    ).reshape(-1)
-    if privileged_state.size != BFM_ZERO_PRIVILEGED_STATE_DIM:
+    )
+    if privileged_state.shape[-1] != BFM_ZERO_PRIVILEGED_STATE_DIM:
         raise ValueError(
             "BFM-Zero minimal privileged_state dim mismatch: "
-            f"{privileged_state.size} != {BFM_ZERO_PRIVILEGED_STATE_DIM}"
+            f"{privileged_state.shape[-1]} != {BFM_ZERO_PRIVILEGED_STATE_DIM}"
         )
     return privileged_state.astype(np.float32)
 
@@ -355,37 +396,31 @@ def _compute_minimal_backward_observations_from_motion_arrays(
         body_vel[1:] = ((body_pos[1:] - body_pos[:-1]) / dt).astype(np.float32)
         body_ang_vel[1:] = _minimal_calc_angular_velocity_wxyz(body_quat[1:], body_quat[:-1], dt)
 
-    states = np.empty((target_frame_indices.size, BFM_ZERO_STATE_DIM), dtype=np.float32)
-    privileged = np.empty(
-        (target_frame_indices.size, BFM_ZERO_PRIVILEGED_STATE_DIM),
-        dtype=np.float32,
-    )
     default_joint_pos = np.asarray(default_joint_pos, dtype=np.float32).reshape(BFM_ZERO_ACTION_DIM)
-    for out_idx, frame_idx in enumerate(target_frame_indices):
-        frame_idx = int(frame_idx)
-        root_ang_vel_local = _minimal_local_root_ang_vel(
-            root_quat[frame_idx],
-            root_ang_vel[frame_idx],
-        )
-        projected_gravity, ang_vel = _minimal_projected_gravity_and_ang_vel(
-            root_quat[frame_idx],
-            root_ang_vel_local,
-        )
-        states[out_idx] = np.concatenate(
-            [
-                dof_pos[frame_idx] - default_joint_pos,
-                dof_vel[frame_idx],
-                projected_gravity,
-                ang_vel,
-            ],
-            axis=0,
-        ).astype(np.float32)
-        privileged[out_idx] = _minimal_privileged_state(
-            body_pos[frame_idx],
-            body_quat[frame_idx],
-            body_vel[frame_idx],
-            body_ang_vel[frame_idx],
-        )
+    selected_root_quat = root_quat[target_frame_indices]
+    root_ang_vel_local = _minimal_local_root_ang_vel(
+        selected_root_quat,
+        root_ang_vel[target_frame_indices],
+    )
+    projected_gravity, ang_vel = _minimal_projected_gravity_and_ang_vel(
+        selected_root_quat,
+        root_ang_vel_local,
+    )
+    states = np.concatenate(
+        [
+            dof_pos[target_frame_indices] - default_joint_pos,
+            dof_vel[target_frame_indices],
+            projected_gravity,
+            ang_vel,
+        ],
+        axis=-1,
+    ).astype(np.float32)
+    privileged = _minimal_privileged_state(
+        body_pos[target_frame_indices],
+        body_quat[target_frame_indices],
+        body_vel[target_frame_indices],
+        body_ang_vel[target_frame_indices],
+    )
 
     return {
         "state": states,

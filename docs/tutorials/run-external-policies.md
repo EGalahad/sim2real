@@ -53,6 +53,16 @@ BFM-Zero needs its checkpoint-specific MJCF for the MuJoCo FK used by its motion
 observations. For direct NPZ playback this is stored in the policy YAML. For ZMQ
 publishers, pass the same MJCF override to the publisher.
 
+BFM-Zero is compute-heavy. Prefer `--inference_backend onnx-gpu` for policy
+inference when CUDA ONNX Runtime is available. Use `onnx-cpu` only as a
+compatibility fallback on hosts without a working GPU provider.
+
+```bash
+uv run sim2real/rl_policy/tracking.py \
+  --policy_config checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml \
+  --inference_backend onnx-gpu
+```
+
 ```bash
 uv run sim2real/teleop/npz_pub.py \
   --motion_path ../any4hdmi/output/g1/lafan/motions/walk1_subject1.npz \
