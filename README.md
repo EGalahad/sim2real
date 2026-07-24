@@ -63,6 +63,14 @@ Currently supported adapted / distributed checkpoint families:
 | HEFT | `checkpoints/heft` | PMG and compliance variants. |
 | TWIST2 | `checkpoints/twist2/policy.yaml` | TWIST2 policy wrapper. |
 
+For a fair comparison, we report the motion-lookahead latency required by each
+policy, defined by its furthest required future-reference frame. All values use
+the shared 50 Hz reference-motion contract.
+
+| Policy | MimicLite | BFM-Zero | SONIC release | SONIC low-latency | HoloMotion | TeleopIT | Humanoid-GPT | HEFT | TWIST2 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Motion-lookahead latency | 0.08 s | 0.12 s | 0.90 s | 0.18 s | 0.20 s | 0.00 s | 0.02 s | 0.12 s | 0.00 s |
+
 ## Real-robot Environments
 
 Robot SDKs are kept out of the generic root environment. G1 inline deployment
