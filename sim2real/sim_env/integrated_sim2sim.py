@@ -202,7 +202,12 @@ class IntegratedPolicyRuntime:
             raw_policy_config,
             motion_path=args.motion_path,
         )
-        self.model_path = args.policy_config.replace(".yaml", ".onnx")
+        model_path = self.policy_config.get("model_path")
+        if model_path is None:
+            model_path = args.policy_config.replace(".yaml", ".onnx")
+        else:
+            model_path = str(Path(args.policy_config).parent / str(model_path))
+        self.model_path = model_path
 
         self.joint_names_simulation = list(self.policy_config["joint_names_simulation"])
         self.body_names_simulation = list(self.policy_config["body_names_simulation"])
@@ -436,6 +441,7 @@ class IntegratedPolicyRuntime:
                         obs_dict, obs_components, obs_timings = self._prepare_obs_for_rl(
                             profile=bool(self.args.profile_obs),
                         )
+                        runtime_control_mode = self.state_dict["control_mode"]
                         self.state_dict.update(obs_dict)
                         self.state_dict["is_init"] = np.zeros(1, dtype=bool)
 
@@ -444,6 +450,7 @@ class IntegratedPolicyRuntime:
                         action, q_target, self.state_dict = self.policy(self.state_dict)
                         self.state_dict["action"] = action
                         self.state_dict["q_target"] = q_target
+                        self.state_dict["control_mode"] = runtime_control_mode
             except Exception as exc:
                 print(f"Error in policy inference: {exc}")
                 import traceback

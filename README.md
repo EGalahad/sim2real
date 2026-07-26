@@ -55,6 +55,7 @@ Currently supported adapted / distributed checkpoint families:
 | --- | --- | --- |
 | Mimic-Lite | `checkpoints/mimic-lite` | Native mimic-lite tracking checkpoints. |
 | BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | Latent-conditioned motion tracker. |
+| ScaleBFM | `checkpoints/scalebfm` | ScaleBFM Humanoid Transformer M and XL ONNX exports from [WeishuaiZeng/ScaleBFM](https://huggingface.co/WeishuaiZeng/ScaleBFM). |
 | SONIC release | `checkpoints/sonic/release` | Release G1 and SMPL encoder variants. |
 | SONIC low-latency | `checkpoints/sonic/low_latency` | Low-latency G1 and SMPL variants. |
 | HoloMotion v1.4.0 | `checkpoints/holomotion/v1_4_0/policy.yaml` | Uses the official unmodified ONNX from [HorizonRobotics/HoloMotion_models](https://huggingface.co/HorizonRobotics/HoloMotion_models/resolve/main/HoloMotion_motion_tracking_model_v1.4.0/exported/model_14000.onnx); place it at `checkpoints/holomotion/v1_4_0/policy.onnx`. |
@@ -69,9 +70,9 @@ For a fair comparison, we report the motion-lookahead latency required by each
 policy, defined by its furthest required future-reference frame. All values use
 the shared 50 Hz reference-motion contract.
 
-| Policy | MimicLite | BFM-Zero | SONIC release | SONIC low-latency | HoloMotion | TeleopIT | Humanoid-GPT | HEFT | TWIST2 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Motion-lookahead latency | 0.08 s | 0.12 s | 0.90 s | 0.18 s | 0.20 s | 0.00 s | 0.02 s | 0.12 s | 0.00 s |
+| Policy | MimicLite | BFM-Zero | ScaleBFM | SONIC release | SONIC low-latency | HoloMotion | TeleopIT | Humanoid-GPT | HEFT | TWIST2 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Motion-lookahead latency | 0.08 s | 0.12 s | 0.10 s | 0.90 s | 0.18 s | 0.20 s | 0.00 s | 0.02 s | 0.12 s | 0.00 s |
 
 ## Real-robot Environments
 

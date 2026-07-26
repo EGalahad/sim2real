@@ -72,19 +72,27 @@ class PolicyInferenceTest:
 
     def setup_mock_data(self):
         print("Setting up mock input data...")
-        input_specs = list(zip(self.runtime_module.in_keys, self.runtime_module.input_shapes))
+        ort_inputs = self.runtime_module.ort_session.get_inputs()
+        input_specs = list(zip(self.runtime_module.in_keys, self.runtime_module.input_shapes, ort_inputs))
 
         print("Input specifications:")
-        for name, shape in input_specs:
-            print(f"  {name}: {shape}")
+        for name, shape, ort_input in input_specs:
+            print(f"  {name}: {shape} {ort_input.type}")
 
         self.mock_input = {}
-        for key, shape in input_specs:
+        for key, shape, ort_input in input_specs:
             if "adapt_hx" in str(key):
                 self.mock_input[key] = np.zeros(shape, dtype=np.float32)
             elif "action" in str(key):
                 self.mock_input[key] = np.random.randn(*shape).astype(np.float32) * 0.1
             elif "is_init" in str(key):
+                self.mock_input[key] = np.zeros(shape, dtype=bool)
+            elif ort_input.type == "tensor(int64)":
+                if str(key) == "control_mode":
+                    self.mock_input[key] = np.full(shape, 7, dtype=np.int64)
+                else:
+                    self.mock_input[key] = np.zeros(shape, dtype=np.int64)
+            elif ort_input.type == "tensor(bool)":
                 self.mock_input[key] = np.zeros(shape, dtype=bool)
             else:
                 self.mock_input[key] = np.random.randn(*shape).astype(np.float32)
@@ -174,7 +182,15 @@ class Args:
 
 def main(args: Args) -> int:
     try:
-        model_path = args.policy_config.replace(".yaml", ".onnx")
+        import yaml
+
+        with open(args.policy_config) as file:
+            policy_config = yaml.load(file, Loader=yaml.FullLoader)
+        configured_model_path = policy_config.get("model_path")
+        if configured_model_path is None:
+            model_path = args.policy_config.replace(".yaml", ".onnx")
+        else:
+            model_path = str(Path(args.policy_config).parent / str(configured_model_path))
         tester = PolicyInferenceTest(
             model_path=model_path,
             inference_backend=args.inference_backend,

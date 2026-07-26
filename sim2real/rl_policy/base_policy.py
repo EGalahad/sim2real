@@ -61,7 +61,11 @@ class BasePolicy:
         with open(args.policy_config) as file:
             policy_config = yaml.load(file, Loader=yaml.FullLoader)
         policy_config = self.prepare_policy_config(policy_config)
-        model_path = args.policy_config.replace(".yaml", ".onnx")
+        model_path = policy_config.get("model_path")
+        if model_path is None:
+            model_path = args.policy_config.replace(".yaml", ".onnx")
+        else:
+            model_path = str(Path(args.policy_config).parent / str(model_path))
         self.policy_config = policy_config
         self.model_path = model_path
         # initialize robot related processes
@@ -535,6 +539,7 @@ class BasePolicy:
                         # Prepare observations
                         self.update()
                         obs_dict, obs_components = self.prepare_obs_for_rl()
+                        runtime_control_mode = self.state_dict["control_mode"]
                         self.state_dict.update(obs_dict)
                         self.state_dict["is_init"] = np.zeros(1, dtype=bool)
 
@@ -549,6 +554,7 @@ class BasePolicy:
                         # action = action.clip(-100, 100)
                         self.state_dict["action"] = action
                         self.state_dict["q_target"] = q_target
+                        self.state_dict["control_mode"] = runtime_control_mode
             except Exception as e:
                 print(f"Error in policy inference: {e}")
                 # print traceback for debugging
