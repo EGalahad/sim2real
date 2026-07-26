@@ -5,6 +5,7 @@ import csv
 import json
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 from pathlib import Path
 
@@ -23,6 +24,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--motion-list", default=None, help="Optional newline-delimited motion path list.")
     parser.add_argument("--output-dir", required=True, help="Evaluation output dir.")
     parser.add_argument("--num-motions", type=int, default=8, help="Evaluate first N motions.")
+    parser.add_argument("--max-workers", type=int, default=1, help="Maximum concurrent sim2sim subprocesses.")
     parser.add_argument("--seeds", type=int, nargs="+", default=[0], help="Seeds to run.")
     parser.add_argument("--initial-pause-s", type=float, default=5.0)
     parser.add_argument(
@@ -168,6 +170,7 @@ def main() -> None:
     motions = _motion_paths(Path(args.motions_root), args.num_motions, args.motion_list)
 
     rows: list[dict[str, str | int]] = []
+    commands: list[list[str]] = []
     for policy_name, policy_config in policies.items():
         for motion_index, motion_path in enumerate(motions):
             output_motion_index = args.motion_index_offset + motion_index
@@ -202,7 +205,7 @@ def main() -> None:
                     ]
                     if args.max_runtime_s is not None:
                         cmd.extend(["--max-runtime-s", str(args.max_runtime_s)])
-                    _run(cmd)
+                    commands.append(cmd)
                 rows.append(
                     {
                         "policy": policy_name,
@@ -213,6 +216,16 @@ def main() -> None:
                         "trajectory_path": str(traj_path),
                     }
                 )
+
+    max_workers = max(1, int(args.max_workers))
+    if max_workers == 1:
+        for cmd in commands:
+            _run(cmd)
+    else:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_cmd = {executor.submit(_run, cmd): cmd for cmd in commands}
+            for future in as_completed(future_to_cmd):
+                future.result()
 
     manifest_path = output_dir / "runs.csv"
     with manifest_path.open("w", encoding="utf-8", newline="") as f:
