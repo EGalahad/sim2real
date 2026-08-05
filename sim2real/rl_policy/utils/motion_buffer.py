@@ -17,11 +17,24 @@ from sim2real.config.robots.base import (
     MOTION_FIRST_FRAME_KEY,
     PICO_RECV_TIME_NS_KEY,
     PUBLISH_T_NS_KEY,
+    SEQ_KEY,
     RobotCfg,
 )
 from sim2real.rl_policy.utils.motion import MotionData, _normalize_quat_batch, _quat_slerp_batch
 from sim2real.teleop.smpl_stream import DEFAULT_STANDING_SMPL_JOINT_POS_ROOT
 from sim2real.utils.math import quat_conjugate, quat_mul, quat_rotate_numpy, yaw_quat
+
+
+_MAX_SOURCE_CLOCK_SKEW_NS = 5_000_000_000
+
+
+def _configure_reconnecting_subscriber(sock: zmq.Socket) -> None:
+    """Detect a dead motion link quickly and retry without a long TCP stall."""
+    sock.setsockopt(zmq.CONNECT_TIMEOUT, 3_000)
+    sock.setsockopt(zmq.RECONNECT_IVL, 100)
+    sock.setsockopt(zmq.RECONNECT_IVL_MAX, 1_000)
+    sock.setsockopt(zmq.HEARTBEAT_IVL, 1_000)
+    sock.setsockopt(zmq.HEARTBEAT_TIMEOUT, 3_000)
 
 
 class SmplMotionData:
@@ -75,6 +88,44 @@ def _payload_names(value: Any) -> list[str] | None:
         return [value]
     names = [str(name) for name in np.asarray(value, dtype=object).reshape(-1).tolist()]
     return names or None
+
+
+def _payload_source_timestamp_ns(payload: dict[str, Any]) -> int | None:
+    source_time_ns = (
+        _payload_scalar(payload.get(PICO_RECV_TIME_NS_KEY))
+        or _payload_scalar(payload.get("pico_recv_time_ns"))
+        or _payload_scalar(payload.get(PUBLISH_T_NS_KEY))
+    )
+    return None if source_time_ns is None else int(source_time_ns)
+
+
+class _PublisherClockAligner:
+    def __init__(self) -> None:
+        self._offset_ns: int | None = None
+        self._last_seq: int | None = None
+
+    def align(self, payload: dict[str, Any], recv_time_ns: int) -> int:
+        source_time_ns = _payload_source_timestamp_ns(payload)
+        if source_time_ns is None:
+            return recv_time_ns
+
+        seq_value = _payload_scalar(payload.get(SEQ_KEY))
+        seq = None if seq_value is None else int(seq_value)
+        should_reanchor = self._offset_ns is None or (
+            seq is not None and self._last_seq is not None and seq < self._last_seq
+        )
+        if not should_reanchor:
+            aligned_time_ns = source_time_ns + self._offset_ns
+            should_reanchor = (
+                abs(aligned_time_ns - recv_time_ns) > _MAX_SOURCE_CLOCK_SKEW_NS
+            )
+        if should_reanchor:
+            self._offset_ns = recv_time_ns - source_time_ns
+        if seq is not None:
+            self._last_seq = seq
+
+        assert self._offset_ns is not None
+        return source_time_ns + self._offset_ns
 
 
 def _pos_no_z(pos: np.ndarray) -> np.ndarray:
@@ -318,6 +369,7 @@ class RealtimeMotionBuffer:
         self._zmq_context = zmq.Context.instance()
         self._motion_zmq_connect = motion_zmq_connect
         self._motion_zmq_hwm = int(motion_zmq_hwm)
+        self._publisher_clock = _PublisherClockAligner()
         self._motion_stream_socket: zmq.Socket | None = None
         self._motion_stream_thread: threading.Thread | None = None
         self._motion_stream_stop = threading.Event()
@@ -385,6 +437,7 @@ class RealtimeMotionBuffer:
         sock.setsockopt(zmq.RCVHWM, self._motion_zmq_hwm)
         sock.setsockopt(zmq.RCVTIMEO, 0)
         sock.setsockopt(zmq.SUBSCRIBE, b"")
+        _configure_reconnecting_subscriber(sock)
         sock.connect(self._motion_zmq_connect)
         self._motion_stream_socket = sock
 
@@ -520,11 +573,7 @@ class RealtimeMotionBuffer:
             raise TypeError(f"Unsupported payload type: {type(payload)}")
 
         recv_time_ns = int(recv_time_ns or time.time_ns())
-        timestamp_ns = int(
-            payload.get(PICO_RECV_TIME_NS_KEY)
-            or payload.get(PUBLISH_T_NS_KEY)
-            or recv_time_ns
-        )
+        timestamp_ns = self._publisher_clock.align(payload, recv_time_ns)
         motion_first_frame = _payload_bool(
             payload.get(MOTION_FIRST_FRAME_KEY, payload.get("first_frame")),
             False,
@@ -950,6 +999,7 @@ class RealtimeSmplMotionBuffer:
         self._zmq_context = zmq.Context.instance()
         self._motion_zmq_connect = motion_zmq_connect
         self._motion_zmq_hwm = int(motion_zmq_hwm)
+        self._publisher_clock = _PublisherClockAligner()
         self._motion_stream_socket: zmq.Socket | None = None
         self._motion_stream_thread: threading.Thread | None = None
         self._motion_stream_stop = threading.Event()
@@ -964,6 +1014,7 @@ class RealtimeSmplMotionBuffer:
         sock.setsockopt(zmq.LINGER, 0)
         sock.setsockopt(zmq.RCVHWM, self._motion_zmq_hwm)
         sock.setsockopt(zmq.SUBSCRIBE, b"")
+        _configure_reconnecting_subscriber(sock)
         sock.connect(self._motion_zmq_connect)
         self._motion_stream_socket = sock
 
@@ -1003,12 +1054,7 @@ class RealtimeSmplMotionBuffer:
             raise TypeError(f"Unsupported payload type: {type(payload)}")
 
         recv_time_ns = int(recv_time_ns or time.time_ns())
-        timestamp_ns = int(
-            _payload_scalar(payload.get(PICO_RECV_TIME_NS_KEY))
-            or _payload_scalar(payload.get("pico_recv_time_ns"))
-            or _payload_scalar(payload.get(PUBLISH_T_NS_KEY))
-            or recv_time_ns
-        )
+        timestamp_ns = self._publisher_clock.align(payload, recv_time_ns)
         motion_first_frame = _payload_bool(
             payload.get(MOTION_FIRST_FRAME_KEY, payload.get("first_frame")),
             False,

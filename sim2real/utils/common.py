@@ -309,6 +309,9 @@ class LowCmdMessage:
         tau_ff: np.ndarray,
         kp: np.ndarray,
         kd: np.ndarray,
+        *,
+        source_time_ns: int | None = None,
+        sequence: int = 0,
     ):
         arrays = [
             np.asarray(q_target, dtype=np.float32),
@@ -327,6 +330,8 @@ class LowCmdMessage:
         self.tau_ff = arrays[2]
         self.kp = arrays[3]
         self.kd = arrays[4]
+        self.source_time_ns = source_time_ns
+        self.sequence = int(sequence)
 
     def to_bytes(self) -> bytes:
         count = self.q_target.size
@@ -335,7 +340,11 @@ class LowCmdMessage:
             arr.astype(np.float32, copy=False).tobytes()
             for arr in (self.q_target, self.dq_target, self.tau_ff, self.kp, self.kd)
         )
-        return header + payload
+        if self.source_time_ns is None:
+            return header + payload
+        return header + payload + struct.pack(
+            '<QQ', int(self.source_time_ns), self.sequence
+        )
 
     @classmethod
     def from_bytes(cls, data: bytes) -> 'LowCmdMessage':
@@ -353,7 +362,17 @@ class LowCmdMessage:
             arrays.append(np.frombuffer(data[offset:end], dtype=np.float32).copy())
             offset = end
 
-        return cls(*arrays)
+        remaining = len(data) - offset
+        if remaining == 0:
+            return cls(*arrays)
+        if remaining != struct.calcsize('<QQ'):
+            raise ValueError("LowCmdMessage has an invalid metadata footer")
+        source_time_ns, sequence = struct.unpack('<QQ', data[offset:])
+        return cls(
+            *arrays,
+            source_time_ns=source_time_ns,
+            sequence=sequence,
+        )
 
 
 class LowStateMessage:

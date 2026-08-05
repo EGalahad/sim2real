@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 import numpy as np
 import zmq
 from loguru import logger
@@ -19,6 +21,7 @@ class ZMQRobotIO(RobotIO):
         context: zmq.Context | None = None,
     ) -> None:
         self._joint_count = len(robot_cfg.joint_names)
+        self._command_sequence = 0
         self._context = context or zmq.Context.instance()
         self._latest_state: RobotState | None = None
 
@@ -60,7 +63,16 @@ class ZMQRobotIO(RobotIO):
         kp: np.ndarray,
         kd: np.ndarray,
     ) -> None:
-        message = LowCmdMessage(q_target, dq_target, tau_ff, kp, kd)
+        self._command_sequence += 1
+        message = LowCmdMessage(
+            q_target,
+            dq_target,
+            tau_ff,
+            kp,
+            kd,
+            source_time_ns=time.monotonic_ns(),
+            sequence=self._command_sequence,
+        )
         try:
             self._command_socket.send(message.to_bytes(), flags=zmq.DONTWAIT)
         except zmq.Again:
