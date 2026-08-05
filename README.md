@@ -66,6 +66,10 @@ Currently supported adapted / distributed checkpoint families:
 
 ![Unified cross-codebase tracking evaluation](assets/mimic_lite_cross_codebase_tracking_eval.png)
 
+The comparison uses fresh runs for all 13 policy variants on LAFAN-40,
+PHUMA-30, and a direction-clean Root-90 set whose clips move 1.5--3.0 m
+without changing their labelled forward, backward, or sideward direction.
+
 For a fair comparison, we report the motion-lookahead latency required by each
 policy, defined by its furthest required future-reference frame. All values use
 the shared 50 Hz reference-motion contract.

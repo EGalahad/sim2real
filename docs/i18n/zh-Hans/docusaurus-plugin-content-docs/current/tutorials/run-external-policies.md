@@ -23,10 +23,13 @@ policy YAML。
 | TeleopIT | `checkpoints/teleopit/policy.yaml` | 正常 G1 motion stream。 |
 | Humanoid-GPT | `checkpoints/humanoid-gpt/policy.yaml` | 正常 G1 motion stream。 |
 | BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | ZMQ publisher 需要传 checkpoint 对应的 MJCF override。 |
+| ScaleBFM M | `checkpoints/scalebfm/humanoid_transformer_m/policy.yaml` | 正常 G1 motion stream。 |
+| ScaleBFM XL | `checkpoints/scalebfm/humanoid_transformer_xl/policy.yaml` | 正常 G1 motion stream。 |
 | SONIC release G1 | `checkpoints/sonic/release/g1/policy.yaml` | 正常 G1 motion stream。 |
 | SONIC release SMPL | `checkpoints/sonic/release/smpl/policy.yaml` | 使用 `motion_backend: smpl_zmq` 和 SMPL publisher。 |
 | SONIC low-latency G1 | `checkpoints/sonic/low_latency/g1/policy.yaml` | 使用低延迟 checkpoint 的正常 G1 motion stream。 |
 | SONIC low-latency SMPL | `checkpoints/sonic/low_latency/smpl/policy.yaml` | 使用四帧 SMPL 输入窗口。 |
+| HoloMotion v1.4.0 | `checkpoints/holomotion/v1_4_0/policy.yaml` | 需要官方 1.64 GB ONNX artifact。 |
 | TWIST2 | `checkpoints/twist2/policy.yaml` | 正常 G1 motion stream。 |
 
 ```bash
@@ -38,11 +41,25 @@ uv run sim2real/rl_policy/tracking.py \
 ```
 
 这适用于普通 G1 tracking policy，也就是消费正常 G1 motion stream 的 policy，
-例如 HEFT、TeleopIT、Humanoid-GPT，以及普通 any4hdmi / SONIC G1 motion policy。
+例如 HEFT、TeleopIT、Humanoid-GPT、ScaleBFM、HoloMotion，以及普通
+any4hdmi / SONIC G1 motion policy。
 
 ## Policy 特殊运行条件
 
 少数 adapted policy 需要不同的 motion source 或额外 runtime asset。
+
+### HoloMotion v1.4.0
+
+直接下载官方 ONNX，不要修改文件：
+
+```bash
+mkdir -p checkpoints/holomotion/v1_4_0
+wget -O checkpoints/holomotion/v1_4_0/policy.onnx \
+  https://huggingface.co/HorizonRobotics/HoloMotion_models/resolve/main/HoloMotion_motion_tracking_model_v1.4.0/exported/model_14000.onnx
+```
+
+预期 SHA-256 为
+`859174937272747e762075db482e2b8d05d40dacb3a09884fc9d7d42086bbffe`。
 
 ### BFM-Zero
 
