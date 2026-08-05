@@ -6,6 +6,7 @@ stubs
 /legacy
 /g1_motion*
 /infra.drawio.png
+/sync-robot.sh
 !/tests/
 /tests/*
 !/tests/test_robot_io.py
