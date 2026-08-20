@@ -85,6 +85,7 @@ ALL_POLICIES = (
 RELEASE_POLICIES = {
     "mimic_lite_huge",
     "mimic_lite_v1_1",
+    "mimic_lite_base",
     "sonic_g1",
     "sonic_v1_1",
     "holomotion",
@@ -228,7 +229,7 @@ fig.legend(
     labels,
     loc="lower center",
     bbox_to_anchor=(0.5, LEGEND_Y),
-    ncol=6 if args.release_only else 7,
+    ncol=7,
     frameon=True,
     fancybox=False,
     framealpha=1.0,

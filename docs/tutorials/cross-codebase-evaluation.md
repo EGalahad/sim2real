@@ -78,22 +78,22 @@ uv run --no-project --with matplotlib \
   scripts/tracking_experiment/plot_cross_codebase_release_bars.py
 ```
 
-Generate the six-policy termination-aware figure or the termination-free
+Generate the seven-policy release figure or the termination-free
 companion:
 
 ```bash
 uv run --no-project --with matplotlib \
   scripts/tracking_experiment/plot_cross_codebase_release_bars.py \
   --release-only \
-  --output-base outputs/cross_codebase_eval_six_policy
+  --output-base outputs/cross_codebase_eval_seven_policy
 
 uv run --no-project --with matplotlib \
   scripts/tracking_experiment/plot_cross_codebase_release_bars.py \
   --release-only \
   --reward-metric all-step \
-  --output-base outputs/cross_codebase_eval_six_policy_all_step_reward
+  --output-base outputs/cross_codebase_eval_seven_policy_all_step_reward
 ```
 
 The canonical layout constants are grouped at the top of
-`plot_cross_codebase_release_bars.py`: six-policy `bottom=0.18`, all-policy
+`plot_cross_codebase_release_bars.py`: release-view `bottom=0.18`, all-policy
 `bottom=0.26`, and `wspace=0.18`.
