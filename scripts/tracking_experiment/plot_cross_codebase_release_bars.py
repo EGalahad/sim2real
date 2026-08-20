@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import csv
 import math
 import os
@@ -51,7 +52,7 @@ class Series:
     color: str
 
 
-POLICIES = (
+ALL_POLICIES = (
     Series("mimic_lite_huge", "MimicLite-Huge", "#5B2A86"),
     Series("mimic_lite_v1_1", "MimicLite-v1.1", "#1F77B4"),
     Series("g1_roa_huge_student_20260814", "MimicLite-Huge-ROA", "#F28E2B"),
@@ -68,6 +69,27 @@ POLICIES = (
     Series("humanoid_gpt", "Humanoid-GPT", "#F58518"),
     Series("bfm_zero", "BFM-Zero", "#9D755D"),
     Series("twist2", "TWIST2", "#4C78A8"),
+)
+RELEASE_POLICIES = {
+    "mimic_lite_huge",
+    "mimic_lite_v1_1",
+    "sonic_g1",
+    "sonic_v1_1",
+    "holomotion",
+    "heft",
+}
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--release-only", action="store_true")
+parser.add_argument("--reward-metric", choices=("return", "all-step"), default="return")
+parser.add_argument("--output-base", type=Path, default=OUTPUT_BASE)
+args = parser.parse_args()
+POLICIES = tuple(
+    Series(policy.key, policy.label, "#F28E2B")
+    if args.release_only and policy.key == "mimic_lite_v1_1"
+    else policy
+    for policy in ALL_POLICIES
+    if not args.release_only or policy.key in RELEASE_POLICIES
 )
 
 
@@ -109,9 +131,10 @@ def grouped_bar(
     style_axis(axis)
 
 
+selected_rows = [rows[policy.key] for policy in POLICIES]
 progress_min = min(
     float(row[field])
-    for row in rows.values()
+    for row in selected_rows
     for field in ("lafan40_progress_pct", "phuma30_progress_pct")
 )
 progress_ymin = max(0.0, math.floor((progress_min - 5.0) / 10.0) * 10.0)
@@ -120,7 +143,7 @@ body_ymax = max(
     math.ceil(
         max(
             float(row[field])
-            for row in rows.values()
+            for row in selected_rows
             for field in ("phuma30_local_mm", "root90_local_mm")
         )
         * 1.15
@@ -128,8 +151,18 @@ body_ymax = max(
     )
     * 10.0,
 )
+reward_suffix = (
+    "tracking_return" if args.reward_metric == "return" else "mean_tracking_reward"
+)
+reward_fields = [f"{split}_{reward_suffix}" for split in ("lafan40", "phuma30", "root90")]
+reward_min = min(
+    float(row[field])
+    for row in selected_rows
+    for field in reward_fields
+)
+reward_ymin = max(0.0, math.floor((reward_min - 0.05) * 10.0) / 10.0)
 
-fig, axes = plt.subplots(1, 3, figsize=(19.0, 7.1), gridspec_kw={"wspace": 0.32})
+fig, axes = plt.subplots(1, 4, figsize=(25.5, 7.1), gridspec_kw={"wspace": 0.36})
 fig.subplots_adjust(left=0.06, right=0.99, top=0.82, bottom=0.36)
 fig.suptitle("Unified Cross-Codebase Evaluation")
 
@@ -145,7 +178,7 @@ grouped_bar(
     axes[1],
     ["Forward", "Backward", "Sideward"],
     ["root90_forward_m", "root90_backward_m", "root90_sideward_m"],
-    ylim=(0, 2.0),
+    ylim=(0, 1.0 if args.release_only else 2.0),
 )
 axes[1].set_title("Root-90 Global Root Error ↓ / m")
 
@@ -157,19 +190,32 @@ grouped_bar(
 )
 axes[2].set_title("Local Body Position Error ↓ / mm")
 
+grouped_bar(
+    axes[3],
+    ["LAFAN-40", "PHUMA-30", "Root-90"],
+    reward_fields,
+    ylim=(reward_ymin, 2.0),
+)
+axes[3].set_title(
+    "Normalized Tracking Return ↑"
+    if args.reward_metric == "return"
+    else "All-Step Mean Tracking Reward ↑"
+)
+
 handles, labels = axes[0].get_legend_handles_labels()
 fig.legend(
     handles,
     labels,
     loc="lower center",
     bbox_to_anchor=(0.5, 0.02),
-    ncol=7,
+    ncol=6 if args.release_only else 7,
     frameon=True,
     fancybox=False,
     framealpha=1.0,
     facecolor="white",
     edgecolor="#c8c8c8",
 )
-fig.savefig(OUTPUT_BASE.with_suffix(".pdf"))
-fig.savefig(OUTPUT_BASE.with_suffix(".png"), dpi=360)
+args.output_base.parent.mkdir(parents=True, exist_ok=True)
+fig.savefig(args.output_base.with_suffix(".pdf"))
+fig.savefig(args.output_base.with_suffix(".png"), dpi=360)
 plt.close(fig)

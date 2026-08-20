@@ -15,6 +15,7 @@ from sim2real.utils.math import (
     quat_conjugate,
     quat_mul,
     quat_rotate_inverse_numpy,
+    quat_rotate_numpy,
 )
 
 
@@ -30,12 +31,29 @@ TRACKING_BODY_PATTERNS = (
 )
 TERMINATION_ROOT_BODY_NAME = "torso_link"
 ANCHOR_BODY_NAME = "pelvis"
+RETURN_ANCHOR_BODY_NAME = "torso_link"
+RETURN_BODY_NAMES = (
+    "pelvis",
+    "left_hip_roll_link",
+    "left_knee_link",
+    "left_ankle_roll_link",
+    "right_hip_roll_link",
+    "right_knee_link",
+    "right_ankle_roll_link",
+    "torso_link",
+    "left_shoulder_roll_link",
+    "left_elbow_link",
+    "left_wrist_yaw_link",
+    "right_shoulder_roll_link",
+    "right_elbow_link",
+    "right_wrist_yaw_link",
+)
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Compute motion progress, global root tracking, and local body tracking "
+            "Compute progress, root/body tracking, and normalized tracking return "
             "from full trajectory NPZ files saved by the integrated MuJoCo evaluator."
         )
     )
@@ -146,6 +164,93 @@ def _relative_translation_series(pos: np.ndarray, quat: np.ndarray) -> np.ndarra
     )
 
 
+def _normalized_tracking_return(
+    robot_pos: np.ndarray,
+    robot_quat: np.ndarray,
+    motion_pos: np.ndarray,
+    motion_quat: np.ndarray,
+    names: list[str],
+    motion_t: np.ndarray,
+    motion_steps: int,
+) -> tuple[float, float, bool, str, int]:
+    anchor_idx = names.index(RETURN_ANCHOR_BODY_NAME)
+    body_indices = [names.index(name) for name in RETURN_BODY_NAMES]
+    delta_pos_w = robot_pos[:, anchor_idx].copy()
+    delta_pos_w[:, 2] = motion_pos[:, anchor_idx, 2]
+    delta_yaw_w = projected_yaw_quat(
+        quat_mul(
+            robot_quat[:, anchor_idx],
+            quat_conjugate(motion_quat[:, anchor_idx]),
+        )
+    )
+    delta_yaw_expanded = np.broadcast_to(delta_yaw_w[:, None, :], motion_quat.shape)
+    motion_pos_relative_w = delta_pos_w[:, None, :] + quat_rotate_numpy(
+        delta_yaw_expanded,
+        motion_pos - motion_pos[:, anchor_idx, None, :],
+    )
+    motion_quat_relative_w = quat_mul(delta_yaw_expanded, motion_quat)
+
+    pos_error_sq = np.mean(
+        np.sum(
+            np.square(
+                motion_pos_relative_w[:, body_indices] - robot_pos[:, body_indices]
+            ),
+            axis=-1,
+        ),
+        axis=-1,
+    )
+    ori_error_sq = np.mean(
+        np.square(
+            _quat_angle_magnitude(
+                quat_mul(
+                    quat_conjugate(motion_quat_relative_w[:, body_indices]),
+                    robot_quat[:, body_indices],
+                )
+            )
+        ),
+        axis=-1,
+    )
+    reward = np.exp(-pos_error_sq / 0.3**2) + np.exp(-ori_error_sq / 0.4**2)
+
+    anchor_pos_failed = (
+        np.abs(motion_pos[:, anchor_idx, 2] - robot_pos[:, anchor_idx, 2]) > 0.25
+    )
+    gravity_w = np.broadcast_to(
+        np.asarray([0.0, 0.0, -1.0], dtype=np.float32),
+        (len(motion_t), 3),
+    )
+    motion_gravity_b = quat_rotate_inverse_numpy(motion_quat[:, anchor_idx], gravity_w)
+    robot_gravity_b = quat_rotate_inverse_numpy(robot_quat[:, anchor_idx], gravity_w)
+    anchor_ori_failed = (
+        np.abs(motion_gravity_b[:, 2] - robot_gravity_b[:, 2]) > 0.8
+    )
+    failed = anchor_pos_failed | anchor_ori_failed
+    failure_indices = np.flatnonzero(failed)
+    if failure_indices.size:
+        end = int(failure_indices[0])
+        reason = "anchor_pos_z" if anchor_pos_failed[end] else "anchor_ori"
+        termination_motion_t = int(motion_t[end])
+        terminated = True
+    else:
+        if int(motion_t[-1]) < motion_steps:
+            raise ValueError(
+                "trajectory ended before motion completion without anchor termination: "
+                f"motion_t={int(motion_t[-1])}, expected={motion_steps}"
+            )
+        end = len(motion_t)
+        reason = "motion_end"
+        termination_motion_t = int(motion_t[-1])
+        terminated = False
+
+    return (
+        float(np.sum(reward[:end], dtype=np.float64) / motion_steps),
+        float(np.sum(reward, dtype=np.float64) / motion_steps),
+        terminated,
+        reason,
+        termination_motion_t,
+    )
+
+
 def _compute_one(path: Path) -> dict[str, object]:
     loaded = np.load(path, allow_pickle=False)
     data = {key: loaded[key] for key in loaded.files}
@@ -195,6 +300,21 @@ def _compute_one(path: Path) -> dict[str, object]:
     pre_end = max(1, termination_idx if terminated else termination_idx + 1)
     motion_length = int(np.asarray(data["motion_length"]).reshape(())) if "motion_length" in data else int(motion_t[-1]) + 1
     motion_denominator = max(1, motion_length - 1)
+    (
+        normalized_tracking_return,
+        mean_tracking_reward,
+        return_terminated,
+        return_termination_reason,
+        return_termination_motion_t,
+    ) = _normalized_tracking_return(
+        robot_pos,
+        robot_quat,
+        motion_pos,
+        motion_quat,
+        names,
+        motion_t,
+        motion_denominator,
+    )
     progress = min(1.0, max(0.0, float(motion_t[termination_idx]) / float(motion_denominator)))
     local_body_tracking_error = float(np.mean(body_pos_error_local[:pre_end]))
 
@@ -230,6 +350,11 @@ def _compute_one(path: Path) -> dict[str, object]:
         "global_root_tracking_error_xy": global_root_tracking_error_xy,
         "local_body_tracking_error": local_body_tracking_error,
         "mpjpe": local_body_tracking_error,
+        "normalized_tracking_return": normalized_tracking_return,
+        "mean_tracking_reward": mean_tracking_reward,
+        "return_terminated": int(return_terminated),
+        "return_termination_reason": return_termination_reason,
+        "return_termination_motion_t": return_termination_motion_t,
         "root_final_error_norm": float(np.linalg.norm(root_final_error)),
         "root_final_error_xy_norm": float(np.linalg.norm(root_final_error[:2])),
     }
@@ -240,7 +365,16 @@ def _mean_std(values: list[float]) -> dict[str, float]:
     return {"mean": float(arr.mean()), "std": float(arr.std(ddof=0))}
 
 
+def _weighted_mean_std(values: list[float], weights: list[float]) -> dict[str, float]:
+    value_arr = np.asarray(values, dtype=np.float64)
+    weight_arr = np.asarray(weights, dtype=np.float64)
+    mean = float(np.average(value_arr, weights=weight_arr))
+    variance = float(np.average(np.square(value_arr - mean), weights=weight_arr))
+    return {"mean": mean, "std": variance**0.5}
+
+
 def _summary(rows: list[dict[str, object]]) -> dict[str, object]:
+    motion_steps = [max(1, int(row["motion_length"]) - 1) for row in rows]
     return {
         "count": len(rows),
         "progress": _mean_std([float(row["progress"]) for row in rows]),
@@ -248,6 +382,14 @@ def _summary(rows: list[dict[str, object]]) -> dict[str, object]:
         "global_root_tracking_error_xy": _mean_std([float(row["global_root_tracking_error_xy"]) for row in rows]),
         "local_body_tracking_error": _mean_std([float(row["local_body_tracking_error"]) for row in rows]),
         "mpjpe": _mean_std([float(row["mpjpe"]) for row in rows]),
+        "normalized_tracking_return": _weighted_mean_std(
+            [float(row["normalized_tracking_return"]) for row in rows],
+            motion_steps,
+        ),
+        "mean_tracking_reward": _weighted_mean_std(
+            [float(row["mean_tracking_reward"]) for row in rows],
+            motion_steps,
+        ),
         "root_final_error_norm": _mean_std([float(row["root_final_error_norm"]) for row in rows]),
         "root_final_error_xy_norm": _mean_std([float(row["root_final_error_xy_norm"]) for row in rows]),
     }

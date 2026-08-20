@@ -16,8 +16,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run the integrated MuJoCo evaluator and compute progress, "
-            "global root tracking, and local body tracking metrics."
+            "Run the integrated MuJoCo evaluator and compute progress, root/body "
+            "tracking, and normalized tracking return."
         )
     )
     parser.add_argument("--motions-root", required=True, help="Motion directory or dataset root.")
@@ -91,6 +91,16 @@ def _mean_std(values: list[float]) -> dict[str, float]:
     return {"mean": mean, "std": variance**0.5}
 
 
+def _weighted_mean_std(values: list[float], weights: list[float]) -> dict[str, float]:
+    total = sum(weights)
+    mean = sum(value * weight for value, weight in zip(values, weights, strict=True)) / total
+    variance = sum(
+        weight * (value - mean) ** 2
+        for value, weight in zip(values, weights, strict=True)
+    ) / total
+    return {"mean": mean, "std": variance**0.5}
+
+
 def _add_policy_summary(result_json: Path, result_csv: Path, run_rows: list[dict[str, str | int]]) -> dict[str, object]:
     payload = json.loads(result_json.read_text(encoding="utf-8"))
     result_rows = payload["rows"]
@@ -113,6 +123,15 @@ def _add_policy_summary(result_json: Path, result_csv: Path, run_rows: list[dict
 
     per_policy: dict[str, dict[str, object]] = {}
     for policy_name, rows in groups.items():
+        motion_steps = [max(1, int(row["motion_length"]) - 1) for row in rows]
+        tracking_return = _weighted_mean_std(
+            [float(row["normalized_tracking_return"]) for row in rows],
+            motion_steps,
+        )
+        mean_tracking_reward = _weighted_mean_std(
+            [float(row["mean_tracking_reward"]) for row in rows],
+            motion_steps,
+        )
         per_policy[policy_name] = {
             "count": len(rows),
             "progress_mean": _mean_std([float(row["progress"]) for row in rows])["mean"],
@@ -137,6 +156,10 @@ def _add_policy_summary(result_json: Path, result_csv: Path, run_rows: list[dict
             )["std"],
             "mpjpe_mean": _mean_std([float(row["mpjpe"]) for row in rows])["mean"],
             "mpjpe_std": _mean_std([float(row["mpjpe"]) for row in rows])["std"],
+            "normalized_tracking_return_mean": tracking_return["mean"],
+            "normalized_tracking_return_std": tracking_return["std"],
+            "mean_tracking_reward_mean": mean_tracking_reward["mean"],
+            "mean_tracking_reward_std": mean_tracking_reward["std"],
             "root_final_error_norm_mean": _mean_std(
                 [float(row["root_final_error_norm"]) for row in rows]
             )["mean"],
