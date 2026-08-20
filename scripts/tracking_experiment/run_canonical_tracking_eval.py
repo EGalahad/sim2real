@@ -13,7 +13,7 @@ MANIFEST_DIR = SCRIPT_DIR / "manifests"
 PROTOCOLS = (
     ("lafan40", "lafan_root", (0,)),
     ("phuma30", "phuma_root", (0,)),
-    ("root90", "root90_root", (0, 1, 2)),
+    ("root90", "root90_root", (0,)),
 )
 
 

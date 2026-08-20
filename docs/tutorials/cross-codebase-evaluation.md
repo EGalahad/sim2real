@@ -11,7 +11,7 @@ offline.
 |---|---:|---|
 | LAFAN-40 | 40 | 0 |
 | PHUMA-30 | 30 | 0 |
-| Root-90 | 90 | 0, 1, 2 |
+| Root-90 | 90 | 0 |
 
 The exact ordered motion lists live in
 `scripts/tracking_experiment/manifests/`. Entries are relative to their dataset
