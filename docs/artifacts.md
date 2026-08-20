@@ -19,8 +19,8 @@ third_party/
 ```
 
 `checkpoints/` contains exported policy YAML and ONNX files. Tutorial commands
-assume these paths exist locally, for example
-`checkpoints/mimic-lite/32x8192-huge/policy.yaml`.
+use the current Mimic-Lite release at
+`checkpoints/mimic-lite/v1_1/policy.yaml`.
 
 `third_party/wheels/` contains deployment-only wheels that are resolved by
 `uv` through `find-links = ["third_party/wheels"]`. On G1, use:

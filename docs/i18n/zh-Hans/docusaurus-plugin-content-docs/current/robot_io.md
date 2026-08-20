@@ -33,7 +33,7 @@ backend 读取统一的 `RobotState`、发送命令，不需要启动 real bridg
 ```bash
 uv run sim2real/rl_policy/tracking.py \
   --robot-io inline \
-  --policy-config checkpoints/mimic-lite/32x8192-huge/policy.yaml
+  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml
 ```
 
 真机部署时如果关心延迟稳定性，优先用这个模式。只有机器人网卡不是默认 `eth0`
@@ -54,7 +54,7 @@ uv run scripts/g1/real_bridge.py
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/mimic-lite/32x8192-huge/policy.yaml
+  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml
 ```
 
 只有机器人网卡不是默认 `eth0` 时，才在 bridge 命令里加
@@ -75,7 +75,7 @@ uv run scripts/g1/real_bridge_cpp.py
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/mimic-lite/32x8192-huge/policy.yaml
+  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml
 ```
 
 只有机器人网卡不是默认 `eth0` 时，才在 bridge 命令里加

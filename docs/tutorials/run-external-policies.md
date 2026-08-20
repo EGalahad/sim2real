@@ -20,6 +20,7 @@ value.
 
 | Policy | Checkpoint YAML | Notes |
 | --- | --- | --- |
+| Mimic-Lite v1.1 | `checkpoints/mimic-lite/v1_1/policy.yaml` | Full-scale T16 PPO-ROA finetune student. |
 | HEFT PMG | `checkpoints/heft/pmg/policy.yaml` | Normal G1 motion stream. |
 | HEFT Compliance | `checkpoints/heft/compliance/policy.yaml` | Normal G1 motion stream; compliance flag is forced off in the observation. |
 | TeleopIT | `checkpoints/teleopit/policy.yaml` | Normal G1 motion stream. |

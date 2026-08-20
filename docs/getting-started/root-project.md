@@ -54,7 +54,7 @@ uv run scripts/g1/test_ankle_swing.py
 
 ```bash
 uv run scripts/test_policy_inference.py \
-  --policy_config checkpoints/mimic-lite/32x8192-huge/policy.yaml \
+  --policy_config checkpoints/mimic-lite/v1_1/policy.yaml \
   --inference_backend onnx-cpu
 ```
 

@@ -31,7 +31,7 @@ Run offline motion tracking (sim2sim):
 ```bash
 uv run sim2real/sim_env/base_sim.py --robot g1
 uv run sim2real/rl_policy/tracking.py --robot g1 \
-  --policy_config checkpoints/mimic-lite/32x8192-huge/policy.yaml \
+  --policy_config checkpoints/mimic-lite/v1_1/policy.yaml \
   --motion_path hf://elijahgalahad/any4hdmi-g1-lafan/motions/walk1_subject1.npz
 ```
 
@@ -53,7 +53,8 @@ Currently supported adapted / distributed checkpoint families:
 
 | Policy family | Config path(s) | Notes |
 | --- | --- | --- |
-| Mimic-Lite | `checkpoints/mimic-lite` | Native mimic-lite tracking checkpoints. |
+| Mimic-Lite v1.1 | `checkpoints/mimic-lite/v1_1/policy.yaml` | T16 PPO-ROA finetune student with action and student-latent outputs. |
+| Mimic-Lite Huge | `checkpoints/mimic-lite/32x8192-huge/policy.yaml` | Original Huge release. |
 | BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | Latent-conditioned motion tracker. |
 | ScaleBFM | `checkpoints/scalebfm` | ScaleBFM Humanoid Transformer M and XL ONNX exports from [WeishuaiZeng/ScaleBFM](https://huggingface.co/WeishuaiZeng/ScaleBFM). |
 | SONIC release | `checkpoints/sonic/release` | Release G1 and SMPL encoder variants. |
@@ -67,17 +68,17 @@ Currently supported adapted / distributed checkpoint families:
 
 ![Unified cross-codebase tracking evaluation](assets/mimic_lite_cross_codebase_tracking_eval.png)
 
-The comparison uses fresh runs for all 13 policy variants on LAFAN-40,
-PHUMA-30, and a direction-clean Root-90 set whose clips move 1.5--3.0 m
-without changing their labelled forward, backward, or sideward direction.
+The comparison uses the canonical LAFAN-40, PHUMA-30, and direction-clean
+Root-90 protocols. Local body error is reported separately on PHUMA-30 and
+Root-90. Mimic-Lite v1.1 is the full-scale T16 PPO-ROA finetune student.
 
 For a fair comparison, we report the motion-lookahead latency required by each
 policy, defined by its furthest required future-reference frame. All values use
 the shared 50 Hz reference-motion contract.
 
-| Policy | MimicLite | BFM-Zero | ScaleBFM | SONIC release | SONIC low-latency | HoloMotion | TeleopIT | Humanoid-GPT | HEFT | TWIST2 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Motion-lookahead latency | 0.08 s | 0.12 s | 0.10 s | 0.90 s | 0.18 s | 0.20 s | 0.00 s | 0.02 s | 0.12 s | 0.00 s |
+| Policy | Mimic-Lite Huge | Mimic-Lite v1.1 | BFM-Zero | ScaleBFM | SONIC | SONIC v1.1 | SONIC low-latency | HoloMotion | TeleopIT | Humanoid-GPT | HEFT | TWIST2 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Motion-lookahead latency | 0.08 s | 0.08 s | 0.12 s | 0.10 s | 0.90 s | 0.90 s | 0.18 s | 0.20 s | 0.00 s | 0.02 s | 0.12 s | 0.00 s |
 
 ## Real-robot Environments
 

@@ -24,7 +24,7 @@ uv run sim2real/sim_env/base_sim.py
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/mimic-lite/32x8192-huge/policy.yaml \
+  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml \
   --motion-backend zmq \
   --controller pico
 ```
@@ -35,7 +35,7 @@ uv run sim2real/rl_policy/tracking.py \
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/mimic-lite/32x8192-huge/policy.yaml \
+  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml \
   --motion-backend zmq \
   --controller pico
 ```
