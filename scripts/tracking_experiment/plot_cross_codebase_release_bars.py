@@ -135,7 +135,7 @@ grouped_bar(
     axes[1],
     ["Forward", "Backward", "Sideward"],
     ["root90_forward_m", "root90_backward_m", "root90_sideward_m"],
-    ylim=(0, 3),
+    ylim=(0, 1.0),
 )
 axes[1].set_title("Root-90 Global Root Error ↓ / m")
 
