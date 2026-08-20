@@ -68,15 +68,6 @@ Currently supported adapted / distributed checkpoint families:
 
 ![Unified cross-codebase tracking evaluation](assets/mimic_lite_cross_codebase_tracking_eval.png)
 
-The comparison uses the canonical LAFAN-40, PHUMA-30, and direction-clean
-Root-90 protocols. Local body error is reported separately on PHUMA-30 and
-Root-90. Normalized tracking return sums the BeyondMimic body-position and
-body-orientation rewards before its common anchor termination, then divides by
-the full reference length. The figure retains all 16 evaluated policy variants;
-Mimic-Lite v1.1 is the full-scale T16 PPO-ROA finetune student.
-See the [termination-free companion](assets/mimic_lite_cross_codebase_tracking_eval_all_step_reward.png)
-for the same tracking reward averaged over every motion step.
-
 For a fair comparison, we report the motion-lookahead latency required by each
 policy, defined by its furthest required future-reference frame. All values use
 the shared 50 Hz reference-motion contract.
