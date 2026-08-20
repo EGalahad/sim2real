@@ -70,15 +70,16 @@ Currently supported adapted / distributed checkpoint families:
 
 The comparison uses the canonical LAFAN-40, PHUMA-30, and direction-clean
 Root-90 protocols. Local body error is reported separately on PHUMA-30 and
-Root-90. Mimic-Lite v1.1 is the full-scale T16 PPO-ROA finetune student.
+Root-90. The figure retains all 16 evaluated policy variants; Mimic-Lite v1.1
+is the full-scale T16 PPO-ROA finetune student.
 
 For a fair comparison, we report the motion-lookahead latency required by each
 policy, defined by its furthest required future-reference frame. All values use
 the shared 50 Hz reference-motion contract.
 
-| Policy | Mimic-Lite Huge | Mimic-Lite v1.1 | BFM-Zero | ScaleBFM | SONIC | SONIC v1.1 | SONIC low-latency | HoloMotion | TeleopIT | Humanoid-GPT | HEFT | TWIST2 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Motion-lookahead latency | 0.08 s | 0.08 s | 0.12 s | 0.10 s | 0.90 s | 0.90 s | 0.18 s | 0.20 s | 0.00 s | 0.02 s | 0.12 s | 0.00 s |
+| Policy | Mimic-Lite Huge | Mimic-Lite v1.1 | Mimic-Lite Huge ROA | Mimic-Lite Base | Mimic-Lite Small | ScaleBFM M | ScaleBFM XL | SONIC | SONIC low-latency | SONIC v1.1 | HoloMotion | HEFT | TeleopIT | Humanoid-GPT | BFM-Zero | TWIST2 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Motion-lookahead latency | 0.08 s | 0.08 s | 0.08 s | 0.08 s | 0.08 s | 0.10 s | 0.10 s | 0.90 s | 0.18 s | 0.90 s | 0.20 s | 0.12 s | 0.00 s | 0.02 s | 0.12 s | 0.00 s |
 
 ## Real-robot Environments
 

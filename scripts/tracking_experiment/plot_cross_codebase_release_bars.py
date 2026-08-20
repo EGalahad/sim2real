@@ -53,11 +53,21 @@ class Series:
 
 POLICIES = (
     Series("mimic_lite_huge", "MimicLite-Huge", "#5B2A86"),
-    Series("mimic_lite_v1_1", "MimicLite-v1.1", "#F28E2B"),
-    Series("sonic", "SONIC", "#76B900"),
+    Series("mimic_lite_v1_1", "MimicLite-v1.1", "#1F77B4"),
+    Series("g1_roa_huge_student_20260814", "MimicLite-Huge-ROA", "#F28E2B"),
+    Series("mimic_lite_base", "MimicLite-Base", "#7B4AB8"),
+    Series("mimic_lite_small", "MimicLite-Small", "#A77BD4"),
+    Series("scalebfm_m", "ScaleBFM-M", "#C44E52"),
+    Series("scalebfm_xl", "ScaleBFM-XL", "#E07B7B"),
+    Series("sonic_g1", "SONIC", "#76B900"),
+    Series("sonic_low_latency", "SONIC-Low-Latency", "#2E7D32"),
     Series("sonic_v1_1", "SONIC-v1.1", "#00897B"),
     Series("holomotion", "HoloMotion", "#17BECF"),
     Series("heft", "HEFT", "#54A24B"),
+    Series("teleopit", "TeleopIt", "#B279A2"),
+    Series("humanoid_gpt", "Humanoid-GPT", "#F58518"),
+    Series("bfm_zero", "BFM-Zero", "#9D755D"),
+    Series("twist2", "TWIST2", "#4C78A8"),
 )
 
 
@@ -119,8 +129,8 @@ body_ymax = max(
     * 10.0,
 )
 
-fig, axes = plt.subplots(1, 3, figsize=(19.0, 6.5), gridspec_kw={"wspace": 0.32})
-fig.subplots_adjust(left=0.06, right=0.99, top=0.80, bottom=0.30)
+fig, axes = plt.subplots(1, 3, figsize=(19.0, 7.1), gridspec_kw={"wspace": 0.32})
+fig.subplots_adjust(left=0.06, right=0.99, top=0.82, bottom=0.36)
 fig.suptitle("Unified Cross-Codebase Evaluation")
 
 grouped_bar(
@@ -135,7 +145,7 @@ grouped_bar(
     axes[1],
     ["Forward", "Backward", "Sideward"],
     ["root90_forward_m", "root90_backward_m", "root90_sideward_m"],
-    ylim=(0, 1.0),
+    ylim=(0, 2.0),
 )
 axes[1].set_title("Root-90 Global Root Error ↓ / m")
 
@@ -152,8 +162,8 @@ fig.legend(
     handles,
     labels,
     loc="lower center",
-    bbox_to_anchor=(0.5, 0.03),
-    ncol=6,
+    bbox_to_anchor=(0.5, 0.02),
+    ncol=7,
     frameon=True,
     fancybox=False,
     framealpha=1.0,
