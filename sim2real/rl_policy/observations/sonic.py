@@ -342,6 +342,29 @@ class sonic_motion_anchor_ori_b_mf_nonflat(_SonicMotionObservation, namespace="s
         return self.anchor_ori.reshape(-1)
 
 
+class sonic_motion_anchor_ori_heading_mf_nonflat(
+    _SonicMotionObservation,
+    namespace="sonic",
+):
+    """Future reference orientation normalized by the robot's yaw only."""
+
+    def update(self, data: Dict[str, Any]) -> None:
+        super().update(data)
+        ref_root_quat_w = self._select(self.ref_root_quat_future_w)
+        robot_heading = projected_yaw_quat(
+            self.state_processor.root_quat_w.reshape(1, 4)
+        )
+        robot_heading = np.broadcast_to(
+            robot_heading.reshape(1, 1, 4),
+            ref_root_quat_w.shape,
+        )
+        rel_quat = quat_mul(quat_conjugate(robot_heading), ref_root_quat_w)
+        self.anchor_ori = matrix_from_quat(rel_quat)[..., :, :2]
+
+    def compute(self) -> np.ndarray:
+        return self.anchor_ori.reshape(-1)
+
+
 class _SonicHistoryObservation(Observation):
     def __init__(self, history_steps: Sequence[int], **kwargs):
         super().__init__(**kwargs)
