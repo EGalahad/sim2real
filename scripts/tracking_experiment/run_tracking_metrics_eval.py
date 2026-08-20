@@ -5,6 +5,7 @@ import csv
 import json
 import subprocess
 import sys
+import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 from pathlib import Path
@@ -23,10 +24,15 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--motions-root", required=True, help="Motion directory or dataset root.")
     parser.add_argument("--motion-list", default=None, help="Optional newline-delimited motion path list.")
     parser.add_argument("--output-dir", required=True, help="Evaluation output dir.")
-    parser.add_argument("--num-motions", type=int, default=8, help="Evaluate first N motions.")
+    parser.add_argument(
+        "--num-motions",
+        type=int,
+        default=None,
+        help="Evaluate first N motions; defaults to every manifest entry.",
+    )
     parser.add_argument("--max-workers", type=int, default=1, help="Maximum concurrent sim2sim subprocesses.")
     parser.add_argument("--seeds", type=int, nargs="+", default=[0], help="Seeds to run.")
-    parser.add_argument("--initial-pause-s", type=float, default=5.0)
+    parser.add_argument("--initial-pause-s", type=float, default=0.0)
     parser.add_argument(
         "--max-runtime-s",
         type=float,
@@ -57,32 +63,47 @@ def _policy_map(items: list[str]) -> dict[str, str]:
     return policies
 
 
-def _motion_paths(motions_root: Path, count: int, motion_list: str | None = None) -> list[Path]:
+def _motion_paths(
+    motions_root: Path,
+    count: int | None,
+    motion_list: str | None = None,
+) -> list[Path]:
+    root = motions_root.expanduser().resolve()
     if motion_list is not None:
         paths: list[Path] = []
         for line in Path(motion_list).expanduser().read_text(encoding="utf-8").splitlines():
             stripped = line.strip()
             if not stripped or stripped.startswith("#"):
                 continue
-            path = Path(stripped).expanduser().resolve()
+            path = Path(stripped).expanduser()
+            path = (root / path).resolve() if not path.is_absolute() else path.resolve()
             if not path.is_file():
                 raise FileNotFoundError(path)
             paths.append(path)
-        if len(paths) < count:
+        if count is not None and len(paths) < count:
             raise RuntimeError(f"Expected at least {count} motions in {motion_list}, got {len(paths)}")
-        return paths[:count]
+        return paths if count is None else paths[:count]
 
-    root = motions_root.expanduser().resolve()
     scan_root = root / "motions" if (root / "motions").is_dir() else root
     motions = sorted(scan_root.rglob("*.npz"))
-    if len(motions) < count:
+    if count is not None and len(motions) < count:
         raise RuntimeError(f"Expected at least {count} motions under {scan_root}, got {len(motions)}")
-    return motions[:count]
+    return motions if count is None else motions[:count]
 
 
 def _run(cmd: list[str]) -> None:
     print(" ".join(cmd), flush=True)
     subprocess.run(cmd, check=True)
+
+
+def _is_readable_npz(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    try:
+        with zipfile.ZipFile(path) as archive:
+            return bool(archive.namelist()) and archive.testzip() is None
+    except (OSError, zipfile.BadZipFile):
+        return False
 
 
 def _mean_std(values: list[float]) -> dict[str, float]:
@@ -206,7 +227,7 @@ def main() -> None:
                     / f"seed_{seed}"
                     / f"{output_motion_index:02d}_{motion_slug}.npz"
                 )
-                if not (args.skip_existing and traj_path.is_file()):
+                if not (args.skip_existing and _is_readable_npz(traj_path)):
                     cmd = [
                         sys.executable,
                         "-m",

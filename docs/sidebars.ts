@@ -39,6 +39,7 @@ const sidebars: SidebarsConfig = {
       label: 'Tutorials',
       items: [
         'tutorials/offline-motion-tracking',
+        'tutorials/cross-codebase-evaluation',
         'tutorials/pico-teleoperation',
         'tutorials/motion-recording',
         'tutorials/run-external-policies',

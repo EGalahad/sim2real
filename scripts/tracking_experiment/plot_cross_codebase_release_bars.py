@@ -18,6 +18,18 @@ ROOT = Path(__file__).resolve().parents[2]
 DATA_PATH = ROOT / "assets/mimic_lite_cross_codebase_tracking_eval.csv"
 OUTPUT_BASE = ROOT / "assets/mimic_lite_cross_codebase_tracking_eval"
 
+# Canonical release-plot layout. Keep this block in sync with published figures.
+FIGSIZE = (25.5, 7.1)
+SUBPLOT_LAYOUT = {
+    "left": 0.06,
+    "right": 0.99,
+    "top": 0.82,
+}
+RELEASE_BOTTOM = 0.18
+ALL_POLICY_BOTTOM = 0.26
+WSPACE = 0.18
+LEGEND_Y = 0.03
+
 for font_file in (
     Path.home() / ".local/share/fonts/windows-arial/arial.ttf",
     Path.home() / ".local/share/fonts/windows-arial/arialbd.ttf",
@@ -162,8 +174,16 @@ reward_min = min(
 )
 reward_ymin = max(0.0, math.floor((reward_min - 0.05) * 10.0) / 10.0)
 
-fig, axes = plt.subplots(1, 4, figsize=(25.5, 7.1), gridspec_kw={"wspace": 0.36})
-fig.subplots_adjust(left=0.06, right=0.99, top=0.82, bottom=0.36)
+fig, axes = plt.subplots(
+    1,
+    4,
+    figsize=FIGSIZE,
+    gridspec_kw={"wspace": WSPACE},
+)
+fig.subplots_adjust(
+    **SUBPLOT_LAYOUT,
+    bottom=RELEASE_BOTTOM if args.release_only else ALL_POLICY_BOTTOM,
+)
 fig.suptitle("Unified Cross-Codebase Evaluation")
 
 grouped_bar(
@@ -207,7 +227,7 @@ fig.legend(
     handles,
     labels,
     loc="lower center",
-    bbox_to_anchor=(0.5, 0.02),
+    bbox_to_anchor=(0.5, LEGEND_Y),
     ncol=6 if args.release_only else 7,
     frameon=True,
     fancybox=False,
