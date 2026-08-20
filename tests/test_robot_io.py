@@ -129,11 +129,49 @@ def test_zmq_robot_io_writes_existing_low_command_abi_and_closes() -> None:
         arrays,
     ):
         np.testing.assert_array_equal(actual, expected)
+    assert command.source_time_ns is not None
+    assert command.source_time_ns > 0
+    assert command.sequence == 1
     assert flags == zmq.DONTWAIT
 
     backend.close()
     assert context.state_socket.closed
     assert context.command_socket.closed
+
+
+def test_low_cmd_message_metadata_footer_roundtrip() -> None:
+    message = LowCmdMessage(
+        np.array([1.0, 2.0], dtype=np.float32),
+        np.array([3.0, 4.0], dtype=np.float32),
+        np.array([5.0, 6.0], dtype=np.float32),
+        np.array([7.0, 8.0], dtype=np.float32),
+        np.array([9.0, 10.0], dtype=np.float32),
+        source_time_ns=123456789,
+        sequence=42,
+    )
+
+    decoded = LowCmdMessage.from_bytes(message.to_bytes())
+
+    np.testing.assert_array_equal(decoded.q_target, [1.0, 2.0])
+    np.testing.assert_array_equal(decoded.dq_target, [3.0, 4.0])
+    np.testing.assert_array_equal(decoded.tau_ff, [5.0, 6.0])
+    np.testing.assert_array_equal(decoded.kp, [7.0, 8.0])
+    np.testing.assert_array_equal(decoded.kd, [9.0, 10.0])
+    assert decoded.source_time_ns == 123456789
+    assert decoded.sequence == 42
+
+
+def test_low_cmd_message_rejects_invalid_metadata_footer() -> None:
+    message = LowCmdMessage(
+        np.array([1.0], dtype=np.float32),
+        np.array([2.0], dtype=np.float32),
+        np.array([3.0], dtype=np.float32),
+        np.array([4.0], dtype=np.float32),
+        np.array([5.0], dtype=np.float32),
+    )
+
+    with pytest.raises(ValueError, match="invalid metadata footer"):
+        LowCmdMessage.from_bytes(message.to_bytes() + b"12345678")
 
 
 class FakeG1Robot:

@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
+import zmq
 
 from sim2real.config.robots.base import (
     BODY_NAMES_KEY,
@@ -14,6 +15,7 @@ from sim2real.config.robots.base import (
     MOTION_FIRST_FRAME_KEY,
     PICO_RECV_TIME_NS_KEY,
     PUBLISH_T_NS_KEY,
+    SEQ_KEY,
     SMPLX_T_NS_KEY,
 )
 from sim2real.rl_policy.observations.humanoid_gpt import humanoid_gpt_pns_obs
@@ -21,7 +23,12 @@ from sim2real.rl_policy.observations.sonic import sonic_smpl_official_encoder_in
 from sim2real.rl_policy.tracking import Tracking
 from sim2real.rl_policy.utils.state_processor import StateProcessor
 from sim2real.rl_policy.utils.motion import MotionData
-from sim2real.rl_policy.utils.motion_buffer import RealtimeMotionBuffer, RealtimeSmplMotionBuffer
+from sim2real.rl_policy.utils.motion_buffer import (
+    RealtimeMotionBuffer,
+    RealtimeSmplMotionBuffer,
+    _PublisherClockAligner,
+    _configure_reconnecting_subscriber,
+)
 from sim2real.teleop.npz_pub import NpzMotionPublisher, PlaybackState
 from sim2real.teleop.smpl_stream import (
     DEFAULT_STANDING_SMPL_JOINT_POS_ROOT,
@@ -35,6 +42,61 @@ def _tracking_env(state_processor, **kwargs):
         if name.startswith("motion_"):
             setattr(env, name, value)
     return env
+
+
+def test_motion_subscriber_reconnects_quickly_after_link_loss() -> None:
+    options: list[tuple[zmq.SocketOption, int]] = []
+    socket = SimpleNamespace(
+        setsockopt=lambda option, value: options.append((option, value))
+    )
+
+    _configure_reconnecting_subscriber(socket)  # type: ignore[arg-type]
+
+    assert options == [
+        (zmq.CONNECT_TIMEOUT, 3_000),
+        (zmq.RECONNECT_IVL, 100),
+        (zmq.RECONNECT_IVL_MAX, 1_000),
+        (zmq.HEARTBEAT_IVL, 1_000),
+        (zmq.HEARTBEAT_TIMEOUT, 3_000),
+    ]
+
+
+def test_publisher_clock_alignment_preserves_source_timing_across_receive_jitter(
+) -> None:
+    aligner = _PublisherClockAligner()
+    source_ns = 1_000_000_000
+    recv_ns = source_ns + 222_000_000
+
+    aligned = [
+        aligner.align(
+            {
+                PUBLISH_T_NS_KEY: source_ns + index * 20_000_000,
+                SEQ_KEY: index,
+                MOTION_FIRST_FRAME_KEY: True,
+            },
+            recv_ns + index * 20_000_000 + jitter_ns,
+        )
+        for index, jitter_ns in enumerate((0, 15_000_000, -8_000_000))
+    ]
+
+    assert aligned == [recv_ns, recv_ns + 20_000_000, recv_ns + 40_000_000]
+
+
+def test_publisher_clock_alignment_reanchors_on_restart_and_large_clock_jump() -> None:
+    aligner = _PublisherClockAligner()
+    assert (
+        aligner.align({PUBLISH_T_NS_KEY: 1_000_000_000, SEQ_KEY: 10}, 2_000_000_000)
+        == 2_000_000_000
+    )
+    assert (
+        aligner.align({PUBLISH_T_NS_KEY: 1_020_000_000, SEQ_KEY: 0}, 3_000_000_000)
+        == 3_000_000_000
+    )
+    assert (
+        aligner.align({PUBLISH_T_NS_KEY: 10_000_000_000, SEQ_KEY: 1}, 3_020_000_000)
+        == 3_020_000_000
+    )
+    assert aligner.align({}, 4_000_000_000) == 4_000_000_000
 
 
 def test_tracking_reset_updates_motion_before_observations() -> None:
@@ -714,8 +776,18 @@ class RealtimeMotionBufferTest(unittest.TestCase):
             ),
             recv_time_ns=recv_time_ns,
         )
+        buffer._RealtimeMotionBuffer__append_payload(
+            _payload(
+                **{
+                    PICO_RECV_TIME_NS_KEY: pico_recv_time_ns + 20_000_000,
+                    PUBLISH_T_NS_KEY: recv_time_ns + 200_000_000,
+                    SMPLX_T_NS_KEY: future_smplx_time_ns + 20_000_000,
+                }
+            ),
+            recv_time_ns=recv_time_ns + 50_000_000,
+        )
 
-        self.assertEqual(buffer.latest_timestamp_ns, pico_recv_time_ns)
+        self.assertEqual(buffer.latest_timestamp_ns, recv_time_ns + 20_000_000)
 
     def test_falls_back_to_publish_time_for_legacy_payloads(self) -> None:
         buffer = RealtimeMotionBuffer(DummyRobotCfg(), future_steps=[0])
@@ -726,8 +798,80 @@ class RealtimeMotionBufferTest(unittest.TestCase):
             _payload(**{PUBLISH_T_NS_KEY: publish_time_ns}),
             recv_time_ns=recv_time_ns,
         )
+        buffer._RealtimeMotionBuffer__append_payload(
+            _payload(**{PUBLISH_T_NS_KEY: publish_time_ns + 20_000_000}),
+            recv_time_ns=recv_time_ns + 70_000_000,
+        )
 
-        self.assertEqual(buffer.latest_timestamp_ns, publish_time_ns)
+        self.assertEqual(buffer.latest_timestamp_ns, recv_time_ns + 20_000_000)
+
+    def test_cross_host_alignment_keeps_motion_frames_behind_latest(self) -> None:
+        buffer = RealtimeMotionBuffer(DummyRobotCfg(), future_steps=[0])
+        source_time_ns = 1_000_000_000
+        recv_time_ns = source_time_ns + 222_000_000
+        for index, jitter_ns in enumerate((0, 8_000_000, -5_000_000, 12_000_000)):
+            root_x = index * 0.02
+            buffer._RealtimeMotionBuffer__append_payload(
+                {
+                    **_payload(
+                        **{
+                            PUBLISH_T_NS_KEY: source_time_ns + index * 20_000_000,
+                            SEQ_KEY: index,
+                        }
+                    ),
+                    "body_pos_w": [[root_x, 0.0, 0.5], [root_x, 0.0, 0.8]],
+                    "joint_vel": [1.0, -1.0],
+                    "body_lin_vel_w": [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+                    "body_ang_vel_w": [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                },
+                recv_time_ns=recv_time_ns + index * 20_000_000 + jitter_ns,
+            )
+
+        with buffer._lock:
+            timestamps_ns = list(buffer._timestamps_ns)
+        self.assertEqual(
+            timestamps_ns,
+            [recv_time_ns + index * 20_000_000 for index in range(4)],
+        )
+
+        joint_pos = np.zeros((1, 2), dtype=np.float32)
+        joint_vel = np.zeros_like(joint_pos)
+        body_pos_w = np.zeros((1, 2, 3), dtype=np.float32)
+        body_lin_vel_w = np.zeros_like(body_pos_w)
+        body_quat_w = np.zeros((1, 2, 4), dtype=np.float32)
+        body_ang_vel_w = np.zeros_like(body_pos_w)
+        buffer._fill_sample_frames_locked(
+            np.asarray([recv_time_ns + 40_000_000], dtype=np.int64),
+            joint_pos,
+            joint_vel,
+            body_pos_w,
+            body_lin_vel_w,
+            body_quat_w,
+            body_ang_vel_w,
+        )
+
+        np.testing.assert_allclose(body_pos_w[0, 0, 0], 0.04, atol=1e-6)
+        np.testing.assert_allclose(body_lin_vel_w[0, 0], [1.0, 0.0, 0.0])
+
+    def test_reanchors_after_large_source_clock_jump(self) -> None:
+        buffer = RealtimeMotionBuffer(DummyRobotCfg(), future_steps=[0])
+        recv_time_ns = 1_000_000_000_000
+        buffer._RealtimeMotionBuffer__append_payload(
+            _payload(**{PICO_RECV_TIME_NS_KEY: recv_time_ns}),
+            recv_time_ns=recv_time_ns,
+        )
+        next_recv_time_ns = recv_time_ns + 20_000_000
+        buffer._RealtimeMotionBuffer__append_payload(
+            _payload(
+                **{
+                    PICO_RECV_TIME_NS_KEY: recv_time_ns
+                    + 3 * 24 * 60 * 60 * 1_000_000_000
+                }
+            ),
+            recv_time_ns=next_recv_time_ns,
+        )
+
+        self.assertEqual(buffer.latest_timestamp_ns, next_recv_time_ns)
 
     def test_payload_names_update_layout(self) -> None:
         buffer = RealtimeMotionBuffer(DummyRobotCfg(), future_steps=[0])
@@ -1137,6 +1281,35 @@ class RealtimeMotionBufferTest(unittest.TestCase):
         self.assertEqual(buffer.joint_names, list(DummyRobotCfg.joint_names))
         with buffer._lock:
             np.testing.assert_allclose(buffer._joint_pos_frames[0], [0.25, -0.5])
+
+    def test_smpl_buffer_uses_first_frame_clock_alignment(self) -> None:
+        buffer = RealtimeSmplMotionBuffer(DummyRobotCfg(), future_steps=[0])
+        source_time_ns = 1_000_000_000
+        recv_time_ns = source_time_ns + 222_000_000
+        base_payload = {
+            "smpl_body_pose_aa": np.zeros((1, 21, 3), dtype=np.float32),
+            "smpl_joint_pos_root": np.zeros((1, 24, 3), dtype=np.float32),
+            "smpl_root_quat_w": np.asarray(
+                [[1.0, 0.0, 0.0, 0.0]], dtype=np.float32
+            ),
+            "joint_pos": np.asarray([[0.25, -0.5]], dtype=np.float32),
+        }
+        for index, jitter_ns in enumerate((0, 15_000_000, -8_000_000)):
+            buffer._RealtimeSmplMotionBuffer__append_payload(
+                {
+                    **base_payload,
+                    PUBLISH_T_NS_KEY: source_time_ns + index * 20_000_000,
+                    SEQ_KEY: index,
+                    MOTION_FIRST_FRAME_KEY: True,
+                },
+                recv_time_ns=recv_time_ns + index * 20_000_000 + jitter_ns,
+            )
+
+        with buffer._lock:
+            self.assertEqual(
+                buffer._timestamps_ns,
+                [recv_time_ns + index * 20_000_000 for index in range(3)],
+            )
 
     def test_empty_smpl_buffer_uses_neutral_default_pose(self) -> None:
         buffer = RealtimeSmplMotionBuffer(DummyRobotCfg(), future_steps=[0, 1, 2])
