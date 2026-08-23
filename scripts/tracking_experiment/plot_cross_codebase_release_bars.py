@@ -68,8 +68,6 @@ ALL_POLICIES = (
     Series("mimic_lite_v1_1", "MimicLite-v1.1", "#1F77B4"),
     Series("mimic_lite_huge", "MimicLite-Huge", "#5B2A86"),
     Series("mimic_lite_base", "MimicLite-Base", "#7B4AB8"),
-    Series("g1_roa_huge_student_20260814", "MimicLite-Huge-ROA", "#F28E2B"),
-    Series("mimic_lite_small", "MimicLite-Small", "#A77BD4"),
     Series("scalebfm_m", "ScaleBFM-M", "#C44E52"),
     Series("scalebfm_xl", "ScaleBFM-XL", "#E07B7B"),
     Series("sonic_g1", "SONIC", "#76B900"),
