@@ -48,6 +48,7 @@ RETURN_BODY_NAMES = (
     "right_elbow_link",
     "right_wrist_yaw_link",
 )
+WRIST_BODY_NAMES = ("left_wrist_yaw_link", "right_wrist_yaw_link")
 
 
 def _parse_args() -> argparse.Namespace:
@@ -269,6 +270,11 @@ def _compute_one(path: Path) -> dict[str, object]:
         motion_pos_local[:, tracking_indices] - robot_pos_local[:, tracking_indices],
         axis=-1,
     )
+    wrist_indices = [names.index(name) for name in WRIST_BODY_NAMES]
+    wrist_pos_error_local = np.linalg.norm(
+        motion_pos_local[:, wrist_indices] - robot_pos_local[:, wrist_indices],
+        axis=-1,
+    )
     motion_length = int(np.asarray(data["motion_length"]).reshape(())) if "motion_length" in data else int(motion_t[-1]) + 1
     motion_denominator = max(1, motion_length - 1)
     (
@@ -293,6 +299,7 @@ def _compute_one(path: Path) -> dict[str, object]:
     pre_end = max(1, termination_idx if terminated else termination_idx + 1)
     progress = min(1.0, max(0.0, float(termination_motion_t) / float(motion_denominator)))
     local_body_tracking_error = float(np.mean(body_pos_error_local[:pre_end]))
+    wrist_tracking_error = float(np.mean(wrist_pos_error_local[:pre_end]))
 
     robot_root_pos = np.asarray(data["robot_root_pos_w"], dtype=np.float32)[frame_idx]
     robot_root_quat = np.asarray(data["robot_root_quat_w"], dtype=np.float32)[frame_idx]
@@ -325,6 +332,7 @@ def _compute_one(path: Path) -> dict[str, object]:
         "global_root_tracking_error": global_root_tracking_error,
         "global_root_tracking_error_xy": global_root_tracking_error_xy,
         "local_body_tracking_error": local_body_tracking_error,
+        "wrist_tracking_error": wrist_tracking_error,
         "mpjpe": local_body_tracking_error,
         "normalized_tracking_return": normalized_tracking_return,
         "mean_tracking_reward": mean_tracking_reward,
@@ -357,6 +365,9 @@ def _summary(rows: list[dict[str, object]]) -> dict[str, object]:
         "global_root_tracking_error": _mean_std([float(row["global_root_tracking_error"]) for row in rows]),
         "global_root_tracking_error_xy": _mean_std([float(row["global_root_tracking_error_xy"]) for row in rows]),
         "local_body_tracking_error": _mean_std([float(row["local_body_tracking_error"]) for row in rows]),
+        "wrist_tracking_error": _mean_std(
+            [float(row["wrist_tracking_error"]) for row in rows]
+        ),
         "mpjpe": _mean_std([float(row["mpjpe"]) for row in rows]),
         "normalized_tracking_return": _weighted_mean_std(
             [float(row["normalized_tracking_return"]) for row in rows],

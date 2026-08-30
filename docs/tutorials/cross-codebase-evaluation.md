@@ -7,6 +7,12 @@ offline.
 
 ## Protocol
 
+Install the CPU inference dependencies from a fresh clone:
+
+```bash
+uv sync --extra inference-cpu
+```
+
 | Split | Motions | Seeds |
 |---|---:|---|
 | LAFAN-40 | 40 | 0 |
@@ -22,13 +28,24 @@ LAFAN-40 is available from
 
 ```bash
 hf download elijahgalahad/any4hdmi-g1-lafan \
-  --repo-type dataset \
+  --repo-type dataset --revision 7937b18a2cbe8a2d354a57524f25c7799134cf15 \
   --local-dir datasets/lafan40
 ```
 
-PHUMA-30 and Root-90 motions are not redistributed by this repository. Point
-the command below at locally prepared dataset roots containing every relative
-path in `phuma30.txt` and `root90.txt`.
+PHUMA-30 and Root-90 are published in the
+[Any4HDMI collection](https://huggingface.co/collections/elijahgalahad/any4hdmi):
+
+```bash
+hf download elijahgalahad/any4hdmi-g1-phuma30 \
+  --repo-type dataset --revision 469997c66a71f2bf9c1b0da349178d581fa4ed8e \
+  --local-dir datasets/phuma30
+hf download elijahgalahad/any4hdmi-g1-root90 \
+  --repo-type dataset --revision 43ce2d2e12eba6af3cea60f8f89bf0086bdcfa33 \
+  --local-dir datasets/root90
+```
+
+Each repository includes the ordered manifest and SHA-256 checksums. The
+committed sim2real manifests use the same relative paths.
 
 ## Evaluate a New Policy
 
@@ -63,6 +80,8 @@ Each split writes trajectories, `tracking_metrics.csv`,
   denominator remains the full reference length.
 - `mean_tracking_reward` ignores termination and averages the same reward over
   every recorded motion step.
+- Local-body, wrist, and global-root tracking errors are reported independently
+  on LAFAN-40, PHUMA-30, and Root-90 using the same pre-termination window.
 
 Policy summaries weight both reward metrics by the number of reference steps,
 equivalent to dividing the total reward across all motions by the total number

@@ -6,31 +6,25 @@ type SortKey = 'trackingReturn' | 'localError' | 'wristError' | 'globalRootError
 type Row = (typeof data)[number];
 
 const options: Array<{key: SortKey; en: string; zh: string; higher: boolean}> = [
-  {key: 'trackingReturn', en: 'Tracking Return', zh: 'Tracking Return', higher: true},
   {key: 'localError', en: 'Local Error', zh: '局部误差', higher: false},
-  {key: 'wristError', en: 'Wrist Error', zh: '手腕误差', higher: false},
+  {key: 'trackingReturn', en: 'Tracking Return', zh: 'Tracking Return', higher: true},
   {key: 'globalRootError', en: 'Global Root', zh: '全局 Root', higher: false},
+  {key: 'wristError', en: 'Wrist Error', zh: '手腕误差', higher: false},
 ];
 
 const copy = {
   en: {
     sort: 'Rank by', rank: 'Rank', policy: 'Policy', tracking: 'Tracking Return ↑',
     local: 'Local Error ↓', wrist: 'Wrist Error ↓', root: 'Global Root ↓', progress: 'Progress ↑',
-    missing: 'Not available under this protocol',
   },
   zh: {
     sort: '排序指标', rank: '排名', policy: 'Policy', tracking: 'Tracking Return ↑',
     local: '局部误差 ↓', wrist: '手腕误差 ↓', root: '全局 Root ↓', progress: '完成度 ↑',
-    missing: '当前协议未提供该指标',
   },
 };
 
-function format(value: number | null, digits: number, suffix = '') {
-  return value == null ? '—' : `${value.toFixed(digits)}${suffix}`;
-}
-
 export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
-  const [sortKey, setSortKey] = useState<SortKey>('trackingReturn');
+  const [sortKey, setSortKey] = useState<SortKey>('localError');
   const text = copy[locale];
   const selected = options.find((option) => option.key === sortKey)!;
   const rows = useMemo(() => [...(data as Row[])].sort((a, b) => {
@@ -62,24 +56,24 @@ export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
           <td className={styles.rank}>{row[sortKey] == null ? '—' : index + 1}</td>
           <td className={styles.policy}><a href={row.url} target="_blank" rel="noreferrer">{row.name}</a></td>
           <td className={sortKey === 'trackingReturn' ? styles.sorted : ''}>
-            <strong>{format(row.trackingReturn, 3)}</strong>
-            <small>L {row.lafanReturn.toFixed(3)} · P {row.phumaReturn.toFixed(3)} · R {row.root90Return.toFixed(3)}</small>
+            <strong>L {row.lafanReturn.toFixed(3)} · P {row.phumaReturn.toFixed(3)} · R {row.root90Return.toFixed(3)}</strong>
+            <small>LAFAN · PHUMA · Root-90</small>
           </td>
           <td className={sortKey === 'localError' ? styles.sorted : ''}>
-            <strong>{format(row.localError, 2, ' mm')}</strong>
-            <small>P {row.phumaLocal.toFixed(2)} · R {row.root90Local.toFixed(2)}</small>
+            <strong>L {row.lafanLocal.toFixed(2)} · P {row.phumaLocal.toFixed(2)} · R {row.root90Local.toFixed(2)}</strong>
+            <small>mm · LAFAN / PHUMA / Root-90</small>
           </td>
-          <td className={sortKey === 'wristError' ? styles.sorted : ''} title={row.wristError == null ? text.missing : ''}>
-            <strong>{format(row.wristError, 2, ' mm')}</strong>
-            <small>PHUMA-30 position</small>
+          <td className={sortKey === 'wristError' ? styles.sorted : ''}>
+            <strong>L {row.lafanWrist.toFixed(2)} · P {row.phumaWrist.toFixed(2)} · R {row.root90Wrist.toFixed(2)}</strong>
+            <small>mm · LAFAN / PHUMA / Root-90</small>
           </td>
           <td className={sortKey === 'globalRootError' ? styles.sorted : ''}>
-            <strong>{format(row.globalRootError, 3, ' m')}</strong>
-            <small>F {row.rootForward.toFixed(3)} · B {row.rootBackward.toFixed(3)} · S {row.rootSideward.toFixed(3)}</small>
+            <strong>L {row.lafanGlobalRoot.toFixed(3)} · P {row.phumaGlobalRoot.toFixed(3)} · R {row.root90GlobalRoot.toFixed(3)}</strong>
+            <small>m · LAFAN / PHUMA / Root-90</small>
           </td>
           <td>
-            <strong>L {row.lafanProgress.toFixed(1)}% · P {row.phumaProgress.toFixed(1)}%</strong>
-            <small>LAFAN-40 · PHUMA-30</small>
+            <strong>L {row.lafanProgress.toFixed(1)}% · P {row.phumaProgress.toFixed(1)}% · R {row.root90Progress.toFixed(1)}%</strong>
+            <small>LAFAN · PHUMA · Root-90</small>
           </td>
         </tr>)}</tbody>
       </table>

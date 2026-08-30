@@ -21,7 +21,8 @@ Run all commands from the `sim2real/` repository root.
   - Writes `runs.csv`, trajectory `.npz` files, `tracking_metrics.csv`,
     `tracking_metrics.json`, and `summary.json`.
 - `compute_tracking_metrics.py`
-  - Computes motion progress, global root tracking, and local body tracking from
+  - Computes motion progress, global root tracking, local body/wrist tracking,
+    and normalized tracking return from
     saved full trajectory `.npz` files.
 - `run_root_final_error_eval.py` and `compute_root_final_error.py`
   - Legacy root-final-displacement-only evaluation path. Keep this for older
@@ -36,11 +37,8 @@ Run all commands from the `sim2real/` repository root.
 `compute_tracking_metrics.py` reports one row per rollout.
 
 - `progress`
-  - Motion completion ratio at the first tracking failure.
-  - Failure conditions match the report protocol:
-    `root_ori_error >= 1.2` for 25 consecutive policy frames,
-    local body position error `>= 0.4 m` for 5 consecutive policy frames, or
-    local body orientation error `>= 1.2 rad` for 5 consecutive policy frames.
+  - Motion completion ratio at the first pelvis-height error `> 0.25 m` or
+    pelvis projected-gravity Z difference `> 0.8`.
   - If no failure occurs before motion end, progress is `1.0`.
 - `global_root_tracking_error`
   - Mean 3D root trajectory error before the first failure.
@@ -53,6 +51,11 @@ Run all commands from the `sim2real/` repository root.
   - Mean local body position error before the first failure over the configured
     tracking bodies.
   - `mpjpe` is kept as an alias for compatibility with existing plotting code.
+- `wrist_tracking_error`
+  - Mean left/right wrist position error before the same failure.
+- `normalized_tracking_return`
+  - Sum of the pelvis-XY/yaw-aligned body-position and body-orientation rewards
+    before the shared termination, divided by the full reference length.
 - `root_final_error_norm` and `root_final_error_xy_norm`
   - Legacy final root displacement errors. These compare only the final
     start-frame-relative displacement and are not the primary global tracking
@@ -63,7 +66,7 @@ Run all commands from the `sim2real/` repository root.
 Use `integrated_sim2sim.py` directly when debugging a single policy/motion pair:
 
 ```bash
-uv run python -m sim2real.sim_env.integrated_sim2sim \
+uv run sim2real/sim_env/integrated_sim2sim.py \
   --robot g1 \
   --policy-config checkpoints/example_policy/policy.yaml \
   --motion-path ../any4hdmi/output/lafan/motions/example_motion.npz \
@@ -82,7 +85,7 @@ pressing space after the final-frame hold restarts the motion from frame 0.
 Evaluate one or more policies over a motion directory:
 
 ```bash
-uv run python scripts/tracking_experiment/run_tracking_metrics_eval.py \
+uv run scripts/tracking_experiment/run_tracking_metrics_eval.py \
   --motions-root ../any4hdmi/output/lafan/motions \
   --policy mimic_lite_ppo=checkpoints/mimic_lite_ppo/policy.yaml \
   --policy sonic=checkpoints/sonic/release/g1/policy.yaml \
@@ -94,7 +97,7 @@ uv run python scripts/tracking_experiment/run_tracking_metrics_eval.py \
 Recompute tables from existing trajectory files without rerunning MuJoCo:
 
 ```bash
-uv run python scripts/tracking_experiment/run_tracking_metrics_eval.py \
+uv run scripts/tracking_experiment/run_tracking_metrics_eval.py \
   --motions-root ../any4hdmi/output/lafan/motions \
   --policy mimic_lite_ppo=checkpoints/mimic_lite_ppo/policy.yaml \
   --policy sonic=checkpoints/sonic/release/g1/policy.yaml \
@@ -123,7 +126,7 @@ outputs/tracking_eval/lafan40/
 Use this when another script already produced full trajectory `.npz` files:
 
 ```bash
-uv run python scripts/tracking_experiment/compute_tracking_metrics.py \
+uv run scripts/tracking_experiment/compute_tracking_metrics.py \
   "outputs/tracking_eval/lafan40/trajectories/*/seed_*/*.npz" \
   --output-csv outputs/tracking_eval/lafan40/tracking_metrics.csv \
   --output-json outputs/tracking_eval/lafan40/tracking_metrics.json
@@ -134,7 +137,7 @@ uv run python scripts/tracking_experiment/compute_tracking_metrics.py \
 The older root-final-error path is still available:
 
 ```bash
-uv run python scripts/tracking_experiment/run_root_final_error_eval.py \
+uv run scripts/tracking_experiment/run_root_final_error_eval.py \
   --no-default-policies \
   --policy mimic_lite_ppo=checkpoints/mimic_lite_ppo/policy.yaml \
   --motions-root ../any4hdmi/output/xrobot_raw_20260524/motions \

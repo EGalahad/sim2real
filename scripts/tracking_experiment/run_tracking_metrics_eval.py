@@ -175,6 +175,12 @@ def _add_policy_summary(result_json: Path, result_csv: Path, run_rows: list[dict
             "local_body_tracking_error_std": _mean_std(
                 [float(row["local_body_tracking_error"]) for row in rows]
             )["std"],
+            "wrist_tracking_error_mean": _mean_std(
+                [float(row["wrist_tracking_error"]) for row in rows]
+            )["mean"],
+            "wrist_tracking_error_std": _mean_std(
+                [float(row["wrist_tracking_error"]) for row in rows]
+            )["std"],
             "mpjpe_mean": _mean_std([float(row["mpjpe"]) for row in rows])["mean"],
             "mpjpe_std": _mean_std([float(row["mpjpe"]) for row in rows])["std"],
             "normalized_tracking_return_mean": tracking_return["mean"],

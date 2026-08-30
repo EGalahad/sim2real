@@ -5,27 +5,30 @@ hide_table_of_contents: true
 ---
 
 import Leaderboard from '@site/src/components/Leaderboard';
+import Link from '@docusaurus/Link';
 
 # Motion Tracking Leaderboard
 
 <div className="leaderboard-page">
 
-Policies are evaluated in the same integrated MuJoCo runtime on robot-matched G1 motions. The default ranking uses the mean normalized tracking return across LAFAN-40, PHUMA-30, and Root-90. Select another metric to rerank the same rows.
+Policies are evaluated in the same integrated MuJoCo runtime on robot-matched G1 motions. The prime metric is mean local-body position error across LAFAN-40, PHUMA-30, and Root-90, with lower values ranked first. Select another metric to rerank the same rows.
+
+<Link className="button button--primary button--sm" to="/tutorials/cross-codebase-evaluation">Reproduce this evaluation →</Link>
 
 <Leaderboard />
 
 :::note Metric scope
-Tracking Return measures pelvis-XY/yaw-aligned local-pose quality. New evaluations use the same pelvis-height/projected-gravity termination for Progress and Tracking Return, and count reward only before termination. The committed August 20 snapshot predates this alignment and will be refreshed from the next canonical evaluation.
+Tracking Return measures pelvis-XY/yaw-aligned local-pose quality. Progress and Tracking Return use the same pelvis-height/projected-gravity termination, and reward is counted only before termination.
 :::
 
 ## Protocol
 
 - **Tracking Return:** mean of the three split-level normalized returns; higher is better.
-- **Local Error:** mean PHUMA-30 and Root-90 local-body position error; lower is better.
-- **Wrist Error:** mean PHUMA-30 left/right wrist position error. `—` means the retained trajectory set did not include this derived metric.
-- **Global Root:** balanced Root-90 Forward/Backward/Sideward final XY error; lower is better.
+- **Local Error:** mean LAFAN-40, PHUMA-30, and Root-90 local-body position error; lower is better.
+- **Wrist Error:** mean LAFAN-40, PHUMA-30, and Root-90 left/right wrist position error; lower is better.
+- **Global Root:** mean root-trajectory error across the three splits; lower is better.
 - All policies use seed 0, `initial_pause_s=0.0`, no runtime cap, and the same failure conditions. See [Cross-Codebase Tracking Evaluation](/tutorials/cross-codebase-evaluation) for the full definition and reproduction command.
 
-Last updated: August 20, 2026.
+Last updated: August 31, 2026.
 
 </div>

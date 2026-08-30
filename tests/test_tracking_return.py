@@ -111,3 +111,4 @@ def test_progress_and_return_share_pelvis_termination(tmp_path: Path) -> None:
     )
     assert row["progress"] == 0.75
     assert row["normalized_tracking_return"] == 1.0
+    assert row["wrist_tracking_error"] == 0.0

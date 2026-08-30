@@ -5,27 +5,30 @@ hide_table_of_contents: true
 ---
 
 import Leaderboard from '@site/src/components/Leaderboard';
+import Link from '@docusaurus/Link';
 
 # 动作跟踪排行榜
 
 <div className="leaderboard-page">
 
-所有策略都在同一个 MuJoCo 集成运行时中，使用机器人匹配的 G1 动作进行评测。默认按 LAFAN-40、PHUMA-30 和 Root-90 三个数据集的 normalized tracking return 均值排序，也可以切换到其他指标重新排名。
+所有策略都在同一个 MuJoCo 集成运行时中，使用机器人匹配的 G1 动作进行评测。Prime metric 是 LAFAN-40、PHUMA-30 和 Root-90 三套局部身体位置误差的均值，越低排名越高；也可以切换到其他指标重新排名。
+
+<Link className="button button--primary button--sm" to="/tutorials/cross-codebase-evaluation">复现评测 →</Link>
 
 <Leaderboard locale="zh" />
 
 :::note 指标范围
-Tracking Return 衡量经过 pelvis XY/yaw 对齐后的局部姿态质量。新的评测让 Progress 与 Tracking Return 共用 pelvis 高度/projected-gravity 终止条件，并且只累计终止前 reward。当前提交的 8 月 20 日快照早于这次统一，将在下一次 canonical evaluation 后刷新。
+Tracking Return 衡量经过 pelvis XY/yaw 对齐后的局部姿态质量。Progress 与 Tracking Return 共用 pelvis 高度/projected-gravity 终止条件，并且只累计终止前 reward。
 :::
 
 ## 评测协议
 
 - **Tracking Return：** 三个数据集 normalized return 的等权平均；越高越好。
-- **局部误差：** PHUMA-30 与 Root-90 局部身体位置误差的平均值；越低越好。
-- **手腕误差：** PHUMA-30 左右手腕位置误差的平均值。`—` 表示保留的轨迹没有这项派生指标。
-- **全局 Root：** Root-90 Forward、Backward、Sideward 三个方向的最终 XY 误差均值；越低越好。
+- **局部误差：** LAFAN-40、PHUMA-30 与 Root-90 局部身体位置误差的平均值；越低越好。
+- **手腕误差：** LAFAN-40、PHUMA-30 与 Root-90 左右手腕位置误差的平均值；越低越好。
+- **全局 Root：** 三套数据上的 root 轨迹误差均值；越低越好。
 - 所有策略统一使用 seed 0、`initial_pause_s=0.0`、无运行时上限以及相同的失败判定。完整定义和复现命令见[跨代码库动作跟踪评测](/tutorials/cross-codebase-evaluation)。
 
-最后更新：2026 年 8 月 20 日。
+最后更新：2026 年 8 月 31 日。
 
 </div>
