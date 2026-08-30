@@ -3,6 +3,10 @@ title: sim2real 文档
 slug: /
 ---
 
+## Benchmark
+
+- [动作跟踪排行榜](/leaderboard)
+
 ## Getting Started
 
 - [概览](/getting-started/overview)

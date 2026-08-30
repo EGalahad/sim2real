@@ -72,6 +72,11 @@ const config: Config = {
           label: 'Docs',
         },
         {
+          to: '/leaderboard',
+          label: 'Leaderboard',
+          position: 'left',
+        },
+        {
           type: 'localeDropdown',
           position: 'right',
         },
@@ -91,6 +96,7 @@ const config: Config = {
             {label: 'Getting Started', to: '/getting-started/overview'},
             {label: 'Tutorials', to: '/tutorials/offline-motion-tracking'},
             {label: 'Reference', to: '/reference/tracking-framework'},
+            {label: 'Leaderboard', to: '/leaderboard'},
           ],
         },
         {

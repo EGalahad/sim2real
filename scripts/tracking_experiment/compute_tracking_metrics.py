@@ -29,9 +29,9 @@ TRACKING_BODY_PATTERNS = (
     ".*_elbow_link",
     ".*_wrist_yaw_link",
 )
-TERMINATION_ROOT_BODY_NAME = "torso_link"
 ANCHOR_BODY_NAME = "pelvis"
 RETURN_ANCHOR_BODY_NAME = "torso_link"
+TERMINATION_ANCHOR_BODY_NAME = "pelvis"
 RETURN_BODY_NAMES = (
     "pelvis",
     "left_hip_roll_link",
@@ -138,18 +138,6 @@ def _local_tracking_state(
     return body_pos_local, body_quat_local
 
 
-def _first_cumulative_failure(error: np.ndarray, *, threshold: float, min_steps: int) -> int | None:
-    count = 0
-    for idx, value in enumerate(error):
-        if float(value) >= threshold:
-            count += 1
-        else:
-            count = 0
-        if count >= min_steps:
-            return idx
-    return None
-
-
 def _relative_translation(pos: np.ndarray, quat: np.ndarray) -> np.ndarray:
     return quat_rotate_inverse_numpy(
         quat[0].reshape(1, 4),
@@ -172,21 +160,22 @@ def _normalized_tracking_return(
     names: list[str],
     motion_t: np.ndarray,
     motion_steps: int,
-) -> tuple[float, float, bool, str, int]:
-    anchor_idx = names.index(RETURN_ANCHOR_BODY_NAME)
+) -> tuple[float, float, bool, str, int, int]:
+    reward_anchor_idx = names.index(RETURN_ANCHOR_BODY_NAME)
+    termination_anchor_idx = names.index(TERMINATION_ANCHOR_BODY_NAME)
     body_indices = [names.index(name) for name in RETURN_BODY_NAMES]
-    delta_pos_w = robot_pos[:, anchor_idx].copy()
-    delta_pos_w[:, 2] = motion_pos[:, anchor_idx, 2]
+    delta_pos_w = robot_pos[:, reward_anchor_idx].copy()
+    delta_pos_w[:, 2] = motion_pos[:, reward_anchor_idx, 2]
     delta_yaw_w = projected_yaw_quat(
         quat_mul(
-            robot_quat[:, anchor_idx],
-            quat_conjugate(motion_quat[:, anchor_idx]),
+            robot_quat[:, reward_anchor_idx],
+            quat_conjugate(motion_quat[:, reward_anchor_idx]),
         )
     )
     delta_yaw_expanded = np.broadcast_to(delta_yaw_w[:, None, :], motion_quat.shape)
     motion_pos_relative_w = delta_pos_w[:, None, :] + quat_rotate_numpy(
         delta_yaw_expanded,
-        motion_pos - motion_pos[:, anchor_idx, None, :],
+        motion_pos - motion_pos[:, reward_anchor_idx, None, :],
     )
     motion_quat_relative_w = quat_mul(delta_yaw_expanded, motion_quat)
 
@@ -213,14 +202,22 @@ def _normalized_tracking_return(
     reward = np.exp(-pos_error_sq / 0.3**2) + np.exp(-ori_error_sq / 0.4**2)
 
     anchor_pos_failed = (
-        np.abs(motion_pos[:, anchor_idx, 2] - robot_pos[:, anchor_idx, 2]) > 0.25
+        np.abs(
+            motion_pos[:, termination_anchor_idx, 2]
+            - robot_pos[:, termination_anchor_idx, 2]
+        )
+        > 0.25
     )
     gravity_w = np.broadcast_to(
         np.asarray([0.0, 0.0, -1.0], dtype=np.float32),
         (len(motion_t), 3),
     )
-    motion_gravity_b = quat_rotate_inverse_numpy(motion_quat[:, anchor_idx], gravity_w)
-    robot_gravity_b = quat_rotate_inverse_numpy(robot_quat[:, anchor_idx], gravity_w)
+    motion_gravity_b = quat_rotate_inverse_numpy(
+        motion_quat[:, termination_anchor_idx], gravity_w
+    )
+    robot_gravity_b = quat_rotate_inverse_numpy(
+        robot_quat[:, termination_anchor_idx], gravity_w
+    )
     anchor_ori_failed = (
         np.abs(motion_gravity_b[:, 2] - robot_gravity_b[:, 2]) > 0.8
     )
@@ -248,6 +245,7 @@ def _normalized_tracking_return(
         terminated,
         reason,
         termination_motion_t,
+        end if terminated else len(motion_t) - 1,
     )
 
 
@@ -257,7 +255,6 @@ def _compute_one(path: Path) -> dict[str, object]:
     frame_idx = _select_policy_frames(data)
     names = [str(name) for name in np.asarray(data["body_names"]).tolist()]
     tracking_indices = _indices_for_patterns(names, TRACKING_BODY_PATTERNS)
-    root_idx = names.index(TERMINATION_ROOT_BODY_NAME)
     anchor_idx = names.index(ANCHOR_BODY_NAME)
 
     robot_pos = np.asarray(data["robot_body_pos_w"], dtype=np.float32)[frame_idx]
@@ -266,38 +263,12 @@ def _compute_one(path: Path) -> dict[str, object]:
     motion_quat = np.asarray(data["motion_body_quat_w"], dtype=np.float32)[frame_idx]
     motion_t = np.asarray(data["motion_t"], dtype=np.int32)[frame_idx]
 
-    robot_pos_local, robot_quat_local = _local_tracking_state(robot_pos, robot_quat, anchor_idx)
-    motion_pos_local, motion_quat_local = _local_tracking_state(motion_pos, motion_quat, anchor_idx)
-
-    root_ori_error = _quat_angle_magnitude(
-        quat_mul(quat_conjugate(motion_quat[:, root_idx]), robot_quat[:, root_idx])
-    )
+    robot_pos_local, _ = _local_tracking_state(robot_pos, robot_quat, anchor_idx)
+    motion_pos_local, _ = _local_tracking_state(motion_pos, motion_quat, anchor_idx)
     body_pos_error_local = np.linalg.norm(
         motion_pos_local[:, tracking_indices] - robot_pos_local[:, tracking_indices],
         axis=-1,
     )
-    body_ori_error_local = _quat_angle_magnitude(
-        quat_mul(
-            quat_conjugate(motion_quat_local[:, tracking_indices]),
-            robot_quat_local[:, tracking_indices],
-        )
-    )
-
-    failures = {
-        "root_ori_error": _first_cumulative_failure(root_ori_error, threshold=1.2, min_steps=25),
-        "body_pos_error": _first_cumulative_failure(body_pos_error_local.max(axis=1), threshold=0.4, min_steps=5),
-        "body_ori_error": _first_cumulative_failure(body_ori_error_local.max(axis=1), threshold=1.2, min_steps=5),
-    }
-    valid_failures = {name: idx for name, idx in failures.items() if idx is not None}
-    if valid_failures:
-        termination_reason, termination_idx = min(valid_failures.items(), key=lambda item: item[1])
-        terminated = True
-    else:
-        termination_reason = "motion_end"
-        termination_idx = int(len(motion_t) - 1)
-        terminated = False
-
-    pre_end = max(1, termination_idx if terminated else termination_idx + 1)
     motion_length = int(np.asarray(data["motion_length"]).reshape(())) if "motion_length" in data else int(motion_t[-1]) + 1
     motion_denominator = max(1, motion_length - 1)
     (
@@ -306,6 +277,7 @@ def _compute_one(path: Path) -> dict[str, object]:
         return_terminated,
         return_termination_reason,
         return_termination_motion_t,
+        termination_idx,
     ) = _normalized_tracking_return(
         robot_pos,
         robot_quat,
@@ -315,7 +287,11 @@ def _compute_one(path: Path) -> dict[str, object]:
         motion_t,
         motion_denominator,
     )
-    progress = min(1.0, max(0.0, float(motion_t[termination_idx]) / float(motion_denominator)))
+    terminated = return_terminated
+    termination_reason = return_termination_reason
+    termination_motion_t = return_termination_motion_t
+    pre_end = max(1, termination_idx if terminated else termination_idx + 1)
+    progress = min(1.0, max(0.0, float(termination_motion_t) / float(motion_denominator)))
     local_body_tracking_error = float(np.mean(body_pos_error_local[:pre_end]))
 
     robot_root_pos = np.asarray(data["robot_root_pos_w"], dtype=np.float32)[frame_idx]
@@ -342,7 +318,7 @@ def _compute_one(path: Path) -> dict[str, object]:
         "motion_end": int(motion_t[-1]),
         "motion_length": motion_length,
         "termination_idx": int(termination_idx),
-        "termination_motion_t": int(motion_t[termination_idx]),
+        "termination_motion_t": termination_motion_t,
         "termination_reason": termination_reason,
         "terminated": int(terminated),
         "progress": progress,

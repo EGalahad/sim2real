@@ -55,12 +55,12 @@ Each split writes trajectories, `tracking_metrics.csv`,
 
 ## Metrics
 
-- Progress and tracking errors use the common report failure conditions.
-- `normalized_tracking_return` uses only the pinned BeyondMimic relative
+- Progress and `normalized_tracking_return` use the same termination: pelvis
+  Z error `> 0.25 m` or projected-gravity Z difference `> 0.8`. The terminating
+  frame and later frames contribute zero reward, and progress stops at that frame.
+- `normalized_tracking_return` uses the pinned BeyondMimic relative
   body-position (`std=0.3`) and body-orientation (`std=0.4`) rewards. The common
-  termination is torso-anchor Z error `> 0.25 m` or projected-gravity Z
-  difference `> 0.8`. The terminating frame and later frames contribute zero,
-  while the denominator remains the full reference length.
+  denominator remains the full reference length.
 - `mean_tracking_reward` ignores termination and averages the same reward over
   every recorded motion step.
 

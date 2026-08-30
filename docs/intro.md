@@ -4,6 +4,10 @@ sidebar_position: 1
 slug: /
 ---
 
+## Benchmark
+
+- [Motion Tracking Leaderboard](/leaderboard)
+
 ## Getting Started
 
 - [Overview](/getting-started/overview)

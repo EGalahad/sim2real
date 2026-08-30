@@ -19,6 +19,10 @@
     "message": "参考",
     "description": "The label of footer link with label=Reference"
   },
+  "link.item.label.Leaderboard": {
+    "message": "排行榜",
+    "description": "The label of footer link with label=Leaderboard"
+  },
   "link.item.label.GitHub": {
     "message": "GitHub",
     "description": "The label of footer link with label=GitHub"

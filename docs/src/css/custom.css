@@ -20,3 +20,18 @@
   --ifm-color-primary-lightest: #85cfad;
   --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.08);
 }
+
+@media (min-width: 997px) {
+  body:has(.leaderboard-page) .theme-doc-sidebar-container {
+    display: none;
+  }
+
+  body:has(.leaderboard-page) .theme-doc-sidebar-container + main {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  body:has(.leaderboard-page) main .container {
+    max-width: 1500px;
+  }
+}

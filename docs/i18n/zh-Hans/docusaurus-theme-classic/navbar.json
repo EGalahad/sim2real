@@ -7,6 +7,10 @@
     "message": "文档",
     "description": "Navbar item with label Docs"
   },
+  "item.label.Leaderboard": {
+    "message": "排行榜",
+    "description": "Navbar item with label Leaderboard"
+  },
   "item.label.GitHub": {
     "message": "GitHub",
     "description": "Navbar item with label GitHub"
