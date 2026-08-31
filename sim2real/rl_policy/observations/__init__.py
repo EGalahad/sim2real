@@ -1,6 +1,7 @@
 from .base import Observation, ObsGroup, normalize_observation_array
 
 from .heft import *
+from .grit import *
 from .holomotion import *
 from .bfm_zero import *
 from .common import *

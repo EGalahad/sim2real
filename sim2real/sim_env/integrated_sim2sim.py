@@ -1189,11 +1189,11 @@ class IntegratedSim2Sim:
         ) or not self.playback_started:
             return
 
-        root_qpos = int(self.sim.root_qpos_adr)
         motion_t = int(self.state_processor.motion_t[0])
-        if self.args.trajectory_policy_frames_only and motion_t == self._last_trajectory_motion_t:
+        if motion_t == self._last_trajectory_motion_t:
             return
         self._last_trajectory_motion_t = motion_t
+        root_qpos = int(self.sim.root_qpos_adr)
         motion_root_pos, motion_root_quat = self._motion_root_state()
         root_frame = {
             "sim_time": float(self.sim.mj_data.time),
@@ -1488,7 +1488,6 @@ class IntegratedSim2SimArgs:
     record_output: str | None = None
     root_trajectory_output: str | None = None
     trajectory_output: str | None = None
-    trajectory_policy_frames_only: bool = False
     stop_on_tracking_failure: bool = False
     seed: int | None = None
     decimation: int = field(init=False, repr=False)

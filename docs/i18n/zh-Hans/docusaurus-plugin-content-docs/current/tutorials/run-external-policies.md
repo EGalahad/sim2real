@@ -34,6 +34,7 @@ policy YAML。
 | SONIC low-latency SMPL | `checkpoints/sonic/low_latency/smpl/policy.yaml` | 使用四帧 SMPL 输入窗口。 |
 | HoloMotion v1.4.0 | `checkpoints/holomotion/v1_4_0/policy.yaml` | 需要官方 1.64 GB ONNX artifact。 |
 | TWIST2 | `checkpoints/twist2/policy.yaml` | 正常 G1 motion stream。 |
+| GRIT v0.0.1 | `checkpoints/grit/v0_0_1/policy.yaml` | 九帧参考上下文和十帧本体感知历史。 |
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \

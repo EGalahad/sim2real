@@ -36,6 +36,7 @@ value.
 | SONIC low-latency SMPL | `checkpoints/sonic/low_latency/smpl/policy.yaml` | Four-frame SMPL input horizon. |
 | HoloMotion v1.4.0 | `checkpoints/holomotion/v1_4_0/policy.yaml` | Requires the official 1.64 GB ONNX artifact. |
 | TWIST2 | `checkpoints/twist2/policy.yaml` | Normal G1 motion stream. |
+| GRIT v0.0.1 | `checkpoints/grit/v0_0_1/policy.yaml` | Nine-frame reference context and ten-frame proprioceptive history. |
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \

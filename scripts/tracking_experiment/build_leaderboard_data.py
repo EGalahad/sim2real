@@ -24,6 +24,7 @@ LINKS = {
     "humanoid_gpt": "https://github.com/GalaxyGeneralRobotics/Humanoid-GPT",
     "bfm_zero": "https://lecar-lab.github.io/BFM-Zero/",
     "twist2": "https://github.com/amazon-far/TWIST2",
+    "grit_v0_0_1": "https://github.com/mrzuang/GRIT_teleop_deploy",
 }
 
 

@@ -78,6 +78,7 @@ ALL_POLICIES = (
     Series("humanoid_gpt", "Humanoid-GPT", "#F58518"),
     Series("bfm_zero", "BFM-Zero", "#9D755D"),
     Series("twist2", "TWIST2", "#4C78A8"),
+    Series("grit_v0_0_1", "GRIT v0.0.1", "#7B61A8"),
 )
 RELEASE_POLICIES = {
     "mimic_lite_ppo",
@@ -86,6 +87,7 @@ RELEASE_POLICIES = {
     "sonic_v1_1",
     "holomotion",
     "heft",
+    "grit_v0_0_1",
 }
 
 parser = argparse.ArgumentParser()

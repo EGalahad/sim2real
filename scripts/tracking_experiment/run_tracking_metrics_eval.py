@@ -76,7 +76,7 @@ def _motion_paths(
             if not stripped or stripped.startswith("#"):
                 continue
             path = Path(stripped).expanduser()
-            path = (root / path).resolve() if not path.is_absolute() else path.resolve()
+            path = (root / path).absolute() if not path.is_absolute() else path.absolute()
             if not path.is_file():
                 raise FileNotFoundError(path)
             paths.append(path)

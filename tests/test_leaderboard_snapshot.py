@@ -14,9 +14,9 @@ def test_leaderboard_snapshot_has_three_finite_splits() -> None:
         source = {row["policy"]: row for row in csv.DictReader(handle)}
     page = json.loads((ROOT / "docs/src/data/leaderboard.json").read_text())
 
-    assert len(source) == 13
-    assert len(page) == 13
-    assert {"mimic_lite_ppo", "mimic_lite_roa"} <= {
+    assert len(source) == 14
+    assert len(page) == 14
+    assert {"mimic_lite_ppo", "mimic_lite_roa", "grit_v0_0_1"} <= {
         row["key"] for row in page
     }
     assert {"mimic_lite_huge", "mimic_lite_base", "mimic_lite_v1_1", "mimic_lite_small", "g1_roa_huge_student_20260814"}.isdisjoint(
