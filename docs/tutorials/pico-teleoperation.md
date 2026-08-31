@@ -27,7 +27,7 @@ In another terminal, start the tracking policy against the live motion stream:
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml \
+  --policy-config checkpoints/mimic-lite/roa/policy.yaml \
   --motion-backend zmq \
   --controller pico
 ```
@@ -38,7 +38,7 @@ For hardware, first choose the deployment path in [Robot I/O](/reference/robot-i
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml \
+  --policy-config checkpoints/mimic-lite/roa/policy.yaml \
   --motion-backend zmq \
   --controller pico
 ```

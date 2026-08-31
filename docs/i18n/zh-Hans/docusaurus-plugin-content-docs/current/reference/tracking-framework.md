@@ -10,7 +10,7 @@ slug: /reference/tracking-framework
 本文总结当前 `sim2real` 仓库里 tracking 推理链路的代码组织方式。分析入口是：
 
 ```bash
-uv run sim2real/rl_policy/tracking.py --policy-config checkpoints/mimic-lite/v1_1/policy.yaml
+uv run sim2real/rl_policy/tracking.py --policy-config checkpoints/mimic-lite/roa/policy.yaml
 uv run sim2real/sim_env/base_sim.py
 ```
 
@@ -266,7 +266,7 @@ tracking 和普通速度跟踪、站立控制的最大区别，在于策略不�
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml \
+  --policy-config checkpoints/mimic-lite/roa/policy.yaml \
   --motion-backend zmq
 ```
 
@@ -431,7 +431,7 @@ BaseSimulator + SimulationBridge
 ### 命令 1：启动 tracking policy
 
 ```bash
-uv run sim2real/rl_policy/tracking.py --policy-config checkpoints/mimic-lite/v1_1/policy.yaml
+uv run sim2real/rl_policy/tracking.py --policy-config checkpoints/mimic-lite/roa/policy.yaml
 ```
 
 它负责：

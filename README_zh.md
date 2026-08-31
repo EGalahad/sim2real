@@ -31,7 +31,7 @@ uv sync --extra inference-cpu
 uv run sim2real/sim_env/base_sim.py --robot g1
 uv run sim2real/rl_policy/tracking.py \
   --robot g1 \
-  --policy_config checkpoints/mimic-lite/32x8192-huge/policy.yaml
+  --policy_config checkpoints/mimic-lite/roa/policy.yaml
 ```
 
 两个进程都启动后，在 policy 终端按 `]` 开始跟踪，然后打开 `base_sim.py` 打印出来的 mjviser URL。虚拟 gantry / elastic band 的开关和长度在 viewer UI 里调。
@@ -52,7 +52,8 @@ uv run sim2real/rl_policy/tracking.py \
 
 | Policy family | Config path(s) | 说明 |
 | --- | --- | --- |
-| Mimic-Lite | `checkpoints/mimic-lite` | Native mimic-lite tracking checkpoints。 |
+| MimicLite-PPO | `checkpoints/mimic-lite/ppo/policy.yaml` | 最新 16x16384 Huge PPO release。 |
+| MimicLite-ROA | `checkpoints/mimic-lite/roa/policy.yaml` | 最新 16x16384 PPO-ROA student release。 |
 | BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | Latent-conditioned motion tracker。 |
 | ScaleBFM | `checkpoints/scalebfm` | [WeishuaiZeng/ScaleBFM](https://huggingface.co/WeishuaiZeng/ScaleBFM) 的 Humanoid Transformer M 和 XL ONNX exports。 |
 | SONIC release | `checkpoints/sonic/release` | Release G1 和 SMPL encoder variants。 |
@@ -74,9 +75,9 @@ root XY 位移为 1.5--3.0 m。
 其定义为最远 future reference frame 对应的时间。所有数值均采用统一的
 50 Hz reference-motion contract。
 
-| Policy | MimicLite | BFM-Zero | ScaleBFM | SONIC release | SONIC low-latency | HoloMotion | TeleopIT | Humanoid-GPT | HEFT | TWIST2 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Motion-lookahead latency | 0.08 s | 0.12 s | 0.10 s | 0.90 s | 0.18 s | 0.20 s | 0.00 s | 0.02 s | 0.12 s | 0.00 s |
+| Policy | MimicLite-PPO | MimicLite-ROA | BFM-Zero | ScaleBFM | SONIC release | SONIC low-latency | HoloMotion | TeleopIT | Humanoid-GPT | HEFT | TWIST2 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Motion-lookahead latency | 0.08 s | 0.08 s | 0.12 s | 0.10 s | 0.90 s | 0.18 s | 0.20 s | 0.00 s | 0.02 s | 0.12 s | 0.00 s |
 
 ## 真机环境
 

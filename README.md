@@ -31,7 +31,7 @@ Run offline motion tracking (sim2sim):
 ```bash
 uv run sim2real/sim_env/base_sim.py --robot g1
 uv run sim2real/rl_policy/tracking.py --robot g1 \
-  --policy_config checkpoints/mimic-lite/v1_1/policy.yaml \
+  --policy_config checkpoints/mimic-lite/roa/policy.yaml \
   --motion_path hf://elijahgalahad/any4hdmi-g1-lafan/motions/walk1_subject1.npz
 ```
 
@@ -53,8 +53,8 @@ Currently supported adapted / distributed checkpoint families:
 
 | Policy family | Config path(s) | Notes |
 | --- | --- | --- |
-| Mimic-Lite v1.1 | `checkpoints/mimic-lite/v1_1/policy.yaml` | T16 PPO-ROA finetune student with action and student-latent outputs. |
-| Mimic-Lite Huge | `checkpoints/mimic-lite/32x8192-huge/policy.yaml` | Original Huge release. |
+| MimicLite-PPO | `checkpoints/mimic-lite/ppo/policy.yaml` | Latest 16x16384 Huge PPO release. |
+| MimicLite-ROA | `checkpoints/mimic-lite/roa/policy.yaml` | Latest 16x16384 PPO-ROA student release. |
 | BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | Latent-conditioned motion tracker. |
 | ScaleBFM | `checkpoints/scalebfm` | ScaleBFM Humanoid Transformer M and XL ONNX exports from [WeishuaiZeng/ScaleBFM](https://huggingface.co/WeishuaiZeng/ScaleBFM). |
 | SONIC release | `checkpoints/sonic/release` | Release G1 and SMPL encoder variants. |
@@ -72,9 +72,9 @@ For a fair comparison, we report the motion-lookahead latency required by each
 policy, defined by its furthest required future-reference frame. All values use
 the shared 50 Hz reference-motion contract.
 
-| Policy | Mimic-Lite v1.1 | Mimic-Lite Huge | Mimic-Lite Base | Mimic-Lite Huge ROA | Mimic-Lite Small | ScaleBFM M | ScaleBFM XL | SONIC | SONIC low-latency | SONIC v1.1 | HoloMotion | HEFT | TeleopIT | Humanoid-GPT | BFM-Zero | TWIST2 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Motion-lookahead latency | 0.08 s | 0.08 s | 0.08 s | 0.08 s | 0.08 s | 0.10 s | 0.10 s | 0.90 s | 0.18 s | 0.90 s | 0.20 s | 0.12 s | 0.00 s | 0.02 s | 0.12 s | 0.00 s |
+| Policy | MimicLite-PPO | MimicLite-ROA | ScaleBFM M | ScaleBFM XL | SONIC | SONIC low-latency | SONIC v1.1 | HoloMotion | HEFT | TeleopIT | Humanoid-GPT | BFM-Zero | TWIST2 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Motion-lookahead latency | 0.08 s | 0.08 s | 0.10 s | 0.10 s | 0.90 s | 0.18 s | 0.90 s | 0.20 s | 0.12 s | 0.00 s | 0.02 s | 0.12 s | 0.00 s |
 
 ## Real-robot Environments
 

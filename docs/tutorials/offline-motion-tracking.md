@@ -23,7 +23,7 @@ In a second terminal, start the tracking policy:
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml \
+  --policy-config checkpoints/mimic-lite/roa/policy.yaml \
   --motion-path hf://elijahgalahad/any4hdmi-g1-lafan/motions/walk1_subject1.npz
 ```
 
@@ -40,7 +40,7 @@ For hardware, first choose the deployment path in [Robot I/O](/reference/robot-i
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml \
+  --policy-config checkpoints/mimic-lite/roa/policy.yaml \
   --motion-path hf://elijahgalahad/any4hdmi-g1-lafan/motions/walk1_subject1.npz
 ```
 
@@ -53,7 +53,7 @@ Use the integrated runner when the policy and MuJoCo should live in one process.
 ```bash
 uv run sim2real/sim_env/integrated_sim2sim.py \
   --robot g1 \
-  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml \
+  --policy-config checkpoints/mimic-lite/roa/policy.yaml \
   --motion-path hf://elijahgalahad/any4hdmi-g1-lafan/motions/walk1_subject1.npz
 ```
 

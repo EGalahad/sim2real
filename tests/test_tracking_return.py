@@ -112,3 +112,41 @@ def test_progress_and_return_share_pelvis_termination(tmp_path: Path) -> None:
     assert row["progress"] == 0.75
     assert row["normalized_tracking_return"] == 1.0
     assert row["wrist_tracking_error"] == 0.0
+    assert row["local_body_orientation_error"] == 0.0
+    assert row["wrist_orientation_error"] == 0.0
+
+
+def test_orientation_metrics_capture_local_rotation_error(tmp_path: Path) -> None:
+    names, motion_pos, motion_quat, motion_t = _perfect_trajectory()
+    robot_pos = motion_pos.copy()
+    robot_quat = motion_quat.copy()
+    root_pos = np.zeros((4, 3), dtype=np.float32)
+    root_quat = np.zeros((4, 4), dtype=np.float32)
+    root_quat[:, 0] = 1.0
+    angle = np.pi / 2.0
+    rotated = np.asarray([np.cos(angle / 2.0), 0.0, np.sin(angle / 2.0), 0.0], dtype=np.float32)
+    robot_quat[:, names.index("left_wrist_yaw_link")] = rotated
+    path = tmp_path / "trajectory_rot.npz"
+    np.savez(
+        path,
+        body_names=np.asarray(names),
+        robot_body_pos_w=robot_pos,
+        robot_body_quat_w=robot_quat,
+        motion_body_pos_w=motion_pos,
+        motion_body_quat_w=motion_quat,
+        robot_root_pos_w=root_pos,
+        robot_root_quat_w=root_quat,
+        motion_root_pos_w=root_pos,
+        motion_root_quat_w=root_quat,
+        motion_t=motion_t,
+        motion_length=np.asarray(5),
+        policy_config=np.asarray("policy.yaml"),
+        motion_path=np.asarray("motion.npz"),
+        seed=np.asarray(0),
+    )
+
+    row = _compute_one(path)
+
+    assert row["wrist_tracking_error"] == 0.0
+    assert row["wrist_orientation_error"] > 0.0
+    assert row["local_body_orientation_error"] > 0.0

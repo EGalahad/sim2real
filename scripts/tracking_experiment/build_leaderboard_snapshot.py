@@ -14,9 +14,8 @@ POLICIES = {
     "heft": ("HEFT", "/heft/"),
     "holomotion": ("HoloMotion", "holomotion_root90_refresh"),
     "humanoid_gpt": ("Humanoid-GPT", "/humanoid-gpt/"),
-    "mimic_lite_base": ("MimicLite-Base", "/mimic-lite/4x8192-large/"),
-    "mimic_lite_huge": ("MimicLite-Huge", "/mimic-lite/32x8192-huge/"),
-    "mimic_lite_small": ("MimicLite-Small", "/mimic-lite/8x8192-huge/"),
+    "mimic_lite_ppo": ("MimicLite-PPO", "/mimic-lite/ppo/"),
+    "mimic_lite_roa": ("MimicLite-ROA", "/mimic-lite/roa/"),
     "scalebfm_m": ("ScaleBFM-M", "/scalebfm/humanoid_transformer_m/"),
     "scalebfm_xl": ("ScaleBFM-XL", "/scalebfm/humanoid_transformer_xl/"),
     "sonic_g1": ("SONIC", "/sonic/release/"),
@@ -26,7 +25,6 @@ POLICIES = {
 }
 FORCED_POLICIES = {
     "sonic_v1_1": "SONIC-v1.1",
-    "mimic_lite_v1_1": "MimicLite-v1.1",
 }
 METRICS = {
     "progress_pct": ("progress", 100.0, False),

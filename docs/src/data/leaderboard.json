@@ -284,219 +284,6 @@
     }
   },
   {
-    "key": "mimic_lite_base",
-    "name": "MimicLite-Base",
-    "url": "https://github.com/EGalahad/mimic-lite",
-    "metrics": {
-      "bodyPos": {
-        "mean": 50.6021497702157,
-        "splits": {
-          "lafan": 56.565696373581886,
-          "phuma": 41.894508649905525,
-          "root90": 53.346244287159706
-        }
-      },
-      "bodyOri": {
-        "mean": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "globalRoot": {
-        "mean": 0.587665417548959,
-        "splits": {
-          "lafan": 1.259102701023221,
-          "phuma": 0.16017242850114902,
-          "root90": 0.3437211231225067
-        }
-      },
-      "gpuHours": {
-        "mean": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "wristPos": {
-        "mean": 62.91165193542838,
-        "splits": {
-          "lafan": 68.77508303150535,
-          "phuma": 54.76799613485734,
-          "root90": 65.19187663992246
-        }
-      },
-      "wristOri": {
-        "mean": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "trackingReturn": {
-        "mean": 1.554320553415477,
-        "splits": {
-          "lafan": 1.2224208415427118,
-          "phuma": 1.707117094154019,
-          "root90": 1.7334237245497002
-        }
-      },
-      "progress": {
-        "mean": 89.40602735183019,
-        "splits": {
-          "lafan": 70.29015412756266,
-          "phuma": 97.92792792792793,
-          "root90": 100.0
-        }
-      }
-    }
-  },
-  {
-    "key": "mimic_lite_huge",
-    "name": "MimicLite-Huge",
-    "url": "https://github.com/EGalahad/mimic-lite",
-    "metrics": {
-      "bodyPos": {
-        "mean": 36.33681963094407,
-        "splits": {
-          "lafan": 37.06890847533941,
-          "phuma": 30.725286869953077,
-          "root90": 41.21626354753971
-        }
-      },
-      "bodyOri": {
-        "mean": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "globalRoot": {
-        "mean": 0.23346310376914012,
-        "splits": {
-          "lafan": 0.4028691022656858,
-          "phuma": 0.13043259003510077,
-          "root90": 0.16708761900663377
-        }
-      },
-      "gpuHours": {
-        "mean": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "wristPos": {
-        "mean": 41.528867123027645,
-        "splits": {
-          "lafan": 41.64539901539683,
-          "phuma": 35.68873029823104,
-          "root90": 47.252472055455044
-        }
-      },
-      "wristOri": {
-        "mean": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "trackingReturn": {
-        "mean": 1.7768774240181011,
-        "splits": {
-          "lafan": 1.6388719904628746,
-          "phuma": 1.8273009266474654,
-          "root90": 1.8644593549439632
-        }
-      },
-      "progress": {
-        "mean": 96.04738753076788,
-        "splits": {
-          "lafan": 88.14216259230363,
-          "phuma": 100.0,
-          "root90": 100.0
-        }
-      }
-    }
-  },
-  {
-    "key": "mimic_lite_v1_1",
-    "name": "MimicLite-v1.1",
-    "url": "https://github.com/EGalahad/mimic-lite",
-    "metrics": {
-      "bodyPos": {
-        "mean": 28.71825412536661,
-        "splits": {
-          "lafan": 28.350964188575745,
-          "phuma": 24.285580435146887,
-          "root90": 33.51821775237719
-        }
-      },
-      "bodyOri": {
-        "mean": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "globalRoot": {
-        "mean": 0.3104904873331112,
-        "splits": {
-          "lafan": 0.5930620374158024,
-          "phuma": 0.15730195986106993,
-          "root90": 0.18110746472246117
-        }
-      },
-      "gpuHours": {
-        "mean": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "wristPos": {
-        "mean": 31.203348980354217,
-        "splits": {
-          "lafan": 30.863225203938782,
-          "phuma": 23.82153905928135,
-          "root90": 38.92528267784251
-        }
-      },
-      "wristOri": {
-        "mean": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "trackingReturn": {
-        "mean": 1.8270327809462386,
-        "splits": {
-          "lafan": 1.6426820505136146,
-          "phuma": 1.9053702155001608,
-          "root90": 1.9330460768249405
-        }
-      },
-      "progress": {
-        "mean": 94.27191000757033,
-        "splits": {
-          "lafan": 82.81573002271097,
-          "phuma": 100.0,
-          "root90": 100.0
-        }
-      }
-    }
-  },
-  {
     "key": "scalebfm_m",
     "name": "ScaleBFM-M",
     "url": "https://github.com/zengweishuai/ScaleBFM",
@@ -988,6 +775,148 @@
         "splits": {
           "lafan": 40.49939811306825,
           "phuma": 99.63986713986714,
+          "root90": 100.0
+        }
+      }
+    }
+  },
+  {
+    "key": "mimic_lite_ppo",
+    "name": "MimicLite-PPO",
+    "url": "https://github.com/Roboparty/MimicLite",
+    "metrics": {
+      "bodyPos": {
+        "mean": 33.216521342250466,
+        "splits": {
+          "lafan": 35.1996366400272,
+          "phuma": 28.2694232029219,
+          "root90": 36.1805041838023
+        }
+      },
+      "bodyOri": {
+        "mean": 0.11502679027616992,
+        "splits": {
+          "lafan": 0.144323129206896,
+          "phuma": 0.109681528558334,
+          "root90": 0.0910757130632798
+        }
+      },
+      "globalRoot": {
+        "mean": 0.23884964178626766,
+        "splits": {
+          "lafan": 0.418517859000713,
+          "phuma": 0.129435141136249,
+          "root90": 0.168595925221841
+        }
+      },
+      "gpuHours": {
+        "mean": 92.321,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 38.1050686403695,
+        "splits": {
+          "lafan": 39.4131683278829,
+          "phuma": 32.3924364522099,
+          "root90": 42.5096011410157
+        }
+      },
+      "wristOri": {
+        "mean": 0.14609642996004366,
+        "splits": {
+          "lafan": 0.192631667852402,
+          "phuma": 0.12951067549487,
+          "root90": 0.116146946532859
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.8023977195091703,
+        "splits": {
+          "lafan": 1.62600917724919,
+          "phuma": 1.86761647848998,
+          "root90": 1.91356750278834
+        }
+      },
+      "progress": {
+        "mean": 95.23172774578511,
+        "splits": {
+          "lafan": 85.6951832373553,
+          "phuma": 100.0,
+          "root90": 100.0
+        }
+      }
+    }
+  },
+  {
+    "key": "mimic_lite_roa",
+    "name": "MimicLite-ROA",
+    "url": "https://github.com/Roboparty/MimicLite",
+    "metrics": {
+      "bodyPos": {
+        "mean": 30.204143589017566,
+        "splits": {
+          "lafan": 30.5176693014801,
+          "phuma": 26.2000812528034,
+          "root90": 33.8946802127692
+        }
+      },
+      "bodyOri": {
+        "mean": 0.10224925041612663,
+        "splits": {
+          "lafan": 0.122858392633498,
+          "phuma": 0.0959335528314114,
+          "root90": 0.0879558057834705
+        }
+      },
+      "globalRoot": {
+        "mean": 0.27540292311459796,
+        "splits": {
+          "lafan": 0.505253692530096,
+          "phuma": 0.154697446897626,
+          "root90": 0.166257629916072
+        }
+      },
+      "gpuHours": {
+        "mean": 173.208,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 33.54646427108457,
+        "splits": {
+          "lafan": 33.8209162931889,
+          "phuma": 27.7741769639154,
+          "root90": 39.0442995561494
+        }
+      },
+      "wristOri": {
+        "mean": 0.14337149258978932,
+        "splits": {
+          "lafan": 0.173503259755671,
+          "phuma": 0.124466540664434,
+          "root90": 0.132144677349263
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.8228243998359634,
+        "splits": {
+          "lafan": 1.65352737004567,
+          "phuma": 1.89669949772963,
+          "root90": 1.91824633173259
+        }
+      },
+      "progress": {
+        "mean": 94.64421237523084,
+        "splits": {
+          "lafan": 83.9326371256925,
+          "phuma": 100.0,
           "root90": 100.0
         }
       }

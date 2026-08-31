@@ -37,7 +37,7 @@ backend without starting a bridge process.
 ```bash
 uv run sim2real/rl_policy/tracking.py \
   --robot-io inline \
-  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml
+  --policy-config checkpoints/mimic-lite/roa/policy.yaml
 ```
 
 Use this path first for real deployment when latency jitter matters. Add
@@ -60,7 +60,7 @@ Terminal 2:
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml
+  --policy-config checkpoints/mimic-lite/roa/policy.yaml
 ```
 
 Add `--interface <robot_network_interface>` to the bridge command only when the
@@ -81,7 +81,7 @@ Terminal 2:
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml
+  --policy-config checkpoints/mimic-lite/roa/policy.yaml
 ```
 
 Add `--interface <robot_network_interface>` to the bridge command only when the

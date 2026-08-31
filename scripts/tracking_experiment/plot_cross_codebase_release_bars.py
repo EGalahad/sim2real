@@ -65,9 +65,8 @@ class Series:
 
 
 ALL_POLICIES = (
-    Series("mimic_lite_v1_1", "MimicLite-v1.1", "#1F77B4"),
-    Series("mimic_lite_huge", "MimicLite-Huge", "#5B2A86"),
-    Series("mimic_lite_base", "MimicLite-Base", "#7B4AB8"),
+    Series("mimic_lite_ppo", "MimicLite-PPO", "#5B2A86"),
+    Series("mimic_lite_roa", "MimicLite-ROA", "#1F77B4"),
     Series("scalebfm_m", "ScaleBFM-M", "#C44E52"),
     Series("scalebfm_xl", "ScaleBFM-XL", "#E07B7B"),
     Series("sonic_g1", "SONIC", "#76B900"),
@@ -81,9 +80,8 @@ ALL_POLICIES = (
     Series("twist2", "TWIST2", "#4C78A8"),
 )
 RELEASE_POLICIES = {
-    "mimic_lite_huge",
-    "mimic_lite_v1_1",
-    "mimic_lite_base",
+    "mimic_lite_ppo",
+    "mimic_lite_roa",
     "sonic_g1",
     "sonic_v1_1",
     "holomotion",
@@ -97,7 +95,7 @@ parser.add_argument("--output-base", type=Path, default=OUTPUT_BASE)
 args = parser.parse_args()
 POLICIES = tuple(
     Series(policy.key, policy.label, "#F28E2B")
-    if args.release_only and policy.key == "mimic_lite_v1_1"
+    if args.release_only and policy.key == "mimic_lite_roa"
     else policy
     for policy in ALL_POLICIES
     if not args.release_only or policy.key in RELEASE_POLICIES

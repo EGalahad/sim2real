@@ -18,7 +18,8 @@ policy YAML。
 
 | Policy | Checkpoint YAML | Notes |
 | --- | --- | --- |
-| Mimic-Lite v1.1 | `checkpoints/mimic-lite/v1_1/policy.yaml` | Full-scale T16 PPO-ROA finetune student。 |
+| MimicLite-PPO | `checkpoints/mimic-lite/ppo/policy.yaml` | 最新 16x16384 Huge PPO release。 |
+| MimicLite-ROA | `checkpoints/mimic-lite/roa/policy.yaml` | 最新 16x16384 PPO-ROA student release。 |
 | HEFT PMG | `checkpoints/heft/pmg/policy.yaml` | 正常 G1 motion stream。 |
 | HEFT Compliance | `checkpoints/heft/compliance/policy.yaml` | 正常 G1 motion stream；observation 里 compliance flag 固定为 off。 |
 | TeleopIT | `checkpoints/teleopit/policy.yaml` | 正常 G1 motion stream。 |

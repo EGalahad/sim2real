@@ -11,9 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 METRICS = ROOT / "assets/mimic_lite_cross_codebase_tracking_eval.csv"
 OUTPUT = ROOT / "docs/src/data/leaderboard.json"
 LINKS = {
-    "mimic_lite_huge": "https://github.com/EGalahad/mimic-lite",
-    "mimic_lite_v1_1": "https://github.com/EGalahad/mimic-lite",
-    "mimic_lite_base": "https://github.com/EGalahad/mimic-lite",
+    "mimic_lite_ppo": "https://github.com/Roboparty/MimicLite",
+    "mimic_lite_roa": "https://github.com/Roboparty/MimicLite",
     "scalebfm_m": "https://github.com/zengweishuai/ScaleBFM",
     "scalebfm_xl": "https://github.com/zengweishuai/ScaleBFM",
     "sonic_g1": "https://nvlabs.github.io/GEAR-SONIC/",
@@ -72,7 +71,7 @@ def main() -> None:
     rows = []
     for row in source:
         key = row["policy"]
-        if key in {"g1_roa_huge_student_20260814", "mimic_lite_small"}:
+        if key == "g1_roa_huge_student_20260814":
             continue
         values = {
             name: float(value)

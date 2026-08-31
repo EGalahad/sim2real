@@ -12,7 +12,7 @@ from pathlib import Path
 DEFAULT_POLICIES = {
     "sonic_release": "checkpoints/sonic/release/g1/policy.yaml",
     "sonic_trained": "checkpoints/sonic_groot_6k/policy-sonic-groot-006000.yaml",
-    "lafan": "checkpoints/mimic-lite/32x8192-huge/policy.yaml",
+    "lafan": "checkpoints/mimic-lite/ppo/policy.yaml",
 }
 
 SCRIPT_DIR = Path(__file__).resolve().parent

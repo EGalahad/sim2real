@@ -20,7 +20,7 @@ uv run sim2real/sim_env/base_sim.py --robot g1
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml \
+  --policy-config checkpoints/mimic-lite/roa/policy.yaml \
   --motion-path hf://elijahgalahad/any4hdmi-g1-lafan/motions/walk1_subject1.npz
 ```
 
@@ -37,7 +37,7 @@ uv run sim2real/rl_policy/tracking.py \
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \
-  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml \
+  --policy-config checkpoints/mimic-lite/roa/policy.yaml \
   --motion-path hf://elijahgalahad/any4hdmi-g1-lafan/motions/walk1_subject1.npz
 ```
 
@@ -50,7 +50,7 @@ uv run sim2real/rl_policy/tracking.py \
 ```bash
 uv run sim2real/sim_env/integrated_sim2sim.py \
   --robot g1 \
-  --policy-config checkpoints/mimic-lite/v1_1/policy.yaml \
+  --policy-config checkpoints/mimic-lite/roa/policy.yaml \
   --motion-path hf://elijahgalahad/any4hdmi-g1-lafan/motions/walk1_subject1.npz
 ```
 
