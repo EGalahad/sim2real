@@ -32,6 +32,39 @@ def mean(*values: float) -> float:
     return sum(values) / len(values)
 
 
+def optional_float(row: dict[str, str], key: str) -> float | None:
+    value = row.get(key)
+    if value in {None, "", "—"}:
+        return None
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError(f"Non-finite {key}: {value}")
+    return parsed
+
+
+def split_metric(row: dict[str, str], suffix: str) -> dict[str, float | None]:
+    return {
+        "lafan": optional_float(row, f"lafan40_{suffix}"),
+        "phuma": optional_float(row, f"phuma30_{suffix}"),
+        "root90": optional_float(row, f"root90_{suffix}"),
+    }
+
+
+def mean_optional(values: dict[str, float | None]) -> float | None:
+    present = [value for value in values.values() if value is not None]
+    if not present:
+        return None
+    return mean(*present)
+
+
+def metric_entry(row: dict[str, str], suffix: str, mean_key: str | None = None) -> dict[str, object]:
+    splits = split_metric(row, suffix)
+    return {
+        "mean": optional_float(row, mean_key) if mean_key is not None else mean_optional(splits),
+        "splits": splits,
+    }
+
+
 def main() -> None:
     with METRICS.open(newline="", encoding="utf-8") as handle:
         source = list(csv.DictReader(handle))
@@ -44,7 +77,7 @@ def main() -> None:
         values = {
             name: float(value)
             for name, value in row.items()
-            if name not in {"policy", "label"}
+            if name not in {"policy", "label"} and value not in {"", "—"}
         }
         assert key in LINKS and all(math.isfinite(value) for value in values.values())
         rows.append(
@@ -52,41 +85,23 @@ def main() -> None:
                 "key": key,
                 "name": row["label"],
                 "url": LINKS[key],
-                "trackingReturn": mean(
-                    values["lafan40_tracking_return"],
-                    values["phuma30_tracking_return"],
-                    values["root90_tracking_return"],
-                ),
-                "localError": mean(
-                    values["lafan40_local_mm"],
-                    values["phuma30_local_mm"],
-                    values["root90_local_mm"],
-                ),
-                "wristError": mean(
-                    values["lafan40_wrist_mm"],
-                    values["phuma30_wrist_mm"],
-                    values["root90_wrist_mm"],
-                ),
-                "globalRootError": mean(
-                    values["lafan40_global_root_m"],
-                    values["phuma30_global_root_m"],
-                    values["root90_global_root_m"],
-                ),
-                "lafanReturn": values["lafan40_tracking_return"],
-                "phumaReturn": values["phuma30_tracking_return"],
-                "root90Return": values["root90_tracking_return"],
-                "lafanProgress": values["lafan40_progress_pct"],
-                "phumaProgress": values["phuma30_progress_pct"],
-                "root90Progress": values["root90_progress_pct"],
-                "lafanLocal": values["lafan40_local_mm"],
-                "phumaLocal": values["phuma30_local_mm"],
-                "root90Local": values["root90_local_mm"],
-                "lafanWrist": values["lafan40_wrist_mm"],
-                "phumaWrist": values["phuma30_wrist_mm"],
-                "root90Wrist": values["root90_wrist_mm"],
-                "lafanGlobalRoot": values["lafan40_global_root_m"],
-                "phumaGlobalRoot": values["phuma30_global_root_m"],
-                "root90GlobalRoot": values["root90_global_root_m"],
+                "metrics": {
+                    "bodyPos": metric_entry(row, "local_mm"),
+                    "bodyOri": metric_entry(row, "body_ori_rad"),
+                    "globalRoot": metric_entry(row, "global_root_m"),
+                    "gpuHours": {
+                        "mean": optional_float(row, "gpu_hours"),
+                        "splits": {
+                            "lafan": optional_float(row, "lafan40_gpu_hours"),
+                            "phuma": optional_float(row, "phuma30_gpu_hours"),
+                            "root90": optional_float(row, "root90_gpu_hours"),
+                        },
+                    },
+                    "wristPos": metric_entry(row, "wrist_mm"),
+                    "wristOri": metric_entry(row, "wrist_ori_rad"),
+                    "trackingReturn": metric_entry(row, "tracking_return"),
+                    "progress": metric_entry(row, "progress_pct"),
+                },
             }
         )
 

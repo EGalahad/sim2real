@@ -2,79 +2,102 @@ import React, {useMemo, useState} from 'react';
 import data from '../../data/leaderboard.json';
 import styles from './styles.module.css';
 
-type SortKey = 'trackingReturn' | 'localError' | 'wristError' | 'globalRootError';
 type Row = (typeof data)[number];
+type MetricKey =
+  | 'bodyPos'
+  | 'bodyOri'
+  | 'globalRoot'
+  | 'gpuHours'
+  | 'wristPos'
+  | 'wristOri'
+  | 'trackingReturn'
+  | 'progress';
 
-const options: Array<{key: SortKey; en: string; zh: string; higher: boolean}> = [
-  {key: 'localError', en: 'Local Error', zh: '局部误差', higher: false},
-  {key: 'trackingReturn', en: 'Tracking Return', zh: 'Tracking Return', higher: true},
-  {key: 'globalRootError', en: 'Global Root', zh: '全局 Root', higher: false},
-  {key: 'wristError', en: 'Wrist Error', zh: '手腕误差', higher: false},
+const columns: Array<{
+  key: MetricKey;
+  en: string;
+  zh: string;
+  unit: string;
+  higher: boolean;
+  digits: number;
+}> = [
+  {key: 'bodyPos', en: 'Body Pos', zh: '身体位置', unit: 'mm', higher: false, digits: 2},
+  {key: 'bodyOri', en: 'Body Ori', zh: '身体姿态', unit: 'rad', higher: false, digits: 3},
+  {key: 'globalRoot', en: 'Global Root', zh: '全局 Root', unit: 'm', higher: false, digits: 3},
+  {key: 'gpuHours', en: 'GPU Hours', zh: 'GPU 时长', unit: 'h', higher: false, digits: 1},
+  {key: 'wristPos', en: 'Wrist Pos', zh: '手腕位置', unit: 'mm', higher: false, digits: 2},
+  {key: 'wristOri', en: 'Wrist Ori', zh: '手腕姿态', unit: 'rad', higher: false, digits: 3},
+  {key: 'trackingReturn', en: 'Tracking Return', zh: 'Tracking Return', unit: '', higher: true, digits: 3},
+  {key: 'progress', en: 'Progress', zh: '完成度', unit: '%', higher: true, digits: 1},
 ];
 
 const copy = {
   en: {
-    sort: 'Rank by', rank: 'Rank', policy: 'Policy', tracking: 'Tracking Return ↑',
-    local: 'Local Error ↓', wrist: 'Wrist Error ↓', root: 'Global Root ↓', progress: 'Progress ↑',
+    rank: 'Rank', policy: 'Policy', legend: 'L = LAFAN-40, P = PHUMA-30, R = Root-90',
   },
   zh: {
-    sort: '排序指标', rank: '排名', policy: 'Policy', tracking: 'Tracking Return ↑',
-    local: '局部误差 ↓', wrist: '手腕误差 ↓', root: '全局 Root ↓', progress: '完成度 ↑',
+    rank: '排名', policy: 'Policy', legend: 'L = LAFAN-40，P = PHUMA-30，R = Root-90',
   },
 };
 
+function metricValue(row: Row, key: MetricKey): number | null {
+  return row.metrics[key].mean;
+}
+
+function formatValue(value: number | null, digits: number): string {
+  return value == null ? '—' : value.toFixed(digits);
+}
+
+function splitLine(row: Row, key: MetricKey, digits: number): string {
+  const splits = row.metrics[key].splits;
+  if (splits.lafan == null && splits.phuma == null && splits.root90 == null) {
+    return '—';
+  }
+  return [
+    `L ${formatValue(splits.lafan, digits)}`,
+    `P ${formatValue(splits.phuma, digits)}`,
+    `R ${formatValue(splits.root90, digits)}`,
+  ].join(' · ');
+}
+
 export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
-  const [sortKey, setSortKey] = useState<SortKey>('localError');
+  const [sortKey, setSortKey] = useState<MetricKey>('bodyPos');
   const text = copy[locale];
-  const selected = options.find((option) => option.key === sortKey)!;
+  const selected = columns.find((option) => option.key === sortKey)!;
   const rows = useMemo(() => [...(data as Row[])].sort((a, b) => {
-    const left = a[sortKey];
-    const right = b[sortKey];
+    const left = metricValue(a, sortKey);
+    const right = metricValue(b, sortKey);
     if (left == null) return 1;
     if (right == null) return -1;
     return selected.higher ? right - left : left - right;
   }), [sortKey, selected.higher]);
 
   return <>
-    <div className={styles.controls} role="group" aria-label={text.sort}>
-      <span>{text.sort}</span>
-      {options.map((option) => <button
-        type="button"
-        key={option.key}
-        className={sortKey === option.key ? styles.active : ''}
-        aria-pressed={sortKey === option.key}
-        onClick={() => setSortKey(option.key)}
-      >{locale === 'zh' ? option.zh : option.en}{option.higher ? ' ↑' : ' ↓'}</button>)}
-    </div>
+    <p className={styles.legend}>{text.legend}</p>
     <div className={styles.tableWrap}>
       <table className={styles.table}>
         <thead><tr>
-          <th>{text.rank}</th><th>{text.policy}</th><th>{text.tracking}</th>
-          <th>{text.local}</th><th>{text.wrist}</th><th>{text.root}</th><th>{text.progress}</th>
+          <th>{text.rank}</th>
+          <th>{text.policy}</th>
+          {columns.map((column) => <th key={column.key}>
+            <button
+              type="button"
+              className={sortKey === column.key ? styles.sortButtonActive : styles.sortButton}
+              onClick={() => setSortKey(column.key)}
+            >
+              {locale === 'zh' ? column.zh : column.en}
+              {column.unit ? ` (${column.unit})` : ''}
+              {column.higher ? ' ↑' : ' ↓'}
+            </button>
+          </th>)}
         </tr></thead>
         <tbody>{rows.map((row, index) => <tr key={row.key} className={index < 3 ? styles.podium : ''}>
-          <td className={styles.rank}>{row[sortKey] == null ? '—' : index + 1}</td>
+          <td className={styles.rank}>{metricValue(row, sortKey) == null ? '—' : index + 1}</td>
           <td className={styles.policy}><a href={row.url} target="_blank" rel="noreferrer">{row.name}</a></td>
-          <td className={sortKey === 'trackingReturn' ? styles.sorted : ''}>
-            <strong>L {row.lafanReturn.toFixed(3)} · P {row.phumaReturn.toFixed(3)} · R {row.root90Return.toFixed(3)}</strong>
-            <small>LAFAN · PHUMA · Root-90</small>
-          </td>
-          <td className={sortKey === 'localError' ? styles.sorted : ''}>
-            <strong>L {row.lafanLocal.toFixed(2)} · P {row.phumaLocal.toFixed(2)} · R {row.root90Local.toFixed(2)}</strong>
-            <small>mm · LAFAN / PHUMA / Root-90</small>
-          </td>
-          <td className={sortKey === 'wristError' ? styles.sorted : ''}>
-            <strong>L {row.lafanWrist.toFixed(2)} · P {row.phumaWrist.toFixed(2)} · R {row.root90Wrist.toFixed(2)}</strong>
-            <small>mm · LAFAN / PHUMA / Root-90</small>
-          </td>
-          <td className={sortKey === 'globalRootError' ? styles.sorted : ''}>
-            <strong>L {row.lafanGlobalRoot.toFixed(3)} · P {row.phumaGlobalRoot.toFixed(3)} · R {row.root90GlobalRoot.toFixed(3)}</strong>
-            <small>m · LAFAN / PHUMA / Root-90</small>
-          </td>
-          <td>
-            <strong>L {row.lafanProgress.toFixed(1)}% · P {row.phumaProgress.toFixed(1)}% · R {row.root90Progress.toFixed(1)}%</strong>
-            <small>LAFAN · PHUMA · Root-90</small>
-          </td>
+          {columns.map((column) => <td key={column.key} className={sortKey === column.key ? styles.sorted : ''}>
+            <strong>{formatValue(metricValue(row, column.key), column.digits)}</strong>
+            <small>{splitLine(row, column.key, column.digits)}</small>
+          </td>)}
         </tr>)}</tbody>
       </table>
     </div>

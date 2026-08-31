@@ -1,38 +1,29 @@
-.controls {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: .55rem;
-  margin: 1.5rem 0 1rem;
-}
-
-.controls span { font-weight: 700; margin-right: .2rem; }
-.controls button {
-  background: var(--ifm-background-surface-color);
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: 999px;
-  color: var(--ifm-font-color-base);
-  cursor: pointer;
-  font-weight: 600;
-  padding: .45rem .8rem;
-}
-.controls button:hover { border-color: var(--ifm-color-primary); }
-.controls .active { background: var(--ifm-color-primary); border-color: var(--ifm-color-primary); color: white; }
+.legend { color: var(--ifm-color-emphasis-700); font-size: .92rem; margin: 1rem 0 .8rem; }
 
 .tableWrap { overflow-x: auto; }
-.table { border-collapse: separate; border-spacing: 0; display: table; font-size: .86rem; min-width: 1120px; width: 100%; }
+.table { border-collapse: separate; border-spacing: 0; display: table; font-size: .86rem; min-width: 1320px; width: 100%; }
 .table th { background: var(--ifm-background-surface-color); position: sticky; top: 0; white-space: nowrap; z-index: 1; }
 .table th, .table td { border-bottom: 1px solid var(--ifm-color-emphasis-200); padding: .7rem .65rem; vertical-align: middle; }
 .table tbody tr:hover { background: var(--ifm-color-emphasis-100); }
 .table strong, .table small { display: block; white-space: nowrap; }
 .table small { color: var(--ifm-color-emphasis-600); font-size: .72rem; margin-top: .18rem; }
+.sortButton, .sortButtonActive {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+  text-align: left;
+}
+.sortButton:hover, .sortButtonActive { color: var(--ifm-color-primary); }
 .rank { font-size: 1rem; font-variant-numeric: tabular-nums; font-weight: 800; text-align: center; width: 3.4rem; }
 .policy { font-size: .95rem; font-weight: 700; min-width: 145px; }
 .sorted { background: color-mix(in srgb, var(--ifm-color-primary) 9%, transparent); }
 .podium .rank { color: var(--ifm-color-primary); }
 
 @media (max-width: 700px) {
-  .controls { align-items: stretch; flex-direction: column; }
-  .controls span { margin-bottom: .15rem; }
   .table { font-size: .8rem; }
 }

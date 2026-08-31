@@ -3,336 +3,994 @@
     "key": "bfm_zero",
     "name": "BFM-Zero",
     "url": "https://lecar-lab.github.io/BFM-Zero/",
-    "trackingReturn": 1.5563922562952903,
-    "localError": 46.960146868325495,
-    "wristError": 67.73894535446608,
-    "globalRootError": 2.1013333325653716,
-    "lafanReturn": 1.2641863134143487,
-    "phumaReturn": 1.6383294588221526,
-    "root90Return": 1.7666609966493698,
-    "lafanProgress": 81.02810409873108,
-    "phumaProgress": 100.0,
-    "root90Progress": 100.0,
-    "lafanLocal": 55.10987280867994,
-    "phumaLocal": 42.643836388985314,
-    "root90Local": 43.126731407311226,
-    "lafanWrist": 80.4907901212573,
-    "phumaWrist": 70.69402324656646,
-    "root90Wrist": 52.0320226955745,
-    "lafanGlobalRoot": 5.656317800842226,
-    "phumaGlobalRoot": 0.17707690360645453,
-    "root90GlobalRoot": 0.47060529324743483
+    "metrics": {
+      "bodyPos": {
+        "mean": 46.960146868325495,
+        "splits": {
+          "lafan": 55.10987280867994,
+          "phuma": 42.643836388985314,
+          "root90": 43.126731407311226
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 2.1013333325653716,
+        "splits": {
+          "lafan": 5.656317800842226,
+          "phuma": 0.17707690360645453,
+          "root90": 0.47060529324743483
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 67.73894535446608,
+        "splits": {
+          "lafan": 80.4907901212573,
+          "phuma": 70.69402324656646,
+          "root90": 52.0320226955745
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.5563922562952903,
+        "splits": {
+          "lafan": 1.2641863134143487,
+          "phuma": 1.6383294588221526,
+          "root90": 1.7666609966493698
+        }
+      },
+      "progress": {
+        "mean": 93.67603469957703,
+        "splits": {
+          "lafan": 81.02810409873108,
+          "phuma": 100.0,
+          "root90": 100.0
+        }
+      }
+    }
   },
   {
     "key": "heft",
     "name": "HEFT",
     "url": "https://heft.axell.top/",
-    "trackingReturn": 1.8414861110878824,
-    "localError": 31.555545090318276,
-    "wristError": 31.272497404090785,
-    "globalRootError": 0.4212203953346169,
-    "lafanReturn": 1.689339498911994,
-    "phumaReturn": 1.9051074642123598,
-    "root90Return": 1.930011370139293,
-    "lafanProgress": 86.543971526517,
-    "phumaProgress": 100.0,
-    "root90Progress": 100.0,
-    "lafanLocal": 31.646800553426147,
-    "phumaLocal": 25.832908321172,
-    "root90Local": 37.18692639635668,
-    "lafanWrist": 31.224702671170235,
-    "phumaWrist": 22.48878326887886,
-    "root90Wrist": 40.10400627222326,
-    "lafanGlobalRoot": 0.9091180335730314,
-    "phumaGlobalRoot": 0.14697412482152383,
-    "root90GlobalRoot": 0.20756902760929533
+    "metrics": {
+      "bodyPos": {
+        "mean": 31.555545090318276,
+        "splits": {
+          "lafan": 31.646800553426147,
+          "phuma": 25.832908321172,
+          "root90": 37.18692639635668
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 0.4212203953346169,
+        "splits": {
+          "lafan": 0.9091180335730314,
+          "phuma": 0.14697412482152383,
+          "root90": 0.20756902760929533
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 31.272497404090785,
+        "splits": {
+          "lafan": 31.224702671170235,
+          "phuma": 22.48878326887886,
+          "root90": 40.10400627222326
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.8414861110878824,
+        "splits": {
+          "lafan": 1.689339498911994,
+          "phuma": 1.9051074642123598,
+          "root90": 1.930011370139293
+        }
+      },
+      "progress": {
+        "mean": 95.51465717550566,
+        "splits": {
+          "lafan": 86.543971526517,
+          "phuma": 100.0,
+          "root90": 100.0
+        }
+      }
+    }
   },
   {
     "key": "holomotion",
     "name": "HoloMotion",
     "url": "https://github.com/HorizonRobotics/HoloMotion",
-    "trackingReturn": 1.690090573968682,
-    "localError": 33.65985631632308,
-    "wristError": 34.284197066531135,
-    "globalRootError": 0.564163213485369,
-    "lafanReturn": 1.4307631889264436,
-    "phumaReturn": 1.8324594056967534,
-    "root90Return": 1.8070491272828493,
-    "lafanProgress": 77.50114113393046,
-    "phumaProgress": 99.16666666666667,
-    "root90Progress": 100.0,
-    "lafanLocal": 36.88964485190809,
-    "phumaLocal": 27.38724953184525,
-    "root90Local": 36.70267456521591,
-    "lafanWrist": 39.315098989754915,
-    "phumaWrist": 26.891656716664635,
-    "root90Wrist": 36.64583549317386,
-    "lafanGlobalRoot": 1.3417248776182533,
-    "phumaGlobalRoot": 0.12900354110946258,
-    "root90GlobalRoot": 0.2217612217283911
+    "metrics": {
+      "bodyPos": {
+        "mean": 33.65985631632308,
+        "splits": {
+          "lafan": 36.88964485190809,
+          "phuma": 27.38724953184525,
+          "root90": 36.70267456521591
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 0.564163213485369,
+        "splits": {
+          "lafan": 1.3417248776182533,
+          "phuma": 0.12900354110946258,
+          "root90": 0.2217612217283911
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 34.284197066531135,
+        "splits": {
+          "lafan": 39.315098989754915,
+          "phuma": 26.891656716664635,
+          "root90": 36.64583549317386
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.690090573968682,
+        "splits": {
+          "lafan": 1.4307631889264436,
+          "phuma": 1.8324594056967534,
+          "root90": 1.8070491272828493
+        }
+      },
+      "progress": {
+        "mean": 92.22260260019904,
+        "splits": {
+          "lafan": 77.50114113393046,
+          "phuma": 99.16666666666667,
+          "root90": 100.0
+        }
+      }
+    }
   },
   {
     "key": "humanoid_gpt",
     "name": "Humanoid-GPT",
     "url": "https://github.com/GalaxyGeneralRobotics/Humanoid-GPT",
-    "trackingReturn": 1.6164367000620548,
-    "localError": 44.26321033388376,
-    "wristError": 55.4237973117442,
-    "globalRootError": 0.9764289868581626,
-    "lafanReturn": 1.2478777675816253,
-    "phumaReturn": 1.799879406188598,
-    "root90Return": 1.8015529264159411,
-    "lafanProgress": 72.20651064506262,
-    "phumaProgress": 100.0,
-    "root90Progress": 100.0,
-    "lafanLocal": 52.026282995939255,
-    "phumaLocal": 35.294843899707004,
-    "root90Local": 45.46850410600503,
-    "lafanWrist": 66.16352899000049,
-    "phumaWrist": 43.92891259243091,
-    "root90Wrist": 56.178950352801216,
-    "lafanGlobalRoot": 2.3451110327616336,
-    "phumaGlobalRoot": 0.1717715150366227,
-    "root90GlobalRoot": 0.41240441277623174
+    "metrics": {
+      "bodyPos": {
+        "mean": 44.26321033388376,
+        "splits": {
+          "lafan": 52.026282995939255,
+          "phuma": 35.294843899707004,
+          "root90": 45.46850410600503
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 0.9764289868581626,
+        "splits": {
+          "lafan": 2.3451110327616336,
+          "phuma": 0.1717715150366227,
+          "root90": 0.41240441277623174
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 55.4237973117442,
+        "splits": {
+          "lafan": 66.16352899000049,
+          "phuma": 43.92891259243091,
+          "root90": 56.178950352801216
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.6164367000620548,
+        "splits": {
+          "lafan": 1.2478777675816253,
+          "phuma": 1.799879406188598,
+          "root90": 1.8015529264159411
+        }
+      },
+      "progress": {
+        "mean": 90.7355035483542,
+        "splits": {
+          "lafan": 72.20651064506262,
+          "phuma": 100.0,
+          "root90": 100.0
+        }
+      }
+    }
   },
   {
     "key": "mimic_lite_base",
     "name": "MimicLite-Base",
     "url": "https://github.com/EGalahad/mimic-lite",
-    "trackingReturn": 1.554320553415477,
-    "localError": 50.6021497702157,
-    "wristError": 62.91165193542838,
-    "globalRootError": 0.587665417548959,
-    "lafanReturn": 1.2224208415427118,
-    "phumaReturn": 1.707117094154019,
-    "root90Return": 1.7334237245497002,
-    "lafanProgress": 70.29015412756266,
-    "phumaProgress": 97.92792792792793,
-    "root90Progress": 100.0,
-    "lafanLocal": 56.565696373581886,
-    "phumaLocal": 41.894508649905525,
-    "root90Local": 53.346244287159706,
-    "lafanWrist": 68.77508303150535,
-    "phumaWrist": 54.76799613485734,
-    "root90Wrist": 65.19187663992246,
-    "lafanGlobalRoot": 1.259102701023221,
-    "phumaGlobalRoot": 0.16017242850114902,
-    "root90GlobalRoot": 0.3437211231225067
+    "metrics": {
+      "bodyPos": {
+        "mean": 50.6021497702157,
+        "splits": {
+          "lafan": 56.565696373581886,
+          "phuma": 41.894508649905525,
+          "root90": 53.346244287159706
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 0.587665417548959,
+        "splits": {
+          "lafan": 1.259102701023221,
+          "phuma": 0.16017242850114902,
+          "root90": 0.3437211231225067
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 62.91165193542838,
+        "splits": {
+          "lafan": 68.77508303150535,
+          "phuma": 54.76799613485734,
+          "root90": 65.19187663992246
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.554320553415477,
+        "splits": {
+          "lafan": 1.2224208415427118,
+          "phuma": 1.707117094154019,
+          "root90": 1.7334237245497002
+        }
+      },
+      "progress": {
+        "mean": 89.40602735183019,
+        "splits": {
+          "lafan": 70.29015412756266,
+          "phuma": 97.92792792792793,
+          "root90": 100.0
+        }
+      }
+    }
   },
   {
     "key": "mimic_lite_huge",
     "name": "MimicLite-Huge",
     "url": "https://github.com/EGalahad/mimic-lite",
-    "trackingReturn": 1.7768774240181011,
-    "localError": 36.33681963094407,
-    "wristError": 41.528867123027645,
-    "globalRootError": 0.23346310376914012,
-    "lafanReturn": 1.6388719904628746,
-    "phumaReturn": 1.8273009266474654,
-    "root90Return": 1.8644593549439632,
-    "lafanProgress": 88.14216259230363,
-    "phumaProgress": 100.0,
-    "root90Progress": 100.0,
-    "lafanLocal": 37.06890847533941,
-    "phumaLocal": 30.725286869953077,
-    "root90Local": 41.21626354753971,
-    "lafanWrist": 41.64539901539683,
-    "phumaWrist": 35.68873029823104,
-    "root90Wrist": 47.252472055455044,
-    "lafanGlobalRoot": 0.4028691022656858,
-    "phumaGlobalRoot": 0.13043259003510077,
-    "root90GlobalRoot": 0.16708761900663377
+    "metrics": {
+      "bodyPos": {
+        "mean": 36.33681963094407,
+        "splits": {
+          "lafan": 37.06890847533941,
+          "phuma": 30.725286869953077,
+          "root90": 41.21626354753971
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 0.23346310376914012,
+        "splits": {
+          "lafan": 0.4028691022656858,
+          "phuma": 0.13043259003510077,
+          "root90": 0.16708761900663377
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 41.528867123027645,
+        "splits": {
+          "lafan": 41.64539901539683,
+          "phuma": 35.68873029823104,
+          "root90": 47.252472055455044
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.7768774240181011,
+        "splits": {
+          "lafan": 1.6388719904628746,
+          "phuma": 1.8273009266474654,
+          "root90": 1.8644593549439632
+        }
+      },
+      "progress": {
+        "mean": 96.04738753076788,
+        "splits": {
+          "lafan": 88.14216259230363,
+          "phuma": 100.0,
+          "root90": 100.0
+        }
+      }
+    }
   },
   {
     "key": "mimic_lite_v1_1",
     "name": "MimicLite-v1.1",
     "url": "https://github.com/EGalahad/mimic-lite",
-    "trackingReturn": 1.8270327809462386,
-    "localError": 28.71825412536661,
-    "wristError": 31.203348980354217,
-    "globalRootError": 0.3104904873331112,
-    "lafanReturn": 1.6426820505136146,
-    "phumaReturn": 1.9053702155001608,
-    "root90Return": 1.9330460768249405,
-    "lafanProgress": 82.81573002271097,
-    "phumaProgress": 100.0,
-    "root90Progress": 100.0,
-    "lafanLocal": 28.350964188575745,
-    "phumaLocal": 24.285580435146887,
-    "root90Local": 33.51821775237719,
-    "lafanWrist": 30.863225203938782,
-    "phumaWrist": 23.82153905928135,
-    "root90Wrist": 38.92528267784251,
-    "lafanGlobalRoot": 0.5930620374158024,
-    "phumaGlobalRoot": 0.15730195986106993,
-    "root90GlobalRoot": 0.18110746472246117
+    "metrics": {
+      "bodyPos": {
+        "mean": 28.71825412536661,
+        "splits": {
+          "lafan": 28.350964188575745,
+          "phuma": 24.285580435146887,
+          "root90": 33.51821775237719
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 0.3104904873331112,
+        "splits": {
+          "lafan": 0.5930620374158024,
+          "phuma": 0.15730195986106993,
+          "root90": 0.18110746472246117
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 31.203348980354217,
+        "splits": {
+          "lafan": 30.863225203938782,
+          "phuma": 23.82153905928135,
+          "root90": 38.92528267784251
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.8270327809462386,
+        "splits": {
+          "lafan": 1.6426820505136146,
+          "phuma": 1.9053702155001608,
+          "root90": 1.9330460768249405
+        }
+      },
+      "progress": {
+        "mean": 94.27191000757033,
+        "splits": {
+          "lafan": 82.81573002271097,
+          "phuma": 100.0,
+          "root90": 100.0
+        }
+      }
+    }
   },
   {
     "key": "scalebfm_m",
     "name": "ScaleBFM-M",
     "url": "https://github.com/zengweishuai/ScaleBFM",
-    "trackingReturn": 1.6888828931086899,
-    "localError": 41.03460849642202,
-    "wristError": 45.551161512870486,
-    "globalRootError": 0.566838956448353,
-    "lafanReturn": 1.4105882336652757,
-    "phumaReturn": 1.8095078320338809,
-    "root90Return": 1.8465526136269133,
-    "lafanProgress": 77.39309033182971,
-    "phumaProgress": 100.0,
-    "root90Progress": 100.0,
-    "lafanLocal": 50.45694774016738,
-    "phumaLocal": 35.095886078973614,
-    "root90Local": 37.55099167012506,
-    "lafanWrist": 57.977001275867224,
-    "phumaWrist": 36.60264611244202,
-    "root90Wrist": 42.0738371503022,
-    "lafanGlobalRoot": 1.2201762514188885,
-    "phumaGlobalRoot": 0.14858068156366547,
-    "root90GlobalRoot": 0.33175993636250495
+    "metrics": {
+      "bodyPos": {
+        "mean": 41.03460849642202,
+        "splits": {
+          "lafan": 50.45694774016738,
+          "phuma": 35.095886078973614,
+          "root90": 37.55099167012506
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 0.566838956448353,
+        "splits": {
+          "lafan": 1.2201762514188885,
+          "phuma": 0.14858068156366547,
+          "root90": 0.33175993636250495
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 45.551161512870486,
+        "splits": {
+          "lafan": 57.977001275867224,
+          "phuma": 36.60264611244202,
+          "root90": 42.0738371503022
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.6888828931086899,
+        "splits": {
+          "lafan": 1.4105882336652757,
+          "phuma": 1.8095078320338809,
+          "root90": 1.8465526136269133
+        }
+      },
+      "progress": {
+        "mean": 92.46436344394324,
+        "splits": {
+          "lafan": 77.39309033182971,
+          "phuma": 100.0,
+          "root90": 100.0
+        }
+      }
+    }
   },
   {
     "key": "scalebfm_xl",
     "name": "ScaleBFM-XL",
     "url": "https://github.com/zengweishuai/ScaleBFM",
-    "trackingReturn": 1.749589580384472,
-    "localError": 40.733317020176735,
-    "wristError": 51.020456698757634,
-    "globalRootError": 0.5254682137285945,
-    "lafanReturn": 1.54540370103755,
-    "phumaReturn": 1.8659144792810876,
-    "root90Return": 1.8374505608347782,
-    "lafanProgress": 84.87650462920188,
-    "phumaProgress": 100.0,
-    "root90Progress": 100.0,
-    "lafanLocal": 48.78237163648009,
-    "phumaLocal": 31.2936594709754,
-    "root90Local": 42.12391995307472,
-    "lafanWrist": 56.542848981916904,
-    "phumaWrist": 36.598570086061954,
-    "root90Wrist": 59.91995102829403,
-    "lafanGlobalRoot": 1.1890488374978303,
-    "phumaGlobalRoot": 0.12236207540457447,
-    "root90GlobalRoot": 0.2649937282833788
+    "metrics": {
+      "bodyPos": {
+        "mean": 40.733317020176735,
+        "splits": {
+          "lafan": 48.78237163648009,
+          "phuma": 31.2936594709754,
+          "root90": 42.12391995307472
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 0.5254682137285945,
+        "splits": {
+          "lafan": 1.1890488374978303,
+          "phuma": 0.12236207540457447,
+          "root90": 0.2649937282833788
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 51.020456698757634,
+        "splits": {
+          "lafan": 56.542848981916904,
+          "phuma": 36.598570086061954,
+          "root90": 59.91995102829403
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.749589580384472,
+        "splits": {
+          "lafan": 1.54540370103755,
+          "phuma": 1.8659144792810876,
+          "root90": 1.8374505608347782
+        }
+      },
+      "progress": {
+        "mean": 94.95883487640062,
+        "splits": {
+          "lafan": 84.87650462920188,
+          "phuma": 100.0,
+          "root90": 100.0
+        }
+      }
+    }
   },
   {
     "key": "sonic_g1",
     "name": "SONIC",
     "url": "https://nvlabs.github.io/GEAR-SONIC/",
-    "trackingReturn": 1.6453628080293952,
-    "localError": 38.212945474380696,
-    "wristError": 39.819184288865436,
-    "globalRootError": 0.7078188599932386,
-    "lafanReturn": 1.4011279820495603,
-    "phumaReturn": 1.813064138493194,
-    "root90Return": 1.7218963035454313,
-    "lafanProgress": 81.04451410339516,
-    "phumaProgress": 100.0,
-    "root90Progress": 100.0,
-    "lafanLocal": 42.02810991555452,
-    "phumaLocal": 27.55205323919654,
-    "root90Local": 45.058673268391026,
-    "lafanWrist": 43.003622675314546,
-    "phumaWrist": 29.182483162730932,
-    "root90Wrist": 47.27144702855084,
-    "lafanGlobalRoot": 1.666388788819313,
-    "phumaGlobalRoot": 0.1394033638915668,
-    "root90GlobalRoot": 0.31766442726883626
+    "metrics": {
+      "bodyPos": {
+        "mean": 38.212945474380696,
+        "splits": {
+          "lafan": 42.02810991555452,
+          "phuma": 27.55205323919654,
+          "root90": 45.058673268391026
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 0.7078188599932386,
+        "splits": {
+          "lafan": 1.666388788819313,
+          "phuma": 0.1394033638915668,
+          "root90": 0.31766442726883626
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 39.819184288865436,
+        "splits": {
+          "lafan": 43.003622675314546,
+          "phuma": 29.182483162730932,
+          "root90": 47.27144702855084
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.6453628080293952,
+        "splits": {
+          "lafan": 1.4011279820495603,
+          "phuma": 1.813064138493194,
+          "root90": 1.7218963035454313
+        }
+      },
+      "progress": {
+        "mean": 93.68150470113171,
+        "splits": {
+          "lafan": 81.04451410339516,
+          "phuma": 100.0,
+          "root90": 100.0
+        }
+      }
+    }
   },
   {
     "key": "sonic_low_latency",
     "name": "SONIC-Low-Latency",
     "url": "https://nvlabs.github.io/GEAR-SONIC/",
-    "trackingReturn": 1.6403746368265804,
-    "localError": 39.02108305375333,
-    "wristError": 41.89826156081701,
-    "globalRootError": 0.7196572380692318,
-    "lafanReturn": 1.4135522928501378,
-    "phumaReturn": 1.7524173653113306,
-    "root90Return": 1.7551542523182722,
-    "lafanProgress": 80.2739537993191,
-    "phumaProgress": 100.0,
-    "root90Progress": 100.0,
-    "lafanLocal": 45.77171327546239,
-    "phumaLocal": 31.688455740610756,
-    "root90Local": 39.603080145186844,
-    "lafanWrist": 47.47709357179701,
-    "phumaWrist": 34.514711455752455,
-    "root90Wrist": 43.70297965490156,
-    "lafanGlobalRoot": 1.5110511077567934,
-    "phumaGlobalRoot": 0.17405481127401193,
-    "root90GlobalRoot": 0.47386579517689015
+    "metrics": {
+      "bodyPos": {
+        "mean": 39.02108305375333,
+        "splits": {
+          "lafan": 45.77171327546239,
+          "phuma": 31.688455740610756,
+          "root90": 39.603080145186844
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 0.7196572380692318,
+        "splits": {
+          "lafan": 1.5110511077567934,
+          "phuma": 0.17405481127401193,
+          "root90": 0.47386579517689015
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 41.89826156081701,
+        "splits": {
+          "lafan": 47.47709357179701,
+          "phuma": 34.514711455752455,
+          "root90": 43.70297965490156
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.6403746368265804,
+        "splits": {
+          "lafan": 1.4135522928501378,
+          "phuma": 1.7524173653113306,
+          "root90": 1.7551542523182722
+        }
+      },
+      "progress": {
+        "mean": 93.4246512664397,
+        "splits": {
+          "lafan": 80.2739537993191,
+          "phuma": 100.0,
+          "root90": 100.0
+        }
+      }
+    }
   },
   {
     "key": "sonic_v1_1",
     "name": "SONIC-v1.1",
     "url": "https://nvlabs.github.io/GEAR-SONIC/",
-    "trackingReturn": 1.6685873233249964,
-    "localError": 37.32566313335189,
-    "wristError": 39.762380838187205,
-    "globalRootError": 0.6627241753559147,
-    "lafanReturn": 1.4234493723997395,
-    "phumaReturn": 1.7798040349904523,
-    "root90Return": 1.8025085625847972,
-    "lafanProgress": 78.90938922165188,
-    "phumaProgress": 100.0,
-    "root90Progress": 100.0,
-    "lafanLocal": 42.891962453722954,
-    "phumaLocal": 30.689937062561512,
-    "root90Local": 38.395089883771206,
-    "lafanWrist": 45.6505733076483,
-    "phumaWrist": 33.380677488942936,
-    "root90Wrist": 40.25589171797037,
-    "lafanGlobalRoot": 1.4446542993187905,
-    "phumaGlobalRoot": 0.1556213488491873,
-    "root90GlobalRoot": 0.38789687789976596
+    "metrics": {
+      "bodyPos": {
+        "mean": 37.32566313335189,
+        "splits": {
+          "lafan": 42.891962453722954,
+          "phuma": 30.689937062561512,
+          "root90": 38.395089883771206
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 0.6627241753559147,
+        "splits": {
+          "lafan": 1.4446542993187905,
+          "phuma": 0.1556213488491873,
+          "root90": 0.38789687789976596
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 39.762380838187205,
+        "splits": {
+          "lafan": 45.6505733076483,
+          "phuma": 33.380677488942936,
+          "root90": 40.25589171797037
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.6685873233249964,
+        "splits": {
+          "lafan": 1.4234493723997395,
+          "phuma": 1.7798040349904523,
+          "root90": 1.8025085625847972
+        }
+      },
+      "progress": {
+        "mean": 92.96979640721729,
+        "splits": {
+          "lafan": 78.90938922165188,
+          "phuma": 100.0,
+          "root90": 100.0
+        }
+      }
+    }
   },
   {
     "key": "teleopit",
     "name": "TeleopIt",
     "url": "https://github.com/BotRunner64/Teleopit",
-    "trackingReturn": 1.6641979164905065,
-    "localError": 45.56232710472411,
-    "wristError": 59.60093763208499,
-    "globalRootError": 0.48684774287458926,
-    "lafanReturn": 1.4158585118588354,
-    "phumaReturn": 1.7826016998091712,
-    "root90Return": 1.794133537803513,
-    "lafanProgress": 78.92717890291246,
-    "phumaProgress": 99.84234234234233,
-    "root90Progress": 100.0,
-    "lafanLocal": 55.21727306768298,
-    "phumaLocal": 38.658186358710125,
-    "root90Local": 42.811521887779236,
-    "lafanWrist": 71.4942286722362,
-    "phumaWrist": 51.63294915109873,
-    "root90Wrist": 55.67563507292006,
-    "lafanGlobalRoot": 1.1494722267612816,
-    "phumaGlobalRoot": 0.13742495874563854,
-    "root90GlobalRoot": 0.17364604311684767
+    "metrics": {
+      "bodyPos": {
+        "mean": 45.56232710472411,
+        "splits": {
+          "lafan": 55.21727306768298,
+          "phuma": 38.658186358710125,
+          "root90": 42.811521887779236
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 0.48684774287458926,
+        "splits": {
+          "lafan": 1.1494722267612816,
+          "phuma": 0.13742495874563854,
+          "root90": 0.17364604311684767
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 59.60093763208499,
+        "splits": {
+          "lafan": 71.4942286722362,
+          "phuma": 51.63294915109873,
+          "root90": 55.67563507292006
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.6641979164905065,
+        "splits": {
+          "lafan": 1.4158585118588354,
+          "phuma": 1.7826016998091712,
+          "root90": 1.794133537803513
+        }
+      },
+      "progress": {
+        "mean": 92.92317374841826,
+        "splits": {
+          "lafan": 78.92717890291246,
+          "phuma": 99.84234234234233,
+          "root90": 100.0
+        }
+      }
+    }
   },
   {
     "key": "twist2",
     "name": "TWIST2",
     "url": "https://github.com/amazon-far/TWIST2",
-    "trackingReturn": 1.1435188785533787,
-    "localError": 52.53869398600525,
-    "wristError": 65.99335618731048,
-    "globalRootError": 1.8732773804485248,
-    "lafanReturn": 0.581496503842457,
-    "phumaReturn": 1.3972067519041438,
-    "root90Return": 1.4518533799135354,
-    "lafanProgress": 40.49939811306825,
-    "phumaProgress": 99.63986713986714,
-    "root90Progress": 100.0,
-    "lafanLocal": 59.50404852628708,
-    "phumaLocal": 49.8420100659132,
-    "root90Local": 48.270023365815476,
-    "lafanWrist": 75.00210907310247,
-    "phumaWrist": 65.68621769547462,
-    "root90Wrist": 57.291741793354355,
-    "lafanGlobalRoot": 4.676223051920533,
-    "phumaGlobalRoot": 0.2850960378224651,
-    "root90GlobalRoot": 0.6585130516025756
+    "metrics": {
+      "bodyPos": {
+        "mean": 52.53869398600525,
+        "splits": {
+          "lafan": 59.50404852628708,
+          "phuma": 49.8420100659132,
+          "root90": 48.270023365815476
+        }
+      },
+      "bodyOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "mean": 1.8732773804485248,
+        "splits": {
+          "lafan": 4.676223051920533,
+          "phuma": 0.2850960378224651,
+          "root90": 0.6585130516025756
+        }
+      },
+      "gpuHours": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristPos": {
+        "mean": 65.99335618731048,
+        "splits": {
+          "lafan": 75.00210907310247,
+          "phuma": 65.68621769547462,
+          "root90": 57.291741793354355
+        }
+      },
+      "wristOri": {
+        "mean": null,
+        "splits": {
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "mean": 1.1435188785533787,
+        "splits": {
+          "lafan": 0.581496503842457,
+          "phuma": 1.3972067519041438,
+          "root90": 1.4518533799135354
+        }
+      },
+      "progress": {
+        "mean": 80.04642175097847,
+        "splits": {
+          "lafan": 40.49939811306825,
+          "phuma": 99.63986713986714,
+          "root90": 100.0
+        }
+      }
+    }
   }
 ]

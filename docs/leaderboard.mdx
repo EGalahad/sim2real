@@ -23,10 +23,15 @@ Tracking Return measures pelvis-XY/yaw-aligned local-pose quality. Progress and 
 
 ## Protocol
 
-- **Tracking Return:** mean of the three split-level normalized returns; higher is better.
-- **Local Error:** mean LAFAN-40, PHUMA-30, and Root-90 local-body position error; lower is better.
-- **Wrist Error:** mean LAFAN-40, PHUMA-30, and Root-90 left/right wrist position error; lower is better.
-- **Global Root:** mean root-trajectory error across the three splits; lower is better.
+- `L = LAFAN-40`, `P = PHUMA-30`, `R = Root-90`.
+- `Body Pos`: mean local-body position error across the three splits; lower is better.
+- `Body Ori`: mean local-body orientation error across the three splits; lower is better.
+- `Global Root`: mean root-only tracking error across the three splits; lower is better.
+- `GPU Hours`: training cost when recorded; missing cells mean no checked-in source was available.
+- `Wrist Pos`: mean left/right wrist position error across the three splits; lower is better.
+- `Wrist Ori`: mean left/right wrist orientation error across the three splits; lower is better.
+- `Tracking Return`: mean of the three split-level normalized returns; higher is better.
+- `Progress`: mean split-level motion completion; higher is better.
 - All policies use seed 0, `initial_pause_s=0.0`, no runtime cap, and the same failure conditions. See [Cross-Codebase Tracking Evaluation](/tutorials/cross-codebase-evaluation) for the full definition and reproduction command.
 
 Last updated: August 31, 2026.

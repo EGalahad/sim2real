@@ -25,16 +25,19 @@ def test_leaderboard_snapshot_has_three_finite_splits() -> None:
 
     for row in page:
         values = [
-            row[f"{split}{metric}"]
+            row["metrics"][metric]["splits"][split]
+            for metric in ("bodyPos", "globalRoot", "wristPos", "trackingReturn", "progress")
             for split in ("lafan", "phuma", "root90")
-            for metric in ("Return", "Progress", "Local", "Wrist", "GlobalRoot")
         ]
         assert all(math.isfinite(value) for value in values)
         assert math.isclose(
-            row["localError"],
-            sum(row[f"{split}Local"] for split in ("lafan", "phuma", "root90"))
+            row["metrics"]["bodyPos"]["mean"],
+            sum(row["metrics"]["bodyPos"]["splits"][split] for split in ("lafan", "phuma", "root90"))
             / 3.0,
         )
 
     v1_1 = next(row for row in page if row["key"] == "mimic_lite_v1_1")
-    assert all(v1_1[f"{split}Wrist"] > 0 for split in ("lafan", "phuma", "root90"))
+    assert all(v1_1["metrics"]["wristPos"]["splits"][split] > 0 for split in ("lafan", "phuma", "root90"))
+    assert v1_1["metrics"]["bodyOri"]["mean"] is None
+    assert v1_1["metrics"]["wristOri"]["mean"] is None
+    assert v1_1["metrics"]["gpuHours"]["mean"] is None
