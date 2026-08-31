@@ -54,20 +54,21 @@ uv run sim2real/rl_policy/tracking.py \
 | --- | --- | --- |
 | MimicLite-PPO | `checkpoints/mimic-lite/ppo/policy.yaml` | 最新 16x16384 Huge PPO release。 |
 | MimicLite-ROA | `checkpoints/mimic-lite/roa/policy.yaml` | 最新 16x16384 PPO-ROA student release。 |
-| BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | Latent-conditioned motion tracker。 |
+| HEFT | `checkpoints/heft` | PMG 和 compliance 两个版本。 |
 | ScaleBFM | `checkpoints/scalebfm` | [WeishuaiZeng/ScaleBFM](https://huggingface.co/WeishuaiZeng/ScaleBFM) 的 Humanoid Transformer M 和 XL ONNX exports。 |
 | SONIC release | `checkpoints/sonic/release` | Release G1 和 SMPL encoder variants。 |
-| SONIC v1.1 | `checkpoints/sonic/v1_1/g1/policy.yaml` | 使用 heading-normalized reference orientation 的 G1 policy。 |
+| GRIT v0.0.1 | `checkpoints/grit/v0_0_1/policy.yaml` | 九帧参考上下文和十帧本体感知历史。 |
 | SONIC low-latency | `checkpoints/sonic/low_latency` | Low-latency G1 和 SMPL variants。 |
-| HoloMotion v1.4.0 | `checkpoints/holomotion/v1_4_0/policy.yaml` | 使用官方未修改 ONNX：[HorizonRobotics/HoloMotion_models](https://huggingface.co/HorizonRobotics/HoloMotion_models/resolve/main/HoloMotion_motion_tracking_model_v1.4.0/exported/model_14000.onnx)，下载后放到 `checkpoints/holomotion/v1_4_0/policy.onnx`。 |
+| SONIC v1.1 | `checkpoints/sonic/v1_1/g1/policy.yaml` | 使用 heading-normalized reference orientation 的 G1 policy。 |
+| BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | Latent-conditioned motion tracker。 |
 | TeleopIT | `checkpoints/teleopit/policy.yaml` | TeleopIT policy wrapper。 |
 | Humanoid-GPT | `checkpoints/humanoid-gpt/policy.yaml` | Humanoid-GPT policy wrapper。 |
-| HEFT | `checkpoints/heft` | PMG 和 compliance 两个版本。 |
+| HoloMotion v1.4.0 | `checkpoints/holomotion/v1_4_0/policy.yaml` | 使用官方未修改 ONNX：[HorizonRobotics/HoloMotion_models](https://huggingface.co/HorizonRobotics/HoloMotion_models/resolve/main/HoloMotion_motion_tracking_model_v1.4.0/exported/model_14000.onnx)，下载后放到 `checkpoints/holomotion/v1_4_0/policy.onnx`。 |
 | TWIST2 | `checkpoints/twist2/policy.yaml` | TWIST2 policy wrapper。 |
 
 ![统一的跨代码库动作跟踪评测](assets/mimic_lite_cross_codebase_tracking_eval.png)
 
-图中使用 13 个 policy variants 的全新结果，数据集为 LAFAN-40、PHUMA-30
+图中使用 14 个 policy variants 的全新结果，数据集为 LAFAN-40、PHUMA-30
 和清洗后的 Root-90。Root-90 每段沿标注的前进、后退或侧移方向持续运动，
 root XY 位移为 1.5--3.0 m。
 
@@ -75,9 +76,9 @@ root XY 位移为 1.5--3.0 m。
 其定义为最远 future reference frame 对应的时间。所有数值均采用统一的
 50 Hz reference-motion contract。
 
-| Policy | MimicLite-PPO | MimicLite-ROA | BFM-Zero | ScaleBFM | SONIC release | SONIC low-latency | HoloMotion | TeleopIT | Humanoid-GPT | HEFT | TWIST2 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Motion-lookahead latency | 0.08 s | 0.08 s | 0.12 s | 0.10 s | 0.90 s | 0.18 s | 0.20 s | 0.00 s | 0.02 s | 0.12 s | 0.00 s |
+| Policy | MimicLite-PPO | MimicLite-ROA | HEFT | ScaleBFM M | ScaleBFM XL | SONIC | GRIT v0.0.1 | SONIC low-latency | SONIC v1.1 | BFM-Zero | TeleopIT | Humanoid-GPT | HoloMotion | TWIST2 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Motion-lookahead latency | 0.08 s | 0.08 s | 0.12 s | 0.10 s | 0.10 s | 0.90 s | 0.26 s | 0.18 s | 0.90 s | 0.12 s | 0.00 s | 0.02 s | 0.20 s | 0.00 s |
 
 ## 真机环境
 
