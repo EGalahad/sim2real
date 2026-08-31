@@ -1,0 +1,266 @@
+{
+  "mimic_lite_ppo": {
+    "display_name": "MimicLite-PPO",
+    "value_gpu_hours": 92.321,
+    "status": "derived",
+    "confidence": "high",
+    "policy_family_match": "exact public release",
+    "authoritative_sources": [
+      {
+        "kind": "official_readme",
+        "url": "https://github.com/Roboparty/MimicLite/blob/main/README.md",
+        "fact": "README publishes 92.3 GPU hours for MimicLite-PPO on RTX 4090."
+      },
+      {
+        "kind": "checked_in_report",
+        "url": "tasks/mimic-v08-release-16x16384/final_report.md",
+        "fact": "Same release pair report records PPO run 4234dd57 and exact training/export provenance."
+      }
+    ],
+    "derivation": "Published from authoritative training record as GPU hours for the release pair; local release row uses 92.321 GPU h.",
+    "repo_issue_search": {
+      "query": "repo:Roboparty/MimicLite compute gpu hours",
+      "result": "not found via local GitHub search tooling / no checked maintainer reply used"
+    },
+    "notes": "Current public repo now exposes this value directly."
+  },
+  "mimic_lite_roa": {
+    "display_name": "MimicLite-ROA",
+    "value_gpu_hours": 173.208,
+    "status": "derived",
+    "confidence": "high",
+    "policy_family_match": "exact public release",
+    "authoritative_sources": [
+      {
+        "kind": "official_readme",
+        "url": "https://github.com/Roboparty/MimicLite/blob/main/README.md",
+        "fact": "README publishes 173.2 GPU hours for MimicLite-ROA on RTX 4090."
+      },
+      {
+        "kind": "checked_in_report",
+        "url": "tasks/mimic-v08-release-16x16384/final_report.md",
+        "fact": "Same release pair report records the train/adapt/finetune runs culminating in release 9287d8e0."
+      }
+    ],
+    "derivation": "Published from authoritative training record as GPU hours for the release pair; local release row uses 173.208 GPU h.",
+    "repo_issue_search": {
+      "query": "repo:Roboparty/MimicLite compute gpu hours",
+      "result": "not found via local GitHub search tooling / no checked maintainer reply used"
+    },
+    "notes": "Current public repo now exposes this value directly."
+  },
+  "sonic_family": {
+    "policies": [
+      "sonic_g1",
+      "sonic_low_latency",
+      "sonic_v1_1"
+    ],
+    "display_name": "SONIC family",
+    "value_gpu_hours": 21000.0,
+    "status": "direct_reported",
+    "confidence": "high",
+    "policy_family_match": "reported training family used for SONIC release comparison",
+    "authoritative_sources": [
+      {
+        "kind": "official_paper",
+        "url": "https://www.science.org/doi/10.1126/scirobotics.aed4592",
+        "fact": "SONIC was trained on 128 GPUs over 7 days, more than 21,000 GPU hours."
+      },
+      {
+        "kind": "checked_in_report",
+        "url": "tasks/rp_tech_report_20260705/english/section/01-intro.tex",
+        "fact": "Checked-in report quotes the same 128 GPUs \u00d7 7 days \u2248 21,000 GPU h figure."
+      },
+      {
+        "kind": "checked_in_results",
+        "url": "tasks/rp_tech_report_20260705/english/data/cross_codebase_eval_20260710/mimic_lite_size_candidates_seed0_pause0_rp4090_2_20260713/RESULTS.md",
+        "fact": "Checked-in results promote the official SONIC 21,000 GPU h total."
+      }
+    ],
+    "derivation": "none; direct reported total used for all retained SONIC policy variants in the leaderboard until variant-specific training compute is officially separated.",
+    "repo_issue_search": {
+      "query": "site:github.com/NVIDIA or official SONIC repo/issues training GPU",
+      "result": "no official GitHub issue/discussion source identified; used official paper instead"
+    },
+    "notes": "Applied to SONIC release, SONIC low-latency, and SONIC v1.1 because the leaderboard currently groups them under the official SONIC training family and no variant-specific official training-compute source was found."
+  },
+  "holomotion": {
+    "display_name": "HoloMotion",
+    "value_gpu_hours": 9200.0,
+    "status": "direct_reported",
+    "confidence": "high",
+    "policy_family_match": "official HoloMotion-1 model family",
+    "authoritative_sources": [
+      {
+        "kind": "official_report",
+        "url": "https://arxiv.org/html/2605.15336v1",
+        "fact": "All HoloMotion-1 models are trained on 64 RTX 5090 GPUs for approximately six days, roughly 9,200 GPU hours total."
+      },
+      {
+        "kind": "official_repo",
+        "url": "https://github.com/HorizonRobotics/HoloMotion",
+        "fact": "Official repository points to HoloMotion-1 technical report and training workflow."
+      }
+    ],
+    "derivation": "none; direct reported total.",
+    "repo_issue_search": {
+      "query": "site:github.com/HorizonRobotics/HoloMotion/issues training GPU",
+      "result": "no relevant issue/discussion hits; repo page itself reports Issues 0 in current crawl"
+    },
+    "notes": "Used for the public HoloMotion release family represented in the leaderboard."
+  },
+  "humanoid_gpt": {
+    "display_name": "Humanoid-GPT",
+    "value_gpu_hours": 15000.0,
+    "status": "direct_reported",
+    "confidence": "high",
+    "policy_family_match": "official release family",
+    "authoritative_sources": [
+      {
+        "kind": "official_paper",
+        "url": "https://arxiv.org/html/2606.03985v1",
+        "fact": "The main paper reports a total compute budget of roughly 15,000 GPU hours."
+      },
+      {
+        "kind": "official_repo",
+        "url": "https://github.com/GalaxyGeneralRobotics/Humanoid-GPT",
+        "fact": "Official repository identifies the same model family and paper."
+      }
+    ],
+    "derivation": "none; direct reported total.",
+    "repo_issue_search": {
+      "query": "site:github.com/GalaxyGeneralRobotics/Humanoid-GPT/issues training GPU",
+      "result": "no relevant issue/discussion hits in current search"
+    },
+    "notes": "Applies to the distilled Humanoid-GPT tracker used for the leaderboard."
+  },
+  "teleopit": {
+    "display_name": "TeleopIt",
+    "value_gpu_hours": 400.0,
+    "status": "derived",
+    "confidence": "medium",
+    "policy_family_match": "official Teleopit tracker",
+    "authoritative_sources": [
+      {
+        "kind": "official_paper",
+        "url": "https://arxiv.org/html/2608.01834v1",
+        "fact": "The tracker is trained with mjlab on 8 NVIDIA A800 GPUs for approximately 50 hours."
+      },
+      {
+        "kind": "official_repo",
+        "url": "https://github.com/BotRunner64/Teleopit",
+        "fact": "Official repo documents the same tracker family and training task."
+      }
+    ],
+    "derivation": "8 GPUs \u00d7 50 hours = 400 GPU hours on NVIDIA A800 hardware.",
+    "repo_issue_search": {
+      "query": "site:github.com/BotRunner64/Teleopit/issues training GPU",
+      "result": "no relevant issue/discussion hits in current search"
+    },
+    "notes": "Derived only because the same source explicitly states both GPU count and duration."
+  },
+  "bfm_zero": {
+    "display_name": "BFM-Zero",
+    "value_gpu_hours": null,
+    "status": "not_found",
+    "confidence": "medium",
+    "policy_family_match": "official BFM-Zero release family",
+    "authoritative_sources": [
+      {
+        "kind": "official_repo",
+        "url": "https://github.com/LeCAR-Lab/BFM-Zero",
+        "fact": "Official repo mentions a distributed MJLab training path with 6 hours training and RTX 4090 support, but no explicit GPU count for the matching released checkpoint."
+      },
+      {
+        "kind": "official_issue",
+        "url": "https://github.com/LeCAR-Lab/BFM-Zero/issues/19",
+        "fact": "Issue asks about training configuration; current crawl shows no maintainer reply with a training-compute figure."
+      }
+    ],
+    "derivation": "not allowed; duration present but matching GPU count is not authoritatively stated for the released checkpoint.",
+    "repo_issue_search": {
+      "query": "site:github.com/LeCAR-Lab/BFM-Zero/issues training GPU",
+      "result": "Issue #19 found, but no maintainer reply with usable compute data."
+    },
+    "notes": "Leave blank in leaderboard."
+  },
+  "scalebfm_family": {
+    "policies": [
+      "scalebfm_m",
+      "scalebfm_xl"
+    ],
+    "display_name": "ScaleBFM family",
+    "value_gpu_hours": null,
+    "status": "not_found",
+    "confidence": "medium",
+    "policy_family_match": "official release family",
+    "authoritative_sources": [
+      {
+        "kind": "official_repo",
+        "url": "https://github.com/zengweishuai/ScaleBFM",
+        "fact": "Official repo describes the training pipeline but the current visible README snippet does not state GPU count, duration, or total GPU hours for the public release checkpoints."
+      },
+      {
+        "kind": "official_paper",
+        "url": "https://www.alphaxiv.org/abs/2607.15163",
+        "fact": "Current accessible summary describes the method but no verified training-compute total was extracted in this audit pass."
+      }
+    ],
+    "derivation": "not allowed; no matched official GPU-count-plus-duration source located yet.",
+    "repo_issue_search": {
+      "query": "site:github.com/zengweishuai/ScaleBFM/issues training GPU",
+      "result": "no relevant issue/discussion hits in current search"
+    },
+    "notes": "Leave blank unless a direct official source is found."
+  },
+  "heft": {
+    "display_name": "HEFT",
+    "value_gpu_hours": null,
+    "status": "not_found",
+    "confidence": "medium",
+    "policy_family_match": "official release family",
+    "authoritative_sources": [
+      {
+        "kind": "official_paper",
+        "url": "https://arxiv.org/html/2607.02332v1",
+        "fact": "Official paper describes the method and training-time guidance but no verified GPU count, duration, or total GPU hours was extracted in this audit pass."
+      },
+      {
+        "kind": "official_project",
+        "url": "https://heft.axell.top/",
+        "fact": "Official project page is the public project surface used by the leaderboard; no compute figure has yet been extracted."
+      }
+    ],
+    "derivation": "not allowed; no matched official GPU-count-plus-duration source located yet.",
+    "repo_issue_search": {
+      "query": "site:github.com HEFT humanoid issues training GPU",
+      "result": "no reliable official repo issue/discussion source identified in current search"
+    },
+    "notes": "Leave blank until an official compute disclosure is located."
+  },
+  "twist2": {
+    "display_name": "TWIST2",
+    "value_gpu_hours": null,
+    "status": "not_found",
+    "confidence": "medium",
+    "policy_family_match": "official release family",
+    "authoritative_sources": [
+      {
+        "kind": "official_repo",
+        "url": "https://github.com/amazon-far/TWIST2",
+        "fact": "Official repo says the high-level policy learning part will be released separately; no training compute for the released policy was found in the current README snippet."
+      },
+      {
+        "kind": "official_paper",
+        "url": "https://arxiv.org/html/2511.02832v1",
+        "fact": "Accessible summary focuses on data collection / learned policies but no verified training-compute total for the released public checkpoint was extracted in this audit pass."
+      }
+    ],
+    "derivation": "not allowed; no matched official GPU-count-plus-duration source located yet.",
+    "repo_issue_search": {
+      "query": "site:github.com/amazon-far/TWIST2/issues training GPU",
+      "result": "no relevant issue/discussion hits in current search"
+    },
+    "notes": "Leave blank until an official compute disclosure is located."
+  }
+}

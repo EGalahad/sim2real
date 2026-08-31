@@ -41,3 +41,8 @@ def test_leaderboard_snapshot_has_three_finite_splits() -> None:
     assert roa["metrics"]["bodyOri"]["mean"] is not None
     assert roa["metrics"]["wristOri"]["mean"] is not None
     assert roa["metrics"]["gpuHours"]["mean"] is not None
+    assert roa["metrics"]["gpuHours"]["sourceUrl"].startswith("https://")
+
+    sonic = next(row for row in page if row["key"] == "sonic_g1")
+    assert sonic["metrics"]["gpuHours"]["mean"] == 21000.0
+    assert sonic["metrics"]["gpuHours"]["sourceUrl"].startswith("https://")

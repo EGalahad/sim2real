@@ -48,6 +48,15 @@ function formatValue(value: number | null, digits: number): string {
   return value == null ? '—' : value.toFixed(digits);
 }
 
+function metricLabel(row: Row, key: MetricKey, digits: number): React.ReactNode {
+  const value = metricValue(row, key);
+  const text = formatValue(value, digits);
+  if (key === 'gpuHours' && value != null && row.metrics.gpuHours.sourceUrl) {
+    return <a href={row.metrics.gpuHours.sourceUrl} target="_blank" rel="noreferrer">{text}</a>;
+  }
+  return text;
+}
+
 function splitLine(row: Row, key: MetricKey, digits: number): string {
   const splits = row.metrics[key].splits;
   if (splits.lafan == null && splits.phuma == null && splits.root90 == null) {
@@ -95,7 +104,7 @@ export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
           <td className={styles.rank}>{metricValue(row, sortKey) == null ? '—' : index + 1}</td>
           <td className={styles.policy}><a href={row.url} target="_blank" rel="noreferrer">{row.name}</a></td>
           {columns.map((column) => <td key={column.key} className={sortKey === column.key ? styles.sorted : ''}>
-            <strong>{formatValue(metricValue(row, column.key), column.digits)}</strong>
+            <strong>{metricLabel(row, column.key, column.digits)}</strong>
             <small>{splitLine(row, column.key, column.digits)}</small>
           </td>)}
         </tr>)}</tbody>

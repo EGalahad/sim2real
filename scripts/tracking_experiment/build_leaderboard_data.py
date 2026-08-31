@@ -76,7 +76,7 @@ def main() -> None:
         values = {
             name: float(value)
             for name, value in row.items()
-            if name not in {"policy", "label"} and value not in {"", "—"}
+            if name not in {"policy", "label", "gpu_hours_url"} and value not in {"", "—"}
         }
         assert key in LINKS and all(math.isfinite(value) for value in values.values())
         rows.append(
@@ -90,6 +90,7 @@ def main() -> None:
                     "globalRoot": metric_entry(row, "global_root_m"),
                     "gpuHours": {
                         "mean": optional_float(row, "gpu_hours"),
+                        "sourceUrl": row.get("gpu_hours_url") or None,
                         "splits": {
                             "lafan": optional_float(row, "lafan40_gpu_hours"),
                             "phuma": optional_float(row, "phuma30_gpu_hours"),
