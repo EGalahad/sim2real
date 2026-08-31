@@ -67,18 +67,18 @@ class Series:
 ALL_POLICIES = (
     Series("mimic_lite_ppo", "MimicLite-PPO", "#5B2A86"),
     Series("mimic_lite_roa", "MimicLite-ROA", "#1F77B4"),
+    Series("heft", "HEFT", "#54A24B"),
     Series("scalebfm_m", "ScaleBFM-M", "#C44E52"),
     Series("scalebfm_xl", "ScaleBFM-XL", "#E07B7B"),
     Series("sonic_g1", "SONIC", "#76B900"),
+    Series("grit_v0_0_1", "GRIT v0.0.1", "#7B61A8"),
     Series("sonic_low_latency", "SONIC-Low-Latency", "#2E7D32"),
     Series("sonic_v1_1", "SONIC-v1.1", "#00897B"),
-    Series("holomotion", "HoloMotion", "#17BECF"),
-    Series("heft", "HEFT", "#54A24B"),
+    Series("bfm_zero", "BFM-Zero", "#9D755D"),
     Series("teleopit", "TeleopIt", "#B279A2"),
     Series("humanoid_gpt", "Humanoid-GPT", "#F58518"),
-    Series("bfm_zero", "BFM-Zero", "#9D755D"),
+    Series("holomotion", "HoloMotion", "#17BECF"),
     Series("twist2", "TWIST2", "#4C78A8"),
-    Series("grit_v0_0_1", "GRIT v0.0.1", "#7B61A8"),
 )
 RELEASE_POLICIES = {
     "mimic_lite_ppo",

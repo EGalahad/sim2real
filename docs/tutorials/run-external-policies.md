@@ -24,19 +24,19 @@ value.
 | MimicLite-ROA | `checkpoints/mimic-lite/roa/policy.yaml` | Latest 16x16384 PPO-ROA student release. |
 | HEFT PMG | `checkpoints/heft/pmg/policy.yaml` | Normal G1 motion stream. |
 | HEFT Compliance | `checkpoints/heft/compliance/policy.yaml` | Normal G1 motion stream; compliance flag is forced off in the observation. |
-| TeleopIT | `checkpoints/teleopit/policy.yaml` | Normal G1 motion stream. |
-| Humanoid-GPT | `checkpoints/humanoid-gpt/policy.yaml` | Normal G1 motion stream. |
-| BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | Requires the checkpoint-specific MJCF override for ZMQ publishers. |
 | ScaleBFM M | `checkpoints/scalebfm/humanoid_transformer_m/policy.yaml` | Normal G1 motion stream. |
 | ScaleBFM XL | `checkpoints/scalebfm/humanoid_transformer_xl/policy.yaml` | Normal G1 motion stream. |
 | SONIC release G1 | `checkpoints/sonic/release/g1/policy.yaml` | Normal G1 motion stream. |
 | SONIC release SMPL | `checkpoints/sonic/release/smpl/policy.yaml` | Uses `motion_backend: smpl_zmq` and the SMPL publisher. |
+| GRIT v0.0.1 | `checkpoints/grit/v0_0_1/policy.yaml` | Nine-frame reference context and ten-frame proprioceptive history. |
 | SONIC v1.1 G1 | `checkpoints/sonic/v1_1/g1/policy.yaml` | G1 motion stream with heading-normalized reference orientation. |
 | SONIC low-latency G1 | `checkpoints/sonic/low_latency/g1/policy.yaml` | Normal G1 motion stream with the low-latency checkpoint. |
 | SONIC low-latency SMPL | `checkpoints/sonic/low_latency/smpl/policy.yaml` | Four-frame SMPL input horizon. |
+| BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | Requires the checkpoint-specific MJCF override for ZMQ publishers. |
+| TeleopIT | `checkpoints/teleopit/policy.yaml` | Normal G1 motion stream. |
+| Humanoid-GPT | `checkpoints/humanoid-gpt/policy.yaml` | Normal G1 motion stream. |
 | HoloMotion v1.4.0 | `checkpoints/holomotion/v1_4_0/policy.yaml` | Requires the official 1.64 GB ONNX artifact. |
 | TWIST2 | `checkpoints/twist2/policy.yaml` | Normal G1 motion stream. |
-| GRIT v0.0.1 | `checkpoints/grit/v0_0_1/policy.yaml` | Nine-frame reference context and ten-frame proprioceptive history. |
 
 ```bash
 uv run sim2real/rl_policy/tracking.py \

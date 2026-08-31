@@ -1,10 +1,23 @@
-.legend { color: var(--ifm-color-emphasis-700); font-size: .92rem; margin: 1rem 0 .8rem; }
+.legend { color: #666860; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; margin: 1.5rem 0 .8rem; }
 
-.tableWrap { overflow-x: auto; }
+.tableWrap {
+  background: #faf9f5;
+  border: 1.5px solid #171913;
+  box-shadow: 6px 7px 0 #171913;
+  box-sizing: border-box;
+  height: calc(100dvh - var(--ifm-navbar-height));
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: sticky;
+  top: var(--ifm-navbar-height);
+}
+.tableStage { min-height: calc(100dvh - var(--ifm-navbar-height)); position: relative; }
+.tableWrap:focus-visible { outline: 3px solid #4f86a8; outline-offset: 3px; }
 .table { border-collapse: separate; border-spacing: 0; display: table; font-size: .86rem; min-width: 1320px; width: 100%; }
-.table th { background: var(--ifm-background-surface-color); position: sticky; top: 0; white-space: nowrap; z-index: 1; }
-.table th, .table td { border-bottom: 1px solid var(--ifm-color-emphasis-200); padding: .7rem .65rem; vertical-align: middle; }
-.table tbody tr:hover { background: var(--ifm-color-emphasis-100); }
+.table th { background: #f1d36b; color: #171913; position: sticky; top: 0; white-space: nowrap; z-index: 1; }
+.table th, .table td { border-bottom: 1px solid #aaa99f; border-right: 1px solid #cbc9bf; padding: .7rem .65rem; vertical-align: middle; }
+.table th:last-child, .table td:last-child { border-right: 0; }
+.table tbody tr:hover { background: #f7edc8; }
 .table strong, .table small { display: block; white-space: nowrap; }
 .table small { color: var(--ifm-color-emphasis-600); font-size: .72rem; margin-top: .18rem; }
 .sortButton, .sortButtonActive {
@@ -18,12 +31,53 @@
   padding: 0;
   text-align: left;
 }
-.sortButton:hover, .sortButtonActive { color: var(--ifm-color-primary); }
+.sortButton:hover, .sortButtonActive { color: #184f39; text-decoration: underline; text-underline-offset: 3px; }
 .rank { font-size: 1rem; font-variant-numeric: tabular-nums; font-weight: 800; text-align: center; width: 3.4rem; }
 .policy { font-size: .95rem; font-weight: 700; min-width: 145px; }
-.sorted { background: color-mix(in srgb, var(--ifm-color-primary) 9%, transparent); }
-.podium .rank { color: var(--ifm-color-primary); }
+.sorted { background: rgba(241, 211, 107, .24); }
+.podium .rank { color: #285f47; }
+
+.plotBuilder {
+  background: #f4f2ec;
+  border: 1.5px solid #171913;
+  box-shadow: 6px 7px 0 #171913;
+  color: #171913;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - var(--ifm-navbar-height));
+  margin: 0;
+  padding: 1.4rem;
+  position: sticky;
+  top: var(--ifm-navbar-height);
+  transform-origin: center center;
+  will-change: opacity, transform;
+}
+.plotStage { margin: 2rem 0; min-height: calc(100dvh - var(--ifm-navbar-height)); position: relative; }
+.plotHeader { align-items: baseline; display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; margin-bottom: 1rem; }
+.plotHeader h2 { color: #171913; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.25rem; margin: 0; text-transform: uppercase; }
+.plotHeader p { color: #666860; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem; margin: 0; }
+.selectorRow { border: 0; margin: 0 0 .9rem; padding: 0; }
+.selectorRow legend { color: #171913; float: left; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .78rem; font-weight: 800; margin: .35rem .9rem 0 0; min-width: 4.2rem; text-transform: uppercase; }
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip { cursor: pointer; margin: 0; position: relative; }
+.chip input { opacity: 0; position: absolute; }
+.chip span {
+  background: #faf9f5;
+  border: 1.5px solid #171913;
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .72rem;
+  font-weight: 700;
+  padding: .32rem .52rem;
+}
+.chip input:checked + span { background: #f1d36b; box-shadow: 3px 3px 0 #171913; transform: translate(-1px, -1px); }
+.chip input:focus-visible + span { outline: 3px solid #4f86a8; outline-offset: 2px; }
+.canvasWrap { border: 1.5px solid #171913; flex: 1 1 auto; margin-top: 1.25rem; min-height: 0; overflow: hidden; width: 100%; }
+.canvasWrap canvas { display: block; max-width: 100%; width: 100%; }
 
 @media (max-width: 700px) {
   .table { font-size: .8rem; }
+  .plotBuilder { box-shadow: 4px 5px 0 #171913; padding: .9rem; }
+  .selectorRow legend { float: none; margin-bottom: .45rem; }
 }

@@ -11,8 +11,6 @@ import Link from '@docusaurus/Link';
 
 <div className="leaderboard-page">
 
-Policies are evaluated in the same integrated MuJoCo runtime on robot-matched G1 motions. The prime metric is mean local-body position error across LAFAN-40, PHUMA-30, and Root-90, with lower values ranked first. Select another metric to rerank the same rows.
-
 <Link className="button button--primary button--sm" to="/tutorials/cross-codebase-evaluation">Reproduce this evaluation →</Link>
 
 <Leaderboard />
@@ -34,6 +32,6 @@ Tracking Return measures pelvis-XY/yaw-aligned local-pose quality. Progress and 
 - `Progress`: mean split-level motion completion; higher is better.
 - All policies use seed 0, `initial_pause_s=0.0`, no runtime cap, and the same failure conditions. See [Cross-Codebase Tracking Evaluation](/tutorials/cross-codebase-evaluation) for the full definition and reproduction command.
 
-Last updated: August 31, 2026.
+Last updated: September 1, 2026.
 
 </div>

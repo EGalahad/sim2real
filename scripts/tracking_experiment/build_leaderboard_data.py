@@ -26,6 +26,22 @@ LINKS = {
     "twist2": "https://github.com/amazon-far/TWIST2",
     "grit_v0_0_1": "https://github.com/mrzuang/GRIT_teleop_deploy",
 }
+POLICY_ORDER = (
+    "mimic_lite_ppo",
+    "mimic_lite_roa",
+    "heft",
+    "scalebfm_m",
+    "scalebfm_xl",
+    "sonic_g1",
+    "grit_v0_0_1",
+    "sonic_low_latency",
+    "sonic_v1_1",
+    "bfm_zero",
+    "teleopit",
+    "humanoid_gpt",
+    "holomotion",
+    "twist2",
+)
 
 
 def mean(*values: float) -> float:
@@ -68,6 +84,8 @@ def metric_entry(row: dict[str, str], suffix: str, mean_key: str | None = None) 
 def main() -> None:
     with METRICS.open(newline="", encoding="utf-8") as handle:
         source = list(csv.DictReader(handle))
+    assert set(POLICY_ORDER) == set(LINKS)
+    source.sort(key=lambda row: POLICY_ORDER.index(row["policy"]))
 
     rows = []
     for row in source:
