@@ -26,11 +26,11 @@ Tracking Return 衡量经过 pelvis XY/yaw 对齐后的局部姿态质量。Prog
 - **身体位置 / 姿态：** 局部身体位置 / 姿态误差；越低越好。
 - **全局 Root：** 仅 root 的轨迹误差；越低越好。MotionDecode 只在 Locomotion 上统计，其他三组显示 `n/a` 且不进入 headline。
 - **GPU Hours：** 有权威来源时展示并链接训练成本；它与 dataset 选择无关。
-- **手腕位置 / 姿态：** 左右手腕位置 / 姿态误差；越低越好。
+- **手腕位置 / 姿态：** 左右手腕位置 / 姿态误差；越低越好。MotionDecode Ground 和 Dance 显示 `n/a`，且不进入 headline。
 - **Tracking Return：** normalized tracking return；越高越好。
 - **Progress：** motion completion；越高越好。
 - 所有策略统一使用 seed 0、`initial_pause_s=0.0`、无运行时上限以及相同的失败判定。完整定义和复现命令见[跨代码库动作跟踪评测](/tutorials/cross-codebase-evaluation)。
 
-最后更新：2026 年 9 月 1 日。
+最后更新：2026 年 9 月 2 日。
 
 </div>

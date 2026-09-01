@@ -69,12 +69,14 @@ def metric_entry(
     motiondecode: dict[str, dict[str, str]],
     motiondecode_key: str,
     scale: float = 1.0,
+    excluded: tuple[str, ...] = (),
 ) -> dict[str, object]:
     return {
         "datasets": {
             **{
                 dataset: value * scale
-                if (value := optional_float(values, motiondecode_key)) is not None
+                if dataset not in excluded
+                and (value := optional_float(values, motiondecode_key)) is not None
                 else None
                 for dataset, values in motiondecode.items()
             },
@@ -121,8 +123,8 @@ def main() -> None:
                         "mean": optional_float(row, "gpu_hours"),
                         "sourceUrl": row.get("gpu_hours_url") or None,
                     },
-                    "wristPos": metric_entry(row, "wrist_mm", datasets, "wrist_pos_m", 1000.0),
-                    "wristOri": metric_entry(row, "wrist_ori_rad", datasets, "wrist_ori_rad"),
+                    "wristPos": metric_entry(row, "wrist_mm", datasets, "wrist_pos_m", 1000.0, ("ground", "dance")),
+                    "wristOri": metric_entry(row, "wrist_ori_rad", datasets, "wrist_ori_rad", excluded=("ground", "dance")),
                     "trackingReturn": metric_entry(row, "tracking_return", datasets, "tracking_return"),
                     "progress": metric_entry(row, "progress_pct", datasets, "progress", 100.0),
                 },

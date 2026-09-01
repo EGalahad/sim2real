@@ -215,9 +215,9 @@
   },
   "heft": {
     "display_name": "HEFT",
-    "value_gpu_hours": null,
-    "status": "not_found",
-    "confidence": "medium",
+    "value_gpu_hours": 116.01,
+    "status": "user_provided_training_ledger",
+    "confidence": "high",
     "policy_family_match": "official release family",
     "authoritative_sources": [
       {
@@ -228,15 +228,20 @@
       {
         "kind": "official_project",
         "url": "https://heft.axell.top/",
-        "fact": "Official project page is the public project surface used by the leaderboard; no compute figure has yet been extracted."
+        "fact": "Official project page is the public project surface used by the leaderboard and identifies the released G1 policy family."
+      },
+      {
+        "kind": "user_provided_training_ledger",
+        "url": null,
+        "fact": "The supplied G1_PMG ledger records 8-GPU Train, Adapt, and Finetune stages at 80.05, 6.54, and 29.42 GPU hours."
       }
     ],
-    "derivation": "not allowed; no matched official GPU-count-plus-duration source located yet.",
+    "derivation": "80.05 + 6.54 + 29.42 = 116.01 GPU hours for the complete released G1_PMG training chain.",
     "repo_issue_search": {
       "query": "site:github.com HEFT humanoid issues training GPU",
       "result": "no reliable official repo issue/discussion source identified in current search"
     },
-    "notes": "Leave blank until an official compute disclosure is located."
+    "notes": "Value supplied directly by the user from the stage-level training ledger; leaderboard link points to the official project surface."
   },
   "twist2": {
     "display_name": "TWIST2",

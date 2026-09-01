@@ -41,6 +41,11 @@ def test_leaderboard_snapshot_preserves_legacy_and_adds_motiondecode() -> None:
             row["metrics"]["globalRoot"]["datasets"][dataset] is None
             for dataset in ("manipulation", "ground", "dance")
         )
+        assert all(
+            row["metrics"][metric]["datasets"][dataset] is None
+            for metric in ("wristPos", "wristOri")
+            for dataset in ("ground", "dance")
+        )
         assert math.isclose(
             row["metrics"]["bodyPos"]["datasets"]["locomotion"],
             float(motiondecode[row["key"], "locomotion"]["body_pos_m"]) * 1000.0,
@@ -51,12 +56,22 @@ def test_leaderboard_snapshot_preserves_legacy_and_adds_motiondecode() -> None:
         )
 
     roa = next(row for row in page if row["key"] == "mimic_lite_roa")
-    assert all(roa["metrics"]["wristPos"]["datasets"][split] > 0 for split in dataset_keys)
+    assert all(
+        roa["metrics"]["wristPos"]["datasets"][split] > 0
+        for split in dataset_keys - {"ground", "dance"}
+    )
     assert all(roa["metrics"]["bodyOri"]["datasets"][split] is not None for split in dataset_keys)
-    assert all(roa["metrics"]["wristOri"]["datasets"][split] is not None for split in dataset_keys)
+    assert all(
+        roa["metrics"]["wristOri"]["datasets"][split] is not None
+        for split in dataset_keys - {"ground", "dance"}
+    )
     assert roa["metrics"]["gpuHours"]["mean"] is not None
     assert roa["metrics"]["gpuHours"]["sourceUrl"].startswith("https://")
 
     sonic = next(row for row in page if row["key"] == "sonic_g1")
     assert sonic["metrics"]["gpuHours"]["mean"] == 21000.0
     assert sonic["metrics"]["gpuHours"]["sourceUrl"].startswith("https://")
+
+    heft = next(row for row in page if row["key"] == "heft")
+    assert heft["metrics"]["gpuHours"]["mean"] == 116.01
+    assert heft["metrics"]["gpuHours"]["sourceUrl"] == "https://heft.axell.top/"

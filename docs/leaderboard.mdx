@@ -26,11 +26,11 @@ Tracking Return measures pelvis-XY/yaw-aligned local-pose quality. Progress and 
 - `Body Pos` / `Body Ori`: local-body position/orientation error; lower is better.
 - `Global Root`: root-only tracking error; lower is better. MotionDecode reports this only for Locomotion, so the other three MotionDecode sets are `n/a` and excluded from the headline.
 - `GPU Hours`: training cost when recorded; populated values link to their authoritative source. Missing cells mean this audit did not find a defensible official source. The checked-in audit manifest is `docs/src/data/gpu_hours_provenance.json`.
-- `Wrist Pos` / `Wrist Ori`: mean left/right wrist position/orientation error; lower is better.
+- `Wrist Pos` / `Wrist Ori`: mean left/right wrist position/orientation error; lower is better. MotionDecode Ground and Dance are `n/a` and excluded from the headline.
 - `Tracking Return`: normalized tracking return; higher is better.
 - `Progress`: motion completion; higher is better.
 - All policies use seed 0, `initial_pause_s=0.0`, no runtime cap, and the same failure conditions. See [Cross-Codebase Tracking Evaluation](/tutorials/cross-codebase-evaluation) for the full definition and reproduction command.
 
-Last updated: September 1, 2026.
+Last updated: September 2, 2026.
 
 </div>
