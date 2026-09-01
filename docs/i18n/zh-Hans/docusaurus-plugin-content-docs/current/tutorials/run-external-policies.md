@@ -18,22 +18,22 @@ policy YAML。
 
 | Policy | Checkpoint YAML | Notes |
 | --- | --- | --- |
-| MimicLite-PPO | `checkpoints/mimic-lite/ppo/policy.yaml` | 最新 16x16384 Huge PPO release。 |
 | MimicLite-ROA | `checkpoints/mimic-lite/roa/policy.yaml` | 最新 16x16384 PPO-ROA student release。 |
+| MimicLite-PPO | `checkpoints/mimic-lite/ppo/policy.yaml` | 最新 16x16384 Huge PPO release。 |
 | HEFT PMG | `checkpoints/heft/pmg/policy.yaml` | 正常 G1 motion stream。 |
 | HEFT Compliance | `checkpoints/heft/compliance/policy.yaml` | 正常 G1 motion stream；observation 里 compliance flag 固定为 off。 |
-| ScaleBFM M | `checkpoints/scalebfm/humanoid_transformer_m/policy.yaml` | 正常 G1 motion stream。 |
-| ScaleBFM XL | `checkpoints/scalebfm/humanoid_transformer_xl/policy.yaml` | 正常 G1 motion stream。 |
+| HoloMotion v1.4.0 | `checkpoints/holomotion/v1_4_0/policy.yaml` | 需要官方 1.64 GB ONNX artifact。 |
 | SONIC release G1 | `checkpoints/sonic/release/g1/policy.yaml` | 正常 G1 motion stream。 |
 | SONIC release SMPL | `checkpoints/sonic/release/smpl/policy.yaml` | 使用 `motion_backend: smpl_zmq` 和 SMPL publisher。 |
-| GRIT v0.0.1 | `checkpoints/grit/v0_0_1/policy.yaml` | 九帧参考上下文和十帧本体感知历史。 |
-| SONIC v1.1 G1 | `checkpoints/sonic/v1_1/g1/policy.yaml` | 使用 heading-normalized reference orientation 的 G1 motion stream。 |
 | SONIC low-latency G1 | `checkpoints/sonic/low_latency/g1/policy.yaml` | 使用低延迟 checkpoint 的正常 G1 motion stream。 |
 | SONIC low-latency SMPL | `checkpoints/sonic/low_latency/smpl/policy.yaml` | 使用四帧 SMPL 输入窗口。 |
+| SONIC v1.1 G1 | `checkpoints/sonic/v1_1/g1/policy.yaml` | 使用 heading-normalized reference orientation 的 G1 motion stream。 |
+| GRIT v0.0.1 | `checkpoints/grit/v0_0_1/policy.yaml` | 九帧参考上下文和十帧本体感知历史。 |
+| ScaleBFM XL | `checkpoints/scalebfm/humanoid_transformer_xl/policy.yaml` | 正常 G1 motion stream。 |
+| ScaleBFM M | `checkpoints/scalebfm/humanoid_transformer_m/policy.yaml` | 正常 G1 motion stream。 |
 | BFM-Zero | `checkpoints/bfm-zero/exp_lafan40-100style_update_z10/policy.yaml` | ZMQ publisher 需要传 checkpoint 对应的 MJCF override。 |
 | TeleopIT | `checkpoints/teleopit/policy.yaml` | 正常 G1 motion stream。 |
 | Humanoid-GPT | `checkpoints/humanoid-gpt/policy.yaml` | 正常 G1 motion stream。 |
-| HoloMotion v1.4.0 | `checkpoints/holomotion/v1_4_0/policy.yaml` | 需要官方 1.64 GB ONNX artifact。 |
 | TWIST2 | `checkpoints/twist2/policy.yaml` | 正常 G1 motion stream。 |
 
 ```bash

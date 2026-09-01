@@ -27,19 +27,19 @@ LINKS = {
     "grit_v0_0_1": "https://github.com/mrzuang/GRIT_teleop_deploy",
 }
 POLICY_ORDER = (
-    "mimic_lite_ppo",
     "mimic_lite_roa",
+    "mimic_lite_ppo",
     "heft",
-    "scalebfm_m",
-    "scalebfm_xl",
+    "holomotion",
     "sonic_g1",
-    "grit_v0_0_1",
     "sonic_low_latency",
     "sonic_v1_1",
+    "grit_v0_0_1",
+    "scalebfm_xl",
+    "scalebfm_m",
     "bfm_zero",
     "teleopit",
     "humanoid_gpt",
-    "holomotion",
     "twist2",
 )
 
