@@ -39,11 +39,11 @@ const columns: Array<{
   {key: 'progress', en: 'Progress', zh: '完成度', unit: '%', higher: true, digits: 1},
 ];
 
-const datasets: Array<{key: DatasetKey; en: string; zh: string; short: string}> = [
-  {key: 'locomotion', en: 'Locomotion', zh: '移动', short: 'Loc'},
-  {key: 'manipulation', en: 'Manipulation', zh: '操作', short: 'Man'},
-  {key: 'ground', en: 'Ground', zh: '起身', short: 'Gnd'},
-  {key: 'dance', en: 'Dance', zh: '舞蹈', short: 'Dnc'},
+const datasets: Array<{key: DatasetKey; en: string; zh: string; short: string; count?: number}> = [
+  {key: 'locomotion', en: 'Locomotion', zh: '移动', short: 'Loc', count: 80},
+  {key: 'manipulation', en: 'Manipulation', zh: '操作', short: 'Man', count: 48},
+  {key: 'ground', en: 'Ground', zh: '起身', short: 'Gnd', count: 60},
+  {key: 'dance', en: 'Dance', zh: '舞蹈', short: 'Dnc', count: 40},
   {key: 'lafan', en: 'Legacy LAFAN-40', zh: '旧版 LAFAN-40', short: 'L'},
   {key: 'phuma', en: 'Legacy PHUMA-30', zh: '旧版 PHUMA-30', short: 'P'},
   {key: 'root90', en: 'Legacy Root-90', zh: '旧版 Root-90', short: 'R'},
@@ -407,7 +407,7 @@ export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
             checked={selectedDatasets.has(dataset.key)}
             onChange={() => setSelectedDatasets((current) => toggleSet(current, dataset.key))}
           />
-          <span>{dataset.short} · {locale === 'zh' ? dataset.zh : dataset.en}</span>
+          <span>{dataset.short} · {locale === 'zh' ? dataset.zh : dataset.en} ({dataset.count})</span>
         </label>)}</div>
       </div>
       <div className={styles.datasetGroup}>
