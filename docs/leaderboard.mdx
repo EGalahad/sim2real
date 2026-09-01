@@ -21,15 +21,14 @@ Tracking Return measures pelvis-XY/yaw-aligned local-pose quality. Progress and 
 
 ## Protocol
 
-- `L = LAFAN-40`, `P = PHUMA-30`, `R = Root-90`.
-- `Body Pos`: mean local-body position error across the three splits; lower is better.
-- `Body Ori`: mean local-body orientation error across the three splits; lower is better.
-- `Global Root`: mean root-only tracking error across the three splits; lower is better.
+- The default held-out benchmark is MotionDecode Locomotion-80, Manipulation-48, Ground-60, and Dance-40. Legacy `L = LAFAN-40`, `P = PHUMA-30`, and `R = Root-90` remain selectable.
+- Each headline is the unweighted mean of the selected, available dataset means. Each dataset mean gives every motion equal weight; the second line shows those dataset means directly.
+- `Body Pos` / `Body Ori`: local-body position/orientation error; lower is better.
+- `Global Root`: root-only tracking error; lower is better. MotionDecode reports this only for Locomotion, so the other three MotionDecode sets are `n/a` and excluded from the headline.
 - `GPU Hours`: training cost when recorded; populated values link to their authoritative source. Missing cells mean this audit did not find a defensible official source. The checked-in audit manifest is `docs/src/data/gpu_hours_provenance.json`.
-- `Wrist Pos`: mean left/right wrist position error across the three splits; lower is better.
-- `Wrist Ori`: mean left/right wrist orientation error across the three splits; lower is better.
-- `Tracking Return`: mean of the three split-level normalized returns; higher is better.
-- `Progress`: mean split-level motion completion; higher is better.
+- `Wrist Pos` / `Wrist Ori`: mean left/right wrist position/orientation error; lower is better.
+- `Tracking Return`: normalized tracking return; higher is better.
+- `Progress`: motion completion; higher is better.
 - All policies use seed 0, `initial_pause_s=0.0`, no runtime cap, and the same failure conditions. See [Cross-Codebase Tracking Evaluation](/tutorials/cross-codebase-evaluation) for the full definition and reproduction command.
 
 Last updated: September 1, 2026.

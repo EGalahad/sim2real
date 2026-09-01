@@ -5,24 +5,33 @@
     "url": "https://github.com/Roboparty/MimicLite",
     "metrics": {
       "bodyPos": {
-        "mean": 30.204143589017566,
-        "splits": {
+        "datasets": {
+          "locomotion": 29.21662963926792,
+          "manipulation": 34.73550845713665,
+          "ground": 132.0075748488307,
+          "dance": 47.75666315108538,
           "lafan": 30.5176693014801,
           "phuma": 26.2000812528034,
           "root90": 33.8946802127692
         }
       },
       "bodyOri": {
-        "mean": 0.10224925041612663,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.09471683865413069,
+          "manipulation": 0.11795718277183671,
+          "ground": 0.5101110982398193,
+          "dance": 0.1815790344029665,
           "lafan": 0.122858392633498,
           "phuma": 0.0959335528314114,
           "root90": 0.0879558057834705
         }
       },
       "globalRoot": {
-        "mean": 0.27540292311459796,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.2609265518374741,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 0.505253692530096,
           "phuma": 0.154697446897626,
           "root90": 0.166257629916072
@@ -30,40 +39,47 @@
       },
       "gpuHours": {
         "mean": 173.208,
-        "sourceUrl": "https://github.com/Roboparty/MimicLite/blob/main/README.md",
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": "https://github.com/Roboparty/MimicLite/blob/main/README.md"
       },
       "wristPos": {
-        "mean": 33.54646427108457,
-        "splits": {
+        "datasets": {
+          "locomotion": 31.609984021633863,
+          "manipulation": 34.80758847823987,
+          "ground": 147.53994004180035,
+          "dance": 60.9635129570961,
           "lafan": 33.8209162931889,
           "phuma": 27.7741769639154,
           "root90": 39.0442995561494
         }
       },
       "wristOri": {
-        "mean": 0.14337149258978935,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.1408570284023881,
+          "manipulation": 0.16635816295941672,
+          "ground": 0.6183153947194417,
+          "dance": 0.2671830903738737,
           "lafan": 0.173503259755671,
           "phuma": 0.124466540664434,
           "root90": 0.132144677349263
         }
       },
       "trackingReturn": {
-        "mean": 1.8228243998359632,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.8863280650937693,
+          "manipulation": 1.7662443910809091,
+          "ground": 1.0015420701814877,
+          "dance": 0.9918594998008791,
           "lafan": 1.65352737004567,
           "phuma": 1.89669949772963,
           "root90": 1.91824633173259
         }
       },
       "progress": {
-        "mean": 94.64421237523084,
-        "splits": {
+        "datasets": {
+          "locomotion": 98.68730393711888,
+          "manipulation": 94.52717391304347,
+          "ground": 69.19912861170499,
+          "dance": 57.339788512067635,
           "lafan": 83.9326371256925,
           "phuma": 100.0,
           "root90": 100.0
@@ -77,24 +93,33 @@
     "url": "https://github.com/Roboparty/MimicLite",
     "metrics": {
       "bodyPos": {
-        "mean": 33.216521342250466,
-        "splits": {
+        "datasets": {
+          "locomotion": 31.524282228201624,
+          "manipulation": 34.32305137782047,
+          "ground": 111.08310054987669,
+          "dance": 52.26112427189946,
           "lafan": 35.1996366400272,
           "phuma": 28.2694232029219,
           "root90": 36.1805041838023
         }
       },
       "bodyOri": {
-        "mean": 0.11502679027616995,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.09733167891390622,
+          "manipulation": 0.12065960451339681,
+          "ground": 0.4192931038637956,
+          "dance": 0.19975797235965728,
           "lafan": 0.144323129206896,
           "phuma": 0.109681528558334,
           "root90": 0.0910757130632798
         }
       },
       "globalRoot": {
-        "mean": 0.23884964178626764,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.2545467473566532,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 0.418517859000713,
           "phuma": 0.129435141136249,
           "root90": 0.168595925221841
@@ -102,40 +127,47 @@
       },
       "gpuHours": {
         "mean": 92.321,
-        "sourceUrl": "https://github.com/Roboparty/MimicLite/blob/main/README.md",
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": "https://github.com/Roboparty/MimicLite/blob/main/README.md"
       },
       "wristPos": {
-        "mean": 38.1050686403695,
-        "splits": {
+        "datasets": {
+          "locomotion": 33.2515420159325,
+          "manipulation": 38.660274197657905,
+          "ground": 136.9642576823632,
+          "dance": 68.88078590855002,
           "lafan": 39.4131683278829,
           "phuma": 32.3924364522099,
           "root90": 42.5096011410157
         }
       },
       "wristOri": {
-        "mean": 0.14609642996004366,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.11686468627303839,
+          "manipulation": 0.15315783210098743,
+          "ground": 0.505366267512242,
+          "dance": 0.27735318429768085,
           "lafan": 0.192631667852402,
           "phuma": 0.12951067549487,
           "root90": 0.116146946532859
         }
       },
       "trackingReturn": {
-        "mean": 1.8023977195091703,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.8996171646938715,
+          "manipulation": 1.7719915252125584,
+          "ground": 1.0831859157145352,
+          "dance": 1.4709091861788512,
           "lafan": 1.62600917724919,
           "phuma": 1.86761647848998,
           "root90": 1.91356750278834
         }
       },
       "progress": {
-        "mean": 95.23172774578511,
-        "splits": {
+        "datasets": {
+          "locomotion": 100.0,
+          "manipulation": 95.23394648829431,
+          "ground": 74.1889283221896,
+          "dance": 87.8476071581234,
           "lafan": 85.6951832373553,
           "phuma": 100.0,
           "root90": 100.0
@@ -149,24 +181,33 @@
     "url": "https://heft.axell.top/",
     "metrics": {
       "bodyPos": {
-        "mean": 31.555545090318265,
-        "splits": {
+        "datasets": {
+          "locomotion": 32.22705340012908,
+          "manipulation": 33.72823590567956,
+          "ground": 89.24642285952964,
+          "dance": 44.14981729350984,
           "lafan": 31.6468005534261,
           "phuma": 25.832908321172,
           "root90": 37.1869263963567
         }
       },
       "bodyOri": {
-        "mean": 0.0940373931838957,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.10199129884131253,
+          "manipulation": 0.09754025206590693,
+          "ground": 0.31940049678087234,
+          "dance": 0.1489244932308793,
           "lafan": 0.1150853311643,
           "phuma": 0.0892721235752106,
           "root90": 0.0777547248121765
         }
       },
       "globalRoot": {
-        "mean": 0.4212203953346167,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.40286889765411615,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 0.909118033573031,
           "phuma": 0.146974124821524,
           "root90": 0.207569027609295
@@ -174,40 +215,47 @@
       },
       "gpuHours": {
         "mean": null,
-        "sourceUrl": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": null
       },
       "wristPos": {
-        "mean": 31.2724974040908,
-        "splits": {
+        "datasets": {
+          "locomotion": 30.604408867657185,
+          "manipulation": 36.306978397381805,
+          "ground": 97.81935702388485,
+          "dance": 48.62156827002764,
           "lafan": 31.2247026711702,
           "phuma": 22.4887832688789,
           "root90": 40.1040062722233
         }
       },
       "wristOri": {
-        "mean": 0.09431501279619565,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.11234802827239036,
+          "manipulation": 0.10480951129769285,
+          "ground": 0.3943390890955925,
+          "dance": 0.17854335494339466,
           "lafan": 0.12769027100876,
           "phuma": 0.0746597525974115,
           "root90": 0.0805950147824155
         }
       },
       "trackingReturn": {
-        "mean": 1.84148611108788,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.8966550460200675,
+          "manipulation": 1.8787293986180533,
+          "ground": 1.4421048166457524,
+          "dance": 1.623468107553786,
           "lafan": 1.68933949891199,
           "phuma": 1.90510746421236,
           "root90": 1.93001137013929
         }
       },
       "progress": {
-        "mean": 95.51465717550566,
-        "splits": {
+        "datasets": {
+          "locomotion": 100.0,
+          "manipulation": 98.74456521739131,
+          "ground": 86.38388785242395,
+          "dance": 90.19602742503399,
           "lafan": 86.543971526517,
           "phuma": 100.0,
           "root90": 100.0
@@ -221,24 +269,33 @@
     "url": "https://github.com/HorizonRobotics/HoloMotion",
     "metrics": {
       "bodyPos": {
-        "mean": 33.659856316323065,
-        "splits": {
+        "datasets": {
+          "locomotion": 32.97294888179749,
+          "manipulation": 38.50774401022742,
+          "ground": 98.57787073900302,
+          "dance": 39.71895989961922,
           "lafan": 36.8896448519081,
           "phuma": 27.3872495318452,
           "root90": 36.7026745652159
         }
       },
       "bodyOri": {
-        "mean": 0.15272237352199,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.14500045422464608,
+          "manipulation": 0.17008793462688723,
+          "ground": 0.4695669338107109,
+          "dance": 0.20239009112119674,
           "lafan": 0.186698593199253,
           "phuma": 0.121297382066647,
           "root90": 0.15017114530007
         }
       },
       "globalRoot": {
-        "mean": 0.564163213485368,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.8885666381567716,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 1.34172487761825,
           "phuma": 0.129003541109463,
           "root90": 0.221761221728391
@@ -246,40 +303,47 @@
       },
       "gpuHours": {
         "mean": 9200.0,
-        "sourceUrl": "https://arxiv.org/html/2605.15336v1",
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": "https://arxiv.org/html/2605.15336v1"
       },
       "wristPos": {
-        "mean": 34.284197066531135,
-        "splits": {
+        "datasets": {
+          "locomotion": 30.19270347431302,
+          "manipulation": 36.379670801882945,
+          "ground": 119.84379421919584,
+          "dance": 46.814985712990165,
           "lafan": 39.3150989897549,
           "phuma": 26.8916567166646,
           "root90": 36.6458354931739
         }
       },
       "wristOri": {
-        "mean": 0.214948501493092,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.21536484342068435,
+          "manipulation": 0.24589311548819145,
+          "ground": 0.6094218422969182,
+          "dance": 0.32755808942019937,
           "lafan": 0.268120769411325,
           "phuma": 0.142357472578685,
           "root90": 0.234367262489266
         }
       },
       "trackingReturn": {
-        "mean": 1.69009057396868,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.794695325053938,
+          "manipulation": 1.718394527973414,
+          "ground": 1.0584842062754025,
+          "dance": 1.5866249165413637,
           "lafan": 1.43076318892644,
           "phuma": 1.83245940569675,
           "root90": 1.80704912728285
         }
       },
       "progress": {
-        "mean": 92.22260260019907,
-        "splits": {
+        "datasets": {
+          "locomotion": 100.0,
+          "manipulation": 97.0710702341137,
+          "ground": 71.96235079517052,
+          "dance": 95.27052019760328,
           "lafan": 77.5011411339305,
           "phuma": 99.1666666666667,
           "root90": 100.0
@@ -293,24 +357,33 @@
     "url": "https://nvlabs.github.io/GEAR-SONIC/",
     "metrics": {
       "bodyPos": {
-        "mean": 38.21294547438067,
-        "splits": {
+        "datasets": {
+          "locomotion": 28.732619737274945,
+          "manipulation": 45.47353515711924,
+          "ground": 80.3022903079788,
+          "dance": 48.650169000029564,
           "lafan": 42.0281099155545,
           "phuma": 27.5520532391965,
           "root90": 45.058673268391
         }
       },
       "bodyOri": {
-        "mean": 0.18946525458660401,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.1506453632377088,
+          "manipulation": 0.17018768920873603,
+          "ground": 0.3549287075797717,
+          "dance": 0.27171200811862944,
           "lafan": 0.239734984561801,
           "phuma": 0.144587333748738,
           "root90": 0.184073445449273
         }
       },
       "globalRoot": {
-        "mean": 0.7078188599932377,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.3633348483592272,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 1.66638878881931,
           "phuma": 0.139403363891567,
           "root90": 0.317664427268836
@@ -318,40 +391,47 @@
       },
       "gpuHours": {
         "mean": 21000.0,
-        "sourceUrl": "https://www.science.org/doi/10.1126/scirobotics.aed4592",
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": "https://www.science.org/doi/10.1126/scirobotics.aed4592"
       },
       "wristPos": {
-        "mean": 39.81918428886541,
-        "splits": {
+        "datasets": {
+          "locomotion": 30.148559901863337,
+          "manipulation": 56.74753473916402,
+          "ground": 91.98895320296288,
+          "dance": 63.46561498939991,
           "lafan": 43.0036226753145,
           "phuma": 29.1824831627309,
           "root90": 47.2714470285508
         }
       },
       "wristOri": {
-        "mean": 0.27243020998107065,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.21080264318734407,
+          "manipulation": 0.24454338879634938,
+          "ground": 0.48100265065828957,
+          "dance": 0.47162035331130026,
           "lafan": 0.370350362360477,
           "phuma": 0.168425214290619,
           "root90": 0.278515053292116
         }
       },
       "trackingReturn": {
-        "mean": 1.6453628080293932,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.8165884624831001,
+          "manipulation": 1.7294178020764737,
+          "ground": 1.2634366863496902,
+          "dance": 1.482778662083648,
           "lafan": 1.40112798204956,
           "phuma": 1.81306413849319,
           "root90": 1.72189630354543
         }
       },
       "progress": {
-        "mean": 93.68150470113174,
-        "splits": {
+        "datasets": {
+          "locomotion": 100.0,
+          "manipulation": 100.0,
+          "ground": 86.2945043083211,
+          "dance": 98.89945652173913,
           "lafan": 81.0445141033952,
           "phuma": 100.0,
           "root90": 100.0
@@ -365,24 +445,33 @@
     "url": "https://nvlabs.github.io/GEAR-SONIC/",
     "metrics": {
       "bodyPos": {
-        "mean": 39.02108305375333,
-        "splits": {
+        "datasets": {
+          "locomotion": 30.733142257668078,
+          "manipulation": 38.950108302136265,
+          "ground": 111.4952183018128,
+          "dance": 53.64042082801461,
           "lafan": 45.7717132754624,
           "phuma": 31.6884557406108,
           "root90": 39.6030801451868
         }
       },
       "bodyOri": {
-        "mean": 0.20004330305037665,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.1564748365432024,
+          "manipulation": 0.17102389953409633,
+          "ground": 0.49258489633599917,
+          "dance": 0.2989570204168558,
           "lafan": 0.241479161381721,
           "phuma": 0.170163214455048,
           "root90": 0.188487533314361
         }
       },
       "globalRoot": {
-        "mean": 0.7196572380692308,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.8893161617219448,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 1.51105110775679,
           "phuma": 0.174054811274012,
           "root90": 0.47386579517689
@@ -390,40 +479,47 @@
       },
       "gpuHours": {
         "mean": 21000.0,
-        "sourceUrl": "https://www.science.org/doi/10.1126/scirobotics.aed4592",
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": "https://www.science.org/doi/10.1126/scirobotics.aed4592"
       },
       "wristPos": {
-        "mean": 41.89826156081703,
-        "splits": {
+        "datasets": {
+          "locomotion": 33.23541253339499,
+          "manipulation": 44.052942850006126,
+          "ground": 129.15602816889685,
+          "dance": 72.21738789230585,
           "lafan": 47.477093571797,
           "phuma": 34.5147114557525,
           "root90": 43.7029796549016
         }
       },
       "wristOri": {
-        "mean": 0.224145146597315,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.17710258401930332,
+          "manipulation": 0.23567785322666168,
+          "ground": 0.6217303177962701,
+          "dance": 0.49515361785888673,
           "lafan": 0.311650187149644,
           "phuma": 0.148965579395493,
           "root90": 0.211819673246808
         }
       },
       "trackingReturn": {
-        "mean": 1.6403746368265797,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.8116385873899319,
+          "manipulation": 1.7614653800834281,
+          "ground": 1.008317273759117,
+          "dance": 1.4090012432349683,
           "lafan": 1.41355229285014,
           "phuma": 1.75241736531133,
           "root90": 1.75515425231827
         }
       },
       "progress": {
-        "mean": 93.4246512664397,
-        "splits": {
+        "datasets": {
+          "locomotion": 100.0,
+          "manipulation": 100.0,
+          "ground": 72.7392121241698,
+          "dance": 96.51380730054677,
           "lafan": 80.2739537993191,
           "phuma": 100.0,
           "root90": 100.0
@@ -437,24 +533,33 @@
     "url": "https://nvlabs.github.io/GEAR-SONIC/",
     "metrics": {
       "bodyPos": {
-        "mean": 37.3256631333519,
-        "splits": {
+        "datasets": {
+          "locomotion": 29.554761666804552,
+          "manipulation": 40.674171914967395,
+          "ground": 116.70980167885621,
+          "dance": 52.87118358537555,
           "lafan": 42.891962453723,
           "phuma": 30.6899370625615,
           "root90": 38.3950898837712
         }
       },
       "bodyOri": {
-        "mean": 0.18000332506166564,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.15836953073740007,
+          "manipulation": 0.1613793953632315,
+          "ground": 0.4931022067864736,
+          "dance": 0.287787351757288,
           "lafan": 0.221758785098791,
           "phuma": 0.15785454188784,
           "root90": 0.160396648198366
         }
       },
       "globalRoot": {
-        "mean": 0.6627241753559143,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.6231905802618712,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 1.44465429931879,
           "phuma": 0.155621348849187,
           "root90": 0.387896877899766
@@ -462,40 +567,47 @@
       },
       "gpuHours": {
         "mean": 21000.0,
-        "sourceUrl": "https://www.science.org/doi/10.1126/scirobotics.aed4592",
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": "https://www.science.org/doi/10.1126/scirobotics.aed4592"
       },
       "wristPos": {
-        "mean": 39.7623808381872,
-        "splits": {
+        "datasets": {
+          "locomotion": 31.975985434837636,
+          "manipulation": 44.67846631693343,
+          "ground": 131.39173208425441,
+          "dance": 70.65862156450748,
           "lafan": 45.6505733076483,
           "phuma": 33.3806774889429,
           "root90": 40.2558917179704
         }
       },
       "wristOri": {
-        "mean": 0.19625833311842533,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.16265328647568822,
+          "manipulation": 0.17164197020853558,
+          "ground": 0.5573339318235715,
+          "dance": 0.44930898696184157,
           "lafan": 0.27323213480413,
           "phuma": 0.132671110083659,
           "root90": 0.182871754467487
         }
       },
       "trackingReturn": {
-        "mean": 1.6685873233249968,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.8149480103766067,
+          "manipulation": 1.7798902370003757,
+          "ground": 1.0182050282727582,
+          "dance": 1.461695371410032,
           "lafan": 1.42344937239974,
           "phuma": 1.77980403499045,
           "root90": 1.8025085625848
         }
       },
       "progress": {
-        "mean": 92.9697964072173,
-        "splits": {
+        "datasets": {
+          "locomotion": 100.0,
+          "manipulation": 100.0,
+          "ground": 71.34487439362819,
+          "dance": 98.84943181818183,
           "lafan": 78.9093892216519,
           "phuma": 100.0,
           "root90": 100.0
@@ -509,24 +621,33 @@
     "url": "https://github.com/mrzuang/GRIT_teleop_deploy",
     "metrics": {
       "bodyPos": {
-        "mean": 43.1772753165138,
-        "splits": {
+        "datasets": {
+          "locomotion": 31.724696955643594,
+          "manipulation": 38.42832986265421,
+          "ground": 119.99010862782598,
+          "dance": 51.814812049269676,
           "lafan": 46.22703813947737,
           "phuma": 36.65200090035796,
           "root90": 46.65278690970606
         }
       },
       "bodyOri": {
-        "mean": 0.17379025011150925,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.14678680952638387,
+          "manipulation": 0.15787497349083424,
+          "ground": 0.480509568999211,
+          "dance": 0.2271960649639368,
           "lafan": 0.1967907205224037,
           "phuma": 0.14773386617501577,
           "root90": 0.17684616363710828
         }
       },
       "globalRoot": {
-        "mean": 0.6899050803303166,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.39534731982275845,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 1.4007936790585518,
           "phuma": 0.1779278526082635,
           "root90": 0.4909937093241347
@@ -534,40 +655,47 @@
       },
       "gpuHours": {
         "mean": null,
-        "sourceUrl": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": null
       },
       "wristPos": {
-        "mean": 40.98246891775893,
-        "splits": {
+        "datasets": {
+          "locomotion": 28.01556105259806,
+          "manipulation": 38.167995652959995,
+          "ground": 122.85806220024824,
+          "dance": 53.96832004189491,
           "lafan": 43.439969746395946,
           "phuma": 38.621628315498434,
           "root90": 40.88580869138241
         }
       },
       "wristOri": {
-        "mean": 0.23612537280552917,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.23815290126949548,
+          "manipulation": 0.24726822040975094,
+          "ground": 0.580850000679493,
+          "dance": 0.39152565225958824,
           "lafan": 0.2699225042015314,
           "phuma": 0.17065668006738027,
           "root90": 0.26779693414767586
         }
       },
       "trackingReturn": {
-        "mean": 1.7151168451918457,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.8378881380042908,
+          "manipulation": 1.7965345311305188,
+          "ground": 1.0997984708085882,
+          "dance": 1.5925346362635886,
           "lafan": 1.5797353323783268,
           "phuma": 1.80826628234942,
           "root90": 1.7573489208477902
         }
       },
       "progress": {
-        "mean": 95.97496265128787,
-        "splits": {
+        "datasets": {
+          "locomotion": 100.0,
+          "manipulation": 100.0,
+          "ground": 73.2770910594293,
+          "dance": 97.98797854663054,
           "lafan": 87.92488795386362,
           "phuma": 100.0,
           "root90": 100.0
@@ -581,24 +709,33 @@
     "url": "https://github.com/zengweishuai/ScaleBFM",
     "metrics": {
       "bodyPos": {
-        "mean": 40.733317020176735,
-        "splits": {
+        "datasets": {
+          "locomotion": 38.21403861511499,
+          "manipulation": 37.749816935199,
+          "ground": 83.61077265193065,
+          "dance": 47.75595963001251,
           "lafan": 48.7823716364801,
           "phuma": 31.2936594709754,
           "root90": 42.1239199530747
         }
       },
       "bodyOri": {
-        "mean": 0.151575551264816,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.14794636871665717,
+          "manipulation": 0.11719102249480784,
+          "ground": 0.2748462792485952,
+          "dance": 0.18887436352670192,
           "lafan": 0.192579405009747,
           "phuma": 0.129536558439334,
           "root90": 0.132610690345367
         }
       },
       "globalRoot": {
-        "mean": 0.5254682137285943,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.6327748152893037,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 1.18904883749783,
           "phuma": 0.122362075404574,
           "root90": 0.264993728283379
@@ -606,40 +743,47 @@
       },
       "gpuHours": {
         "mean": null,
-        "sourceUrl": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": null
       },
       "wristPos": {
-        "mean": 51.020456698757634,
-        "splits": {
+        "datasets": {
+          "locomotion": 54.151361947879195,
+          "manipulation": 48.32395298096041,
+          "ground": 101.43164681891601,
+          "dance": 59.47523508220911,
           "lafan": 56.5428489819169,
           "phuma": 36.598570086062,
           "root90": 59.919951028294
         }
       },
       "wristOri": {
-        "mean": 0.200376598564563,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.1800857807509601,
+          "manipulation": 0.15200540935620666,
+          "ground": 0.3327033365766207,
+          "dance": 0.2975462473928928,
           "lafan": 0.271372584998608,
           "phuma": 0.151836278786262,
           "root90": 0.177920931908819
         }
       },
       "trackingReturn": {
-        "mean": 1.7495895803844732,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.8260719761967181,
+          "manipulation": 1.865413308554716,
+          "ground": 1.6414760702003406,
+          "dance": 1.705322259114417,
           "lafan": 1.54540370103755,
           "phuma": 1.86591447928109,
           "root90": 1.83745056083478
         }
       },
       "progress": {
-        "mean": 94.95883487640064,
-        "splits": {
+        "datasets": {
+          "locomotion": 100.0,
+          "manipulation": 100.0,
+          "ground": 95.80293160429142,
+          "dance": 100.0,
           "lafan": 84.8765046292019,
           "phuma": 100.0,
           "root90": 100.0
@@ -653,24 +797,33 @@
     "url": "https://github.com/zengweishuai/ScaleBFM",
     "metrics": {
       "bodyPos": {
-        "mean": 41.03460849642203,
-        "splits": {
+        "datasets": {
+          "locomotion": 36.559921340085566,
+          "manipulation": 36.032873399866126,
+          "ground": 89.68574311584234,
+          "dance": 49.429416097700596,
           "lafan": 50.4569477401674,
           "phuma": 35.0958860789736,
           "root90": 37.5509916701251
         }
       },
       "bodyOri": {
-        "mean": 0.157163218505405,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.13137181671336293,
+          "manipulation": 0.13135259365662932,
+          "ground": 0.313242011765639,
+          "dance": 0.20983507260680198,
           "lafan": 0.195745982602239,
           "phuma": 0.140766104559104,
           "root90": 0.134977568354872
         }
       },
       "globalRoot": {
-        "mean": 0.5668389564483534,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.9622803730890155,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 1.22017625141889,
           "phuma": 0.148580681563665,
           "root90": 0.331759936362505
@@ -678,40 +831,47 @@
       },
       "gpuHours": {
         "mean": null,
-        "sourceUrl": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": null
       },
       "wristPos": {
-        "mean": 45.551161512870465,
-        "splits": {
+        "datasets": {
+          "locomotion": 38.96252200938761,
+          "manipulation": 35.693153350924455,
+          "ground": 99.33360827465852,
+          "dance": 54.606523644179106,
           "lafan": 57.9770012758672,
           "phuma": 36.602646112442,
           "root90": 42.0738371503022
         }
       },
       "wristOri": {
-        "mean": 0.23313776987294366,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.20062428452074527,
+          "manipulation": 0.19913625686119,
+          "ground": 0.40633580709497136,
+          "dance": 0.3777401201426983,
           "lafan": 0.291345851495862,
           "phuma": 0.19173136005799,
           "root90": 0.216336098064979
         }
       },
       "trackingReturn": {
-        "mean": 1.6888828931086899,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.8406289534174018,
+          "manipulation": 1.8404383944355507,
+          "ground": 1.5588924784030236,
+          "dance": 1.619300421175149,
           "lafan": 1.41058823366528,
           "phuma": 1.80950783203388,
           "root90": 1.84655261362691
         }
       },
       "progress": {
-        "mean": 92.46436344394323,
-        "splits": {
+        "datasets": {
+          "locomotion": 100.0,
+          "manipulation": 100.0,
+          "ground": 94.19758015436692,
+          "dance": 98.75262973352032,
           "lafan": 77.3930903318297,
           "phuma": 100.0,
           "root90": 100.0
@@ -725,24 +885,33 @@
     "url": "https://lecar-lab.github.io/BFM-Zero/",
     "metrics": {
       "bodyPos": {
-        "mean": 46.96014686832547,
-        "splits": {
+        "datasets": {
+          "locomotion": 56.67619472369552,
+          "manipulation": 47.538253905562065,
+          "ground": 97.19201164940992,
+          "dance": 73.22132298722863,
           "lafan": 55.1098728086799,
           "phuma": 42.6438363889853,
           "root90": 43.1267314073112
         }
       },
       "bodyOri": {
-        "mean": 0.21840813724255134,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.25304075982421637,
+          "manipulation": 0.23061404408266148,
+          "ground": 0.40448707193136213,
+          "dance": 0.3955298915505409,
           "lafan": 0.275175200030208,
           "phuma": 0.220619262258212,
           "root90": 0.159429949439234
         }
       },
       "globalRoot": {
-        "mean": 2.1013333325653734,
-        "splits": {
+        "datasets": {
+          "locomotion": 3.090029053017497,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 5.65631780084223,
           "phuma": 0.177076903606455,
           "root90": 0.470605293247435
@@ -750,40 +919,47 @@
       },
       "gpuHours": {
         "mean": null,
-        "sourceUrl": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": null
       },
       "wristPos": {
-        "mean": 67.73894535446611,
-        "splits": {
+        "datasets": {
+          "locomotion": 89.86848392523825,
+          "manipulation": 84.37630402234693,
+          "ground": 140.2265175556143,
+          "dance": 133.21163039654493,
           "lafan": 80.4907901212573,
           "phuma": 70.6940232465665,
           "root90": 52.0320226955745
         }
       },
       "wristOri": {
-        "mean": 0.31590249004463333,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.334161669947207,
+          "manipulation": 0.3750668962796529,
+          "ground": 0.5170636810362339,
+          "dance": 0.6545947238802909,
           "lafan": 0.387026245519519,
           "phuma": 0.32415519952774,
           "root90": 0.236526025086641
         }
       },
       "trackingReturn": {
-        "mean": 1.5563922562952899,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.498464442762731,
+          "manipulation": 1.5746558037084404,
+          "ground": 0.70028275349214,
+          "dance": 1.243529980735139,
           "lafan": 1.26418631341435,
           "phuma": 1.63832945882215,
           "root90": 1.76666099664937
         }
       },
       "progress": {
-        "mean": 93.67603469957703,
-        "splits": {
+        "datasets": {
+          "locomotion": 100.0,
+          "manipulation": 96.8938127090301,
+          "ground": 53.19748593841649,
+          "dance": 98.85375494071147,
           "lafan": 81.0281040987311,
           "phuma": 100.0,
           "root90": 100.0
@@ -797,24 +973,33 @@
     "url": "https://github.com/BotRunner64/Teleopit",
     "metrics": {
       "bodyPos": {
-        "mean": 45.5623271047241,
-        "splits": {
+        "datasets": {
+          "locomotion": 36.249378067441285,
+          "manipulation": 36.22039221227169,
+          "ground": 129.5540583630403,
+          "dance": 58.33010086789727,
           "lafan": 55.217273067683,
           "phuma": 38.6581863587101,
           "root90": 42.8115218877792
         }
       },
       "bodyOri": {
-        "mean": 0.18334522342516335,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.14626557854935526,
+          "manipulation": 0.15150248243783912,
+          "ground": 0.48527874623735745,
+          "dance": 0.25772663243114946,
           "lafan": 0.224360701069236,
           "phuma": 0.164976876725753,
           "root90": 0.160698092480501
         }
       },
       "globalRoot": {
-        "mean": 0.48684774287458904,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.33986674901098013,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 1.14947222676128,
           "phuma": 0.137424958745639,
           "root90": 0.173646043116848
@@ -822,40 +1007,47 @@
       },
       "gpuHours": {
         "mean": 400.0,
-        "sourceUrl": "https://arxiv.org/html/2608.01834v1",
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": "https://arxiv.org/html/2608.01834v1"
       },
       "wristPos": {
-        "mean": 59.600937632085,
-        "splits": {
+        "datasets": {
+          "locomotion": 46.64866931270808,
+          "manipulation": 46.26972205005586,
+          "ground": 150.38379766047,
+          "dance": 83.1872958689928,
           "lafan": 71.4942286722362,
           "phuma": 51.6329491510987,
           "root90": 55.6756350729201
         }
       },
       "wristOri": {
-        "mean": 0.24363755779685803,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.19705260843038558,
+          "manipulation": 0.22053897908578315,
+          "ground": 0.5395981622238953,
+          "dance": 0.41839486360549927,
           "lafan": 0.305239696055651,
           "phuma": 0.203539145737886,
           "root90": 0.222133831597037
         }
       },
       "trackingReturn": {
-        "mean": 1.6641979164905065,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.8305194399283635,
+          "manipulation": 1.8105579559790241,
+          "ground": 1.317114937928419,
+          "dance": 1.475202501250543,
           "lafan": 1.41585851185884,
           "phuma": 1.78260169980917,
           "root90": 1.79413353780351
         }
       },
       "progress": {
-        "mean": 92.92317374841826,
-        "splits": {
+        "datasets": {
+          "locomotion": 100.0,
+          "manipulation": 100.0,
+          "ground": 86.61815063255017,
+          "dance": 95.13525784295167,
           "lafan": 78.9271789029125,
           "phuma": 99.8423423423423,
           "root90": 100.0
@@ -869,24 +1061,33 @@
     "url": "https://github.com/GalaxyGeneralRobotics/Humanoid-GPT",
     "metrics": {
       "bodyPos": {
-        "mean": 44.26321033388376,
-        "splits": {
+        "datasets": {
+          "locomotion": 42.714187945239246,
+          "manipulation": 34.77923688478768,
+          "ground": 72.07650902370612,
+          "dance": 54.716691141948104,
           "lafan": 52.0262829959393,
           "phuma": 35.294843899707,
           "root90": 45.468504106005
         }
       },
       "bodyOri": {
-        "mean": 0.17396605081028402,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.14848976582288742,
+          "manipulation": 0.1325638904236257,
+          "ground": 0.23121794002751508,
+          "dance": 0.23495655581355096,
           "lafan": 0.219767106324434,
           "phuma": 0.148040105650822,
           "root90": 0.154090940455596
         }
       },
       "globalRoot": {
-        "mean": 0.9764289868581616,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.323306903988123,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 2.34511103276163,
           "phuma": 0.171771515036623,
           "root90": 0.412404412776232
@@ -894,40 +1095,47 @@
       },
       "gpuHours": {
         "mean": 15000.0,
-        "sourceUrl": "https://arxiv.org/html/2606.03985v1",
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": "https://arxiv.org/html/2606.03985v1"
       },
       "wristPos": {
-        "mean": 55.4237973117442,
-        "splits": {
+        "datasets": {
+          "locomotion": 53.121502068825066,
+          "manipulation": 48.16364834550768,
+          "ground": 84.56664178520441,
+          "dance": 83.17943587899208,
           "lafan": 66.1635289900005,
           "phuma": 43.9289125924309,
           "root90": 56.1789503528012
         }
       },
       "wristOri": {
-        "mean": 0.2182189901807793,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.18425698783248662,
+          "manipulation": 0.20341238969316086,
+          "ground": 0.19537058199445406,
+          "dance": 0.3575311705470085,
           "lafan": 0.284577130898833,
           "phuma": 0.161458599319061,
           "root90": 0.208621240324444
         }
       },
       "trackingReturn": {
-        "mean": 1.6164367000620565,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.7862267517350265,
+          "manipulation": 1.8363450837505868,
+          "ground": 0.793867762640629,
+          "dance": 1.1928953956741268,
           "lafan": 1.24787776758163,
           "phuma": 1.7998794061886,
           "root90": 1.80155292641594
         }
       },
       "progress": {
-        "mean": 90.7355035483542,
-        "splits": {
+        "datasets": {
+          "locomotion": 99.33937823834198,
+          "manipulation": 100.0,
+          "ground": 51.32241031877077,
+          "dance": 75.51149644399702,
           "lafan": 72.2065106450626,
           "phuma": 100.0,
           "root90": 100.0
@@ -941,24 +1149,33 @@
     "url": "https://github.com/amazon-far/TWIST2",
     "metrics": {
       "bodyPos": {
-        "mean": 52.53869398600526,
-        "splits": {
+        "datasets": {
+          "locomotion": 56.83653694577515,
+          "manipulation": 43.76518648738662,
+          "ground": 93.26080586761236,
+          "dance": 71.56919380649924,
           "lafan": 59.5040485262871,
           "phuma": 49.8420100659132,
           "root90": 48.2700233658155
         }
       },
       "bodyOri": {
-        "mean": 0.32810333517414536,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.3414729733020067,
+          "manipulation": 0.33804905725022155,
+          "ground": 0.503888928393523,
+          "dance": 0.4201771646738052,
           "lafan": 0.361995809525251,
           "phuma": 0.327306075890859,
           "root90": 0.295008120106326
         }
       },
       "globalRoot": {
-        "mean": 1.8732773804485239,
-        "splits": {
+        "datasets": {
+          "locomotion": 3.867755672335625,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
           "lafan": 4.67622305192053,
           "phuma": 0.285096037822465,
           "root90": 0.658513051602576
@@ -966,40 +1183,47 @@
       },
       "gpuHours": {
         "mean": null,
-        "sourceUrl": null,
-        "splits": {
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
+        "sourceUrl": null
       },
       "wristPos": {
-        "mean": 65.9933561873105,
-        "splits": {
+        "datasets": {
+          "locomotion": 75.31686425209045,
+          "manipulation": 62.64394475147128,
+          "ground": 111.42121590673923,
+          "dance": 113.44811376184225,
           "lafan": 75.0021090731025,
           "phuma": 65.6862176954746,
           "root90": 57.2917417933544
         }
       },
       "wristOri": {
-        "mean": 0.635287757107505,
-        "splits": {
+        "datasets": {
+          "locomotion": 0.6519752841442823,
+          "manipulation": 0.6452690623700619,
+          "ground": 0.7828519915541013,
+          "dance": 0.7813531771302223,
           "lafan": 0.65439300686121,
           "phuma": 0.633567494153976,
           "root90": 0.617902770307329
         }
       },
       "trackingReturn": {
-        "mean": 1.143518878553379,
-        "splits": {
+        "datasets": {
+          "locomotion": 1.3002345705332234,
+          "manipulation": 1.3865903133962385,
+          "ground": 0.48521281942276456,
+          "dance": 0.7484622140113639,
           "lafan": 0.581496503842457,
           "phuma": 1.39720675190414,
           "root90": 1.45185337991354
         }
       },
       "progress": {
-        "mean": 80.04642175097847,
-        "splits": {
+        "datasets": {
+          "locomotion": 95.0257885254999,
+          "manipulation": 98.14094896331738,
+          "ground": 38.87445047630183,
+          "dance": 60.40827164697154,
           "lafan": 40.4993981130683,
           "phuma": 99.6398671398671,
           "root90": 100.0

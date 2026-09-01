@@ -4,6 +4,7 @@ import numpy as np
 
 from scripts.tracking_experiment.compute_tracking_metrics import (
     RETURN_BODY_NAMES,
+    TERMINATION_PELVIS_HEIGHT_THRESHOLD_M,
     TERMINATION_ANCHOR_BODY_NAME,
     _compute_one,
     _normalized_tracking_return,
@@ -71,6 +72,20 @@ def test_normalized_tracking_return_counts_only_pretermination_reward() -> None:
     assert reason == "anchor_ori"
     assert termination_motion_t == 2
     assert termination_idx == 1
+
+
+def test_pelvis_height_termination_uses_point_three_meter_threshold() -> None:
+    names, motion_pos, motion_quat, motion_t = _perfect_trajectory()
+    robot_pos = motion_pos.copy()
+    anchor = names.index(TERMINATION_ANCHOR_BODY_NAME)
+    robot_pos[1, anchor, 2] = TERMINATION_PELVIS_HEIGHT_THRESHOLD_M - 0.01
+    assert not _normalized_tracking_return(
+        robot_pos, motion_quat, motion_pos, motion_quat, names, motion_t, 4
+    )[2]
+    robot_pos[1, anchor, 2] = TERMINATION_PELVIS_HEIGHT_THRESHOLD_M + 0.01
+    assert _normalized_tracking_return(
+        robot_pos, motion_quat, motion_pos, motion_quat, names, motion_t, 4
+    )[2]
 
 
 def test_progress_and_return_share_pelvis_termination(tmp_path: Path) -> None:

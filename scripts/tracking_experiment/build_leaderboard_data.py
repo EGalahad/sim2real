@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 METRICS = ROOT / "assets/mimic_lite_cross_codebase_tracking_eval.csv"
+MOTIONDECODE = ROOT / "assets/motiondecode_public_dataset_metrics.csv"
 OUTPUT = ROOT / "docs/src/data/leaderboard.json"
 LINKS = {
     "mimic_lite_ppo": "https://github.com/Roboparty/MimicLite",
@@ -44,10 +45,6 @@ POLICY_ORDER = (
 )
 
 
-def mean(*values: float) -> float:
-    return sum(values) / len(values)
-
-
 def optional_float(row: dict[str, str], key: str) -> float | None:
     value = row.get(key)
     if value in {None, "", "—"}:
@@ -66,24 +63,36 @@ def split_metric(row: dict[str, str], suffix: str) -> dict[str, float | None]:
     }
 
 
-def mean_optional(values: dict[str, float | None]) -> float | None:
-    present = [value for value in values.values() if value is not None]
-    if not present:
-        return None
-    return mean(*present)
-
-
-def metric_entry(row: dict[str, str], suffix: str, mean_key: str | None = None) -> dict[str, object]:
-    splits = split_metric(row, suffix)
+def metric_entry(
+    row: dict[str, str],
+    suffix: str,
+    motiondecode: dict[str, dict[str, str]],
+    motiondecode_key: str,
+    scale: float = 1.0,
+) -> dict[str, object]:
     return {
-        "mean": optional_float(row, mean_key) if mean_key is not None else mean_optional(splits),
-        "splits": splits,
+        "datasets": {
+            **{
+                dataset: value * scale
+                if (value := optional_float(values, motiondecode_key)) is not None
+                else None
+                for dataset, values in motiondecode.items()
+            },
+            **split_metric(row, suffix),
+        }
     }
 
 
 def main() -> None:
     with METRICS.open(newline="", encoding="utf-8") as handle:
         source = list(csv.DictReader(handle))
+    with MOTIONDECODE.open(newline="", encoding="utf-8") as handle:
+        motiondecode_source = list(csv.DictReader(handle))
+    motiondecode = {
+        policy: {row["dataset"]: row for row in motiondecode_source if row["policy"] == policy}
+        for policy in POLICY_ORDER
+    }
+    assert all(set(values) == {"locomotion", "manipulation", "ground", "dance"} for values in motiondecode.values())
     assert set(POLICY_ORDER) == set(LINKS)
     source.sort(key=lambda row: POLICY_ORDER.index(row["policy"]))
 
@@ -98,28 +107,24 @@ def main() -> None:
             if name not in {"policy", "label", "gpu_hours_url"} and value not in {"", "—"}
         }
         assert key in LINKS and all(math.isfinite(value) for value in values.values())
+        datasets = motiondecode[key]
         rows.append(
             {
                 "key": key,
                 "name": row["label"],
                 "url": LINKS[key],
                 "metrics": {
-                    "bodyPos": metric_entry(row, "local_mm"),
-                    "bodyOri": metric_entry(row, "body_ori_rad"),
-                    "globalRoot": metric_entry(row, "global_root_m"),
+                    "bodyPos": metric_entry(row, "local_mm", datasets, "body_pos_m", 1000.0),
+                    "bodyOri": metric_entry(row, "body_ori_rad", datasets, "body_ori_rad"),
+                    "globalRoot": metric_entry(row, "global_root_m", datasets, "global_root_m"),
                     "gpuHours": {
                         "mean": optional_float(row, "gpu_hours"),
                         "sourceUrl": row.get("gpu_hours_url") or None,
-                        "splits": {
-                            "lafan": optional_float(row, "lafan40_gpu_hours"),
-                            "phuma": optional_float(row, "phuma30_gpu_hours"),
-                            "root90": optional_float(row, "root90_gpu_hours"),
-                        },
                     },
-                    "wristPos": metric_entry(row, "wrist_mm"),
-                    "wristOri": metric_entry(row, "wrist_ori_rad"),
-                    "trackingReturn": metric_entry(row, "tracking_return"),
-                    "progress": metric_entry(row, "progress_pct"),
+                    "wristPos": metric_entry(row, "wrist_mm", datasets, "wrist_pos_m", 1000.0),
+                    "wristOri": metric_entry(row, "wrist_ori_rad", datasets, "wrist_ori_rad"),
+                    "trackingReturn": metric_entry(row, "tracking_return", datasets, "tracking_return"),
+                    "progress": metric_entry(row, "progress_pct", datasets, "progress", 100.0),
                 },
             }
         )

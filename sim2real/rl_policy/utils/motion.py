@@ -171,6 +171,9 @@ def _any4hdmi_manifest_override_view(
     resolved_mjcf = resolve_mjcf_path(mjcf_path, dataset_root=base_dir)
     if not resolved_mjcf.is_file():
         raise FileNotFoundError(f"any4hdmi MJCF override not found: {resolved_mjcf}")
+    source_mjcf = resolve_mjcf_path(manifest["mjcf"], dataset_root=source_root)
+    if source_mjcf.samefile(resolved_mjcf):
+        return str(input_path)
 
     manifest["mjcf"] = str(resolved_mjcf)
     manifest.pop("mjcf_path", None)

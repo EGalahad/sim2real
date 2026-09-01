@@ -21,10 +21,14 @@ Tracking Return 衡量经过 pelvis XY/yaw 对齐后的局部姿态质量。Prog
 
 ## 评测协议
 
-- **Tracking Return：** 三个数据集 normalized return 的等权平均；越高越好。
-- **局部误差：** LAFAN-40、PHUMA-30 与 Root-90 局部身体位置误差的平均值；越低越好。
-- **手腕误差：** LAFAN-40、PHUMA-30 与 Root-90 左右手腕位置误差的平均值；越低越好。
-- **全局 Root：** 三套数据上的 root 轨迹误差均值；越低越好。
+- 默认 held-out benchmark 为 MotionDecode Locomotion-80、Manipulation-48、Ground-60 和 Dance-40；旧版 `L = LAFAN-40`、`P = PHUMA-30`、`R = Root-90` 仍可勾选。
+- 每个 headline 是所选且可用的 dataset mean 的等权平均；每个 dataset 内所有 motion 等权，第二行直接展示各 dataset mean。
+- **身体位置 / 姿态：** 局部身体位置 / 姿态误差；越低越好。
+- **全局 Root：** 仅 root 的轨迹误差；越低越好。MotionDecode 只在 Locomotion 上统计，其他三组显示 `n/a` 且不进入 headline。
+- **GPU Hours：** 有权威来源时展示并链接训练成本；它与 dataset 选择无关。
+- **手腕位置 / 姿态：** 左右手腕位置 / 姿态误差；越低越好。
+- **Tracking Return：** normalized tracking return；越高越好。
+- **Progress：** motion completion；越高越好。
 - 所有策略统一使用 seed 0、`initial_pause_s=0.0`、无运行时上限以及相同的失败判定。完整定义和复现命令见[跨代码库动作跟踪评测](/tutorials/cross-codebase-evaluation)。
 
 最后更新：2026 年 9 月 1 日。

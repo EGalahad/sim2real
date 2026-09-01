@@ -49,6 +49,7 @@ RETURN_BODY_NAMES = (
     "right_wrist_yaw_link",
 )
 WRIST_BODY_NAMES = ("left_wrist_yaw_link", "right_wrist_yaw_link")
+TERMINATION_PELVIS_HEIGHT_THRESHOLD_M = 0.3
 
 
 def _parse_args() -> argparse.Namespace:
@@ -207,7 +208,7 @@ def _normalized_tracking_return(
             motion_pos[:, termination_anchor_idx, 2]
             - robot_pos[:, termination_anchor_idx, 2]
         )
-        > 0.25
+        > TERMINATION_PELVIS_HEIGHT_THRESHOLD_M
     )
     gravity_w = np.broadcast_to(
         np.asarray([0.0, 0.0, -1.0], dtype=np.float32),

@@ -12,6 +12,14 @@ type MetricKey =
   | 'wristOri'
   | 'trackingReturn'
   | 'progress';
+type DatasetKey =
+  | 'locomotion'
+  | 'manipulation'
+  | 'ground'
+  | 'dance'
+  | 'lafan'
+  | 'phuma'
+  | 'root90';
 
 const columns: Array<{
   key: MetricKey;
@@ -31,16 +39,26 @@ const columns: Array<{
   {key: 'progress', en: 'Progress', zh: '完成度', unit: '%', higher: true, digits: 1},
 ];
 
+const datasets: Array<{key: DatasetKey; en: string; zh: string; short: string}> = [
+  {key: 'locomotion', en: 'Locomotion', zh: '移动', short: 'Loc'},
+  {key: 'manipulation', en: 'Manipulation', zh: '操作', short: 'Man'},
+  {key: 'ground', en: 'Ground', zh: '起身', short: 'Gnd'},
+  {key: 'dance', en: 'Dance', zh: '舞蹈', short: 'Dnc'},
+  {key: 'lafan', en: 'Legacy LAFAN-40', zh: '旧版 LAFAN-40', short: 'L'},
+  {key: 'phuma', en: 'Legacy PHUMA-30', zh: '旧版 PHUMA-30', short: 'P'},
+  {key: 'root90', en: 'Legacy Root-90', zh: '旧版 Root-90', short: 'R'},
+];
+
 const copy = {
   en: {
-    rank: 'Rank', policy: 'Policy', legend: 'L = LAFAN-40, P = PHUMA-30, R = Root-90 · Click any metric header to rank.',
-    plotTitle: 'Build a comparison', policies: 'Policies', metrics: 'Metrics',
+    rank: 'Rank', policy: 'Policy', rankHint: 'Click any metric header to rank.',
+    plotTitle: 'Build a comparison', policies: 'Policies', metrics: 'Metrics', datasets: 'Datasets',
     plotHint: 'Each metric uses its own scale; GPU Hours is logarithmic. Missing values are n/a.',
     tableLabel: 'Scrollable policy leaderboard',
   },
   zh: {
-    rank: '排名', policy: 'Policy', legend: 'L = LAFAN-40，P = PHUMA-30，R = Root-90 · 点击任意指标表头排序。',
-    plotTitle: '自定义对比', policies: '策略', metrics: '指标',
+    rank: '排名', policy: 'Policy', rankHint: '点击任意指标表头排序。',
+    plotTitle: '自定义对比', policies: '策略', metrics: '指标', datasets: '数据集',
     plotHint: '每个指标使用独立坐标轴；GPU Hours 使用对数轴；缺失值标记为 n/a。',
     tableLabel: '可滚动策略排行榜',
   },
@@ -52,21 +70,28 @@ const defaultPolicies = new Set([
 const defaultMetrics = new Set<MetricKey>([
   'bodyPos', 'globalRoot', 'gpuHours', 'wristPos', 'trackingReturn',
 ]);
+const defaultDatasets = new Set<DatasetKey>([
+  'locomotion', 'manipulation', 'ground', 'dance',
+]);
 const palette = [
   '#f1d36b', '#2f6236', '#5e9d5d', '#9eb875', '#d9826b', '#4f86a8', '#8b6bb1',
   '#d6a14d', '#4d8b7f', '#b96b71', '#7397bf', '#af8c72', '#7c9e52', '#6f6f6f',
 ];
 
-function metricValue(row: Row, key: MetricKey): number | null {
-  return row.metrics[key].mean;
+function metricValue(row: Row, key: MetricKey, selectedDatasets: Set<DatasetKey>): number | null {
+  if (key === 'gpuHours') return row.metrics.gpuHours.mean;
+  const values = [...selectedDatasets]
+    .map((dataset) => row.metrics[key].datasets[dataset])
+    .filter((value): value is number => value != null);
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
 
 function formatValue(value: number | null, digits: number): string {
   return value == null ? '—' : value.toFixed(digits);
 }
 
-function metricLabel(row: Row, key: MetricKey, digits: number): React.ReactNode {
-  const value = metricValue(row, key);
+function metricLabel(row: Row, key: MetricKey, digits: number, selectedDatasets: Set<DatasetKey>): React.ReactNode {
+  const value = metricValue(row, key, selectedDatasets);
   const text = formatValue(value, digits);
   if (key === 'gpuHours' && value != null && row.metrics.gpuHours.sourceUrl) {
     return <a href={row.metrics.gpuHours.sourceUrl} target="_blank" rel="noreferrer">{text}</a>;
@@ -74,16 +99,12 @@ function metricLabel(row: Row, key: MetricKey, digits: number): React.ReactNode 
   return text;
 }
 
-function splitLine(row: Row, key: MetricKey, digits: number): string {
-  const splits = row.metrics[key].splits;
-  if (splits.lafan == null && splits.phuma == null && splits.root90 == null) {
-    return '—';
-  }
-  return [
-    `L ${formatValue(splits.lafan, digits)}`,
-    `P ${formatValue(splits.phuma, digits)}`,
-    `R ${formatValue(splits.root90, digits)}`,
-  ].join(' · ');
+function splitLine(row: Row, key: MetricKey, digits: number, selectedDatasets: Set<DatasetKey>): string {
+  if (key === 'gpuHours') return '—';
+  return datasets
+    .filter((dataset) => selectedDatasets.has(dataset.key))
+    .map((dataset) => `${dataset.short} ${formatValue(row.metrics[key].datasets[dataset.key], digits)}`)
+    .join(' · ');
 }
 
 function toggleSet<T>(current: Set<T>, value: T): Set<T> {
@@ -96,11 +117,13 @@ function ComparisonCanvas({
   rows,
   selectedPolicies,
   selectedMetrics,
+  selectedDatasets,
   locale,
 }: {
   rows: Row[];
   selectedPolicies: Set<string>;
   selectedMetrics: Set<MetricKey>;
+  selectedDatasets: Set<DatasetKey>;
   locale: 'en' | 'zh';
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -156,7 +179,7 @@ function ComparisonCanvas({
         const plotLeft = x0 + (compact ? 12 : 58);
         const plotRight = x0 + panelWidth - (compact ? 8 : 14);
         const values = policies
-          .map((row) => metricValue(row, metric.key))
+          .map((row) => metricValue(row, metric.key, selectedDatasets))
           .filter((value): value is number => value != null && value > 0);
         const logScale = metric.key === 'gpuHours';
         const maximum = Math.max(...values, 1) * 1.12;
@@ -196,7 +219,7 @@ function ComparisonCanvas({
         const slot = (plotRight - plotLeft) / policies.length;
         const barWidth = Math.min(34, slot * 0.62);
         policies.forEach((row, policyIndex) => {
-          const value = metricValue(row, metric.key);
+          const value = metricValue(row, metric.key, selectedDatasets);
           const x = plotLeft + slot * policyIndex + (slot - barWidth) / 2;
           if (value == null) {
             ctx.fillStyle = '#7b7d76';
@@ -247,7 +270,7 @@ function ComparisonCanvas({
     const observer = new ResizeObserver(draw);
     observer.observe(wrap);
     return () => observer.disconnect();
-  }, [locale, rows, selectedMetrics, selectedPolicies]);
+  }, [locale, rows, selectedDatasets, selectedMetrics, selectedPolicies]);
 
   return <div ref={wrapRef} className={styles.canvasWrap}>
     <canvas ref={canvasRef} aria-label="Custom policy comparison bar chart" />
@@ -258,6 +281,7 @@ export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
   const [sortKey, setSortKey] = useState<MetricKey>('bodyPos');
   const [selectedPolicies, setSelectedPolicies] = useState(defaultPolicies);
   const [selectedMetrics, setSelectedMetrics] = useState(defaultMetrics);
+  const [selectedDatasets, setSelectedDatasets] = useState(defaultDatasets);
   const plotStageRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<HTMLElement>(null);
   const tableStageRef = useRef<HTMLDivElement>(null);
@@ -265,12 +289,17 @@ export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
   const text = copy[locale];
   const selected = columns.find((option) => option.key === sortKey)!;
   const rows = useMemo(() => [...(data as Row[])].sort((a, b) => {
-    const left = metricValue(a, sortKey);
-    const right = metricValue(b, sortKey);
+    const left = metricValue(a, sortKey, selectedDatasets);
+    const right = metricValue(b, sortKey, selectedDatasets);
     if (left == null) return 1;
     if (right == null) return -1;
     return selected.higher ? right - left : left - right;
-  }), [sortKey, selected.higher]);
+  }), [selectedDatasets, sortKey, selected.higher]);
+
+  const datasetLegend = datasets
+    .filter((dataset) => selectedDatasets.has(dataset.key))
+    .map((dataset) => `${dataset.short} = ${locale === 'zh' ? dataset.zh : dataset.en}`)
+    .join(locale === 'zh' ? '，' : ', ');
 
   useEffect(() => {
     let animationFrame = 0;
@@ -359,15 +388,27 @@ export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
           <span>{locale === 'zh' ? metric.zh : metric.en}</span>
         </label>)}</div>
       </fieldset>
+      <fieldset className={styles.selectorRow}>
+        <legend>{text.datasets}</legend>
+        <div className={styles.chips}>{datasets.map((dataset) => <label key={dataset.key} className={styles.chip}>
+          <input
+            type="checkbox"
+            checked={selectedDatasets.has(dataset.key)}
+            onChange={() => setSelectedDatasets((current) => toggleSet(current, dataset.key))}
+          />
+          <span>{locale === 'zh' ? dataset.zh : dataset.en}</span>
+        </label>)}</div>
+      </fieldset>
       <ComparisonCanvas
         rows={data as Row[]}
         selectedPolicies={selectedPolicies}
         selectedMetrics={selectedMetrics}
+        selectedDatasets={selectedDatasets}
         locale={locale}
       />
     </section>
     </div>
-    <p className={styles.legend}>{text.legend}</p>
+    <p className={styles.legend}>{datasetLegend} · {text.rankHint}</p>
     <div ref={tableStageRef} className={styles.tableStage}>
     <div
       ref={tableRef}
@@ -400,11 +441,11 @@ export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
           </th>)}
         </tr></thead>
         <tbody>{rows.map((row, index) => <tr key={row.key} className={index < 3 ? styles.podium : ''}>
-          <td className={styles.rank}>{metricValue(row, sortKey) == null ? '—' : index + 1}</td>
+          <td className={styles.rank}>{metricValue(row, sortKey, selectedDatasets) == null ? '—' : index + 1}</td>
           <td className={styles.policy}><a href={row.url} target="_blank" rel="noreferrer">{row.name}</a></td>
           {columns.map((column) => <td key={column.key} className={sortKey === column.key ? styles.sorted : ''}>
-            <strong>{metricLabel(row, column.key, column.digits)}</strong>
-            <small>{splitLine(row, column.key, column.digits)}</small>
+            <strong>{metricLabel(row, column.key, column.digits, selectedDatasets)}</strong>
+            <small>{splitLine(row, column.key, column.digits, selectedDatasets)}</small>
           </td>)}
         </tr>)}</tbody>
       </table>
