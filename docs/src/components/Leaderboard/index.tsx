@@ -71,7 +71,7 @@ const defaultMetrics = new Set<MetricKey>([
   'bodyPos', 'globalRoot', 'gpuHours', 'wristPos', 'trackingReturn',
 ]);
 const defaultDatasets = new Set<DatasetKey>([
-  'locomotion', 'manipulation', 'ground', 'dance',
+  'locomotion', 'manipulation',
 ]);
 const palette = [
   '#f1d36b', '#2f6236', '#5e9d5d', '#9eb875', '#d9826b', '#4f86a8', '#8b6bb1',
@@ -388,17 +388,6 @@ export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
           <span>{locale === 'zh' ? metric.zh : metric.en}</span>
         </label>)}</div>
       </fieldset>
-      <fieldset className={styles.selectorRow}>
-        <legend>{text.datasets}</legend>
-        <div className={styles.chips}>{datasets.map((dataset) => <label key={dataset.key} className={styles.chip}>
-          <input
-            type="checkbox"
-            checked={selectedDatasets.has(dataset.key)}
-            onChange={() => setSelectedDatasets((current) => toggleSet(current, dataset.key))}
-          />
-          <span>{locale === 'zh' ? dataset.zh : dataset.en}</span>
-        </label>)}</div>
-      </fieldset>
       <ComparisonCanvas
         rows={data as Row[]}
         selectedPolicies={selectedPolicies}
@@ -408,6 +397,31 @@ export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
       />
     </section>
     </div>
+    <fieldset className={styles.datasetBar}>
+      <legend>{text.datasets}</legend>
+      <div className={styles.datasetGroup}>
+        <strong>MotionDecode</strong>
+        <div className={styles.chips}>{datasets.slice(0, 4).map((dataset) => <label key={dataset.key} className={styles.chip}>
+          <input
+            type="checkbox"
+            checked={selectedDatasets.has(dataset.key)}
+            onChange={() => setSelectedDatasets((current) => toggleSet(current, dataset.key))}
+          />
+          <span>{dataset.short} · {locale === 'zh' ? dataset.zh : dataset.en}</span>
+        </label>)}</div>
+      </div>
+      <div className={styles.datasetGroup}>
+        <strong>Legacy</strong>
+        <div className={styles.chips}>{datasets.slice(4).map((dataset) => <label key={dataset.key} className={styles.chip}>
+          <input
+            type="checkbox"
+            checked={selectedDatasets.has(dataset.key)}
+            onChange={() => setSelectedDatasets((current) => toggleSet(current, dataset.key))}
+          />
+          <span>{dataset.short} · {locale === 'zh' ? dataset.zh : dataset.en}</span>
+        </label>)}</div>
+      </div>
+    </fieldset>
     <p className={styles.legend}>{datasetLegend} · {text.rankHint}</p>
     <div ref={tableStageRef} className={styles.tableStage}>
     <div

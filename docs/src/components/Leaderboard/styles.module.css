@@ -1,5 +1,30 @@
 .legend { color: #666860; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; margin: 1.5rem 0 .8rem; }
 
+.datasetBar {
+  align-items: center;
+  background: #faf9f5;
+  border: 1.5px solid #171913;
+  box-shadow: 4px 5px 0 #171913;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem 1.25rem;
+  margin: 1.5rem 0 1rem;
+  padding: .8rem 1rem;
+}
+.datasetBar legend {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .8rem;
+  font-weight: 800;
+  padding: 0 .4rem;
+  text-transform: uppercase;
+}
+.datasetGroup { align-items: center; display: flex; gap: .55rem; min-width: 0; }
+.datasetGroup > strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .72rem;
+  text-transform: uppercase;
+}
+
 .tableWrap {
   background: #faf9f5;
   border: 1.5px solid #171913;
@@ -99,4 +124,8 @@
   .chip { flex: 0 0 auto; }
   .chip span { font-size: .68rem; padding: .26rem .42rem; }
   .canvasWrap { flex-basis: 60%; margin-top: .4rem; min-height: 60%; }
+  .datasetBar { align-items: stretch; display: block; padding: .65rem; }
+  .datasetGroup { display: block; margin-bottom: .55rem; overflow: hidden; width: 100%; }
+  .datasetGroup:last-child { margin-bottom: 0; }
+  .datasetGroup > strong { display: block; margin-bottom: .3rem; }
 }
