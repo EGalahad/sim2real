@@ -78,6 +78,25 @@
 
 @media (max-width: 700px) {
   .table { font-size: .8rem; }
-  .plotBuilder { box-shadow: 4px 5px 0 #171913; padding: .9rem; }
-  .selectorRow legend { float: none; margin-bottom: .45rem; }
+  .plotBuilder { box-shadow: 4px 5px 0 #171913; padding: .75rem; }
+  .plotHeader { margin-bottom: .45rem; }
+  .plotHeader p { display: none; }
+  .selectorRow { margin-bottom: .45rem; max-width: 100%; min-width: 0; overflow: hidden; width: 100%; }
+  .selectorRow legend { float: none; margin: 0 0 .25rem; }
+  .chips {
+    flex-wrap: nowrap;
+    gap: .35rem;
+    overflow-x: auto;
+    padding: 0 3px 4px 1px;
+    scrollbar-width: none;
+    touch-action: pan-x;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: 0 0 auto; }
+  .chip span { font-size: .68rem; padding: .26rem .42rem; }
+  .canvasWrap { flex-basis: 60%; margin-top: .4rem; min-height: 60%; }
 }

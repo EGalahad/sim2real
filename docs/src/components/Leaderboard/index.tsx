@@ -115,7 +115,8 @@ function ComparisonCanvas({
       const policies = rows.filter((row) => selectedPolicies.has(row.key));
       const metrics = columns.filter((column) => selectedMetrics.has(column.key));
       const width = Math.max(240, wrap.clientWidth);
-      const panelColumns = width < 600
+      const compact = width < 600;
+      const panelColumns = compact
         ? Math.min(2, metrics.length)
         : Math.max(1, Math.floor((width - 32) / 270));
       const panelRows = Math.ceil(metrics.length / panelColumns);
@@ -152,8 +153,8 @@ function ComparisonCanvas({
         const top = rowTop + Math.min(54, panelHeight * .25);
         const bottom = rowTop + panelHeight - Math.min(36, panelHeight * .12);
         const chartHeight = bottom - top;
-        const plotLeft = x0 + 58;
-        const plotRight = x0 + panelWidth - 14;
+        const plotLeft = x0 + (compact ? 12 : 58);
+        const plotRight = x0 + panelWidth - (compact ? 8 : 14);
         const values = policies
           .map((row) => metricValue(row, metric.key))
           .filter((value): value is number => value != null && value > 0);
@@ -165,7 +166,7 @@ function ComparisonCanvas({
         const logMaximumExponent = values.length
           ? Math.max(logMinimumExponent + 1, Math.ceil(Math.log10(Math.max(...values) * 1.12)))
           : 1;
-        ctx.font = '700 15px ui-monospace, SFMono-Regular, Menlo, monospace';
+        ctx.font = `${compact ? '700 9px' : '700 15px'} ui-monospace, SFMono-Regular, Menlo, monospace`;
         ctx.fillStyle = '#171913';
         ctx.textAlign = 'center';
         ctx.fillText(
@@ -175,17 +176,22 @@ function ComparisonCanvas({
         );
         ctx.font = '12px ui-monospace, SFMono-Regular, Menlo, monospace';
         const tickCount = logScale ? logMaximumExponent - logMinimumExponent : 4;
-        for (let tick = 0; tick <= tickCount; tick += 1) {
-          const value = logScale
-            ? 10 ** (logMinimumExponent + tick)
-            : maximum * (tick / tickCount);
-          const y = bottom - chartHeight * (tick / tickCount);
-          ctx.strokeStyle = tick === 0 ? '#171913' : 'rgba(65, 67, 58, 0.18)';
-          ctx.beginPath(); ctx.moveTo(plotLeft, y); ctx.lineTo(plotRight, y); ctx.stroke();
-          ctx.fillStyle = '#6f716b';
-          ctx.textAlign = 'right';
-          const tickLabel = logScale && value >= 1000 ? `${value / 1000}k` : formatValue(value, metric.digits);
-          ctx.fillText(tickLabel, plotLeft - 8, y + 4);
+        if (compact) {
+          ctx.strokeStyle = '#171913';
+          ctx.beginPath(); ctx.moveTo(plotLeft, bottom); ctx.lineTo(plotRight, bottom); ctx.stroke();
+        } else {
+          for (let tick = 0; tick <= tickCount; tick += 1) {
+            const value = logScale
+              ? 10 ** (logMinimumExponent + tick)
+              : maximum * (tick / tickCount);
+            const y = bottom - chartHeight * (tick / tickCount);
+            ctx.strokeStyle = tick === 0 ? '#171913' : 'rgba(65, 67, 58, 0.18)';
+            ctx.beginPath(); ctx.moveTo(plotLeft, y); ctx.lineTo(plotRight, y); ctx.stroke();
+            ctx.fillStyle = '#6f716b';
+            ctx.textAlign = 'right';
+            const tickLabel = logScale && value >= 1000 ? `${value / 1000}k` : formatValue(value, metric.digits);
+            ctx.fillText(tickLabel, plotLeft - 8, y + 4);
+          }
         }
         const slot = (plotRight - plotLeft) / policies.length;
         const barWidth = Math.min(34, slot * 0.62);
@@ -210,13 +216,15 @@ function ComparisonCanvas({
           ctx.strokeStyle = '#171913';
           ctx.lineWidth = 1.5;
           ctx.strokeRect(x, y, barWidth, barHeight);
-          ctx.save();
-          ctx.translate(x + barWidth / 2, Math.max(top + 12, y - 7));
-          ctx.rotate(-Math.PI / 2);
-          ctx.fillStyle = '#171913';
-          ctx.textAlign = 'left';
-          ctx.fillText(formatValue(value, metric.digits), 0, 4);
-          ctx.restore();
+          if (!compact) {
+            ctx.save();
+            ctx.translate(x + barWidth / 2, Math.max(top + 12, y - 7));
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillStyle = '#171913';
+            ctx.textAlign = 'left';
+            ctx.fillText(formatValue(value, metric.digits), 0, 4);
+            ctx.restore();
+          }
         });
       });
 
