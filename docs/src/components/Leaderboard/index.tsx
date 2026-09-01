@@ -286,12 +286,16 @@ export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
         1,
         Math.max(0, (plotOffset - canvasTravel) / plotTravel),
       );
+      const easedProgress = Math.min(
+        1,
+        Math.max(0, (plotProgress - .25) / .5),
+      );
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         plot.style.transform = 'none';
         plot.style.opacity = '1';
       } else {
-        plot.style.transform = `scale(${1 - plotProgress * .025}) translateY(${-plotProgress * 8}px)`;
-        plot.style.opacity = `${1 - plotProgress * .12}`;
+        plot.style.transform = `scale(${1 - easedProgress * .025}) translateY(${-easedProgress * 8}px)`;
+        plot.style.opacity = `${1 - easedProgress * .12}`;
       }
 
       const tableTravel = Math.max(0, table.scrollHeight - table.clientHeight);
