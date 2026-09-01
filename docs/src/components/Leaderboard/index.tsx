@@ -50,7 +50,7 @@ const defaultPolicies = new Set([
   'mimic_lite_roa', 'mimic_lite_ppo', 'sonic_g1', 'heft', 'holomotion',
 ]);
 const defaultMetrics = new Set<MetricKey>([
-  'bodyPos', 'globalRoot', 'gpuHours', 'wristPos', 'wristOri',
+  'bodyPos', 'globalRoot', 'gpuHours', 'wristPos', 'trackingReturn',
 ]);
 const palette = [
   '#f1d36b', '#2f6236', '#5e9d5d', '#9eb875', '#d9826b', '#4f86a8', '#8b6bb1',
@@ -115,7 +115,9 @@ function ComparisonCanvas({
       const policies = rows.filter((row) => selectedPolicies.has(row.key));
       const metrics = columns.filter((column) => selectedMetrics.has(column.key));
       const width = Math.max(240, wrap.clientWidth);
-      const panelColumns = Math.max(1, Math.floor((width - 32) / 270));
+      const panelColumns = width < 600
+        ? Math.min(2, metrics.length)
+        : Math.max(1, Math.floor((width - 32) / 270));
       const panelRows = Math.ceil(metrics.length / panelColumns);
       const panelWidth = (width - 32) / panelColumns;
       const legendRows = Math.ceil(policies.length / Math.max(1, Math.floor(width / 175)));
