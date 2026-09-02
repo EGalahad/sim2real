@@ -5,11 +5,14 @@
   background: #faf9f5;
   border: 1.5px solid #171913;
   box-shadow: 4px 5px 0 #171913;
+  box-sizing: border-box;
   display: flex;
   flex-wrap: wrap;
   gap: .65rem 1.25rem;
   margin: 1.5rem 0 1rem;
+  min-width: 0;
   padding: .8rem 1rem;
+  width: 100%;
 }
 .datasetBar legend {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -18,7 +21,21 @@
   padding: 0 .4rem;
   text-transform: uppercase;
 }
-.datasetGroup { align-items: center; display: flex; gap: .55rem; min-width: 0; }
+.datasetGroups {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  gap: 1.25rem;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 1px 3px 4px 1px;
+  scrollbar-width: none;
+}
+.datasetGroups::-webkit-scrollbar { display: none; }
+.datasetGroups .chips { flex-wrap: nowrap; min-width: max-content; overflow: visible; padding: 0; width: auto; }
+.datasetGroup { align-items: center; display: flex; flex: 0 0 auto; gap: .55rem; min-width: 0; }
 .datasetGroup > strong {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: .72rem;
@@ -125,7 +142,5 @@
   .chip span { font-size: .68rem; padding: .26rem .42rem; }
   .canvasWrap { flex-basis: 60%; margin-top: .4rem; min-height: 60%; }
   .datasetBar { align-items: stretch; display: block; padding: .65rem; }
-  .datasetGroup { display: block; margin-bottom: .55rem; overflow: hidden; width: 100%; }
-  .datasetGroup:last-child { margin-bottom: 0; }
-  .datasetGroup > strong { display: block; margin-bottom: .3rem; }
+  .datasetGroups { width: 100%; }
 }

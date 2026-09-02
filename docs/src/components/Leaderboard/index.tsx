@@ -113,6 +113,48 @@ function toggleSet<T>(current: Set<T>, value: T): Set<T> {
   return next.size ? next : current;
 }
 
+function DatasetSelector({
+  className,
+  label,
+  locale,
+  selectedDatasets,
+  onToggle,
+}: {
+  className: string;
+  label: string;
+  locale: 'en' | 'zh';
+  selectedDatasets: Set<DatasetKey>;
+  onToggle: (key: DatasetKey) => void;
+}) {
+  return <fieldset className={className}>
+    <legend>{label}</legend>
+    <div className={styles.datasetGroups}>
+      <div className={styles.datasetGroup}>
+        <strong>MotionDecode</strong>
+        <div className={styles.chips}>{datasets.slice(0, 4).map((dataset) => <label key={dataset.key} className={styles.chip}>
+          <input
+            type="checkbox"
+            checked={selectedDatasets.has(dataset.key)}
+            onChange={() => onToggle(dataset.key)}
+          />
+          <span>{locale === 'zh' ? dataset.zh : dataset.en} ({dataset.count})</span>
+        </label>)}</div>
+      </div>
+      <div className={styles.datasetGroup}>
+        <strong>Legacy</strong>
+        <div className={styles.chips}>{datasets.slice(4).map((dataset) => <label key={dataset.key} className={styles.chip}>
+          <input
+            type="checkbox"
+            checked={selectedDatasets.has(dataset.key)}
+            onChange={() => onToggle(dataset.key)}
+          />
+          <span>{locale === 'zh' ? dataset.zh : dataset.en}</span>
+        </label>)}</div>
+      </div>
+    </div>
+  </fieldset>;
+}
+
 function ComparisonCanvas({
   rows,
   selectedPolicies,
@@ -388,6 +430,13 @@ export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
           <span>{locale === 'zh' ? metric.zh : metric.en}</span>
         </label>)}</div>
       </fieldset>
+      <DatasetSelector
+        className={styles.selectorRow}
+        label={text.datasets}
+        locale={locale}
+        selectedDatasets={selectedDatasets}
+        onToggle={(key) => setSelectedDatasets((current) => toggleSet(current, key))}
+      />
       <ComparisonCanvas
         rows={data as Row[]}
         selectedPolicies={selectedPolicies}
@@ -397,31 +446,13 @@ export default function Leaderboard({locale = 'en'}: {locale?: 'en' | 'zh'}) {
       />
     </section>
     </div>
-    <fieldset className={styles.datasetBar}>
-      <legend>{text.datasets}</legend>
-      <div className={styles.datasetGroup}>
-        <strong>MotionDecode</strong>
-        <div className={styles.chips}>{datasets.slice(0, 4).map((dataset) => <label key={dataset.key} className={styles.chip}>
-          <input
-            type="checkbox"
-            checked={selectedDatasets.has(dataset.key)}
-            onChange={() => setSelectedDatasets((current) => toggleSet(current, dataset.key))}
-          />
-          <span>{dataset.short} · {locale === 'zh' ? dataset.zh : dataset.en} ({dataset.count})</span>
-        </label>)}</div>
-      </div>
-      <div className={styles.datasetGroup}>
-        <strong>Legacy</strong>
-        <div className={styles.chips}>{datasets.slice(4).map((dataset) => <label key={dataset.key} className={styles.chip}>
-          <input
-            type="checkbox"
-            checked={selectedDatasets.has(dataset.key)}
-            onChange={() => setSelectedDatasets((current) => toggleSet(current, dataset.key))}
-          />
-          <span>{dataset.short} · {locale === 'zh' ? dataset.zh : dataset.en}</span>
-        </label>)}</div>
-      </div>
-    </fieldset>
+    <DatasetSelector
+      className={styles.datasetBar}
+      label={text.datasets}
+      locale={locale}
+      selectedDatasets={selectedDatasets}
+      onToggle={(key) => setSelectedDatasets((current) => toggleSet(current, key))}
+    />
     <p className={styles.legend}>{datasetLegend} · {text.rankHint}</p>
     <div ref={tableStageRef} className={styles.tableStage}>
     <div
