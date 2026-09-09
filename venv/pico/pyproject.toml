@@ -37,6 +37,9 @@ include = [
 [tool.uv]
 package = true
 
+[tool.setuptools.package-data]
+sim2real = ["teleop/configs/xrobot_to_h2.json"]
+
 [tool.uv.sources]
 general-motion-retargeting = { git = "https://github.com/EGalahad/GMR.git", branch = "codex/add-pyproject-toml" }
 xrobotoolkit-sdk = { path = "../../external/XRoboToolkit-PC-Service-Pybind", editable = true }

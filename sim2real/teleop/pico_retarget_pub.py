@@ -253,6 +253,20 @@ def _hand_grip_message_from_data(controller_data: object) -> HandGripMessage:
     )
 
 
+def _resolve_gmr_target_robot(robot_cfg: RobotCfg) -> str:
+    try:
+        return {"g1": "unitree_g1", "h2": "unitree_h2"}[robot_cfg.name]
+    except KeyError as exc:
+        raise ValueError(f"Pico retargeting does not support {robot_cfg.name}") from exc
+
+
+def _register_gmr_robot(robot_cfg: RobotCfg, target_robot: str) -> None:
+    if target_robot == "unitree_h2":
+        from general_motion_retargeting.params import IK_CONFIG_DICT, ROBOT_XML_DICT
+        ROBOT_XML_DICT[target_robot] = robot_cfg.resolve_mjcf_path()
+        IK_CONFIG_DICT["xrobot"][target_robot] = Path(__file__).with_name("configs") / "xrobot_to_h2.json"
+
+
 class LiveRetargetPublisher:
     def __init__(self, args: "PublisherArgs"):
         self.args = args
@@ -263,9 +277,11 @@ class LiveRetargetPublisher:
 
         self.rate = RateLimiter(frequency=self.publish_hz, warn=True)
         self.streamer = XRobotStreamer()
+        target_robot = _resolve_gmr_target_robot(self.robot_cfg)
+        _register_gmr_robot(self.robot_cfg, target_robot)
         self.retarget = GMR(
             src_human="xrobot",
-            tgt_robot="unitree_g1",
+            tgt_robot=target_robot,
             actual_human_height=float(args.actual_human_height),
             verbose=bool(args.verbose),
         )
@@ -287,7 +303,7 @@ class LiveRetargetPublisher:
             )
         if self.retarget.configuration.model.nq != expected_qpos_size:
             print(
-                "[publish] warning: G1 MJCF qpos size mismatch "
+                "[publish] warning: GMR MJCF qpos size mismatch "
                 f"(model.nq={self.retarget.configuration.model.nq}, expected={expected_qpos_size})"
             )
 
