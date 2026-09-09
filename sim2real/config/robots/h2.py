@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
-from sim2real.config.robots.base import RobotCfg
+from sim2real.config.robots.base import RobotCfg, resolve_asset_reference
 
 
-H2_MJCF_PATH = Path(__file__).resolve().parents[2] / "assets" / "h2" / "h2.xml"
+H2_MJCF_PATH = resolve_asset_reference(
+    "hf://elijahgalahad/h2_model@beb532e8717b99816b93baace0c649a599538715/h2.xml"
+)
 
 DEFAULT_JOINT_FRICTIONLOSS = 0.01
 

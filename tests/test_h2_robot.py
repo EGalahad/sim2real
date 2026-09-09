@@ -6,7 +6,7 @@ from sim2real.config.robots.base import resolve_mjcf_joint_names
 from sim2real.sim_env.utils.mjcf import load_sim_model
 
 
-def test_h2_packaged_model_contract():
+def test_h2_shared_model_contract():
     assert get_robot_cfg("h2") is get_robot_cfg("unitree_h2") is H2_CFG
     model = load_sim_model(H2_CFG)
     assert (model.nq, model.nv, model.nu) == (38, 37, 31)
