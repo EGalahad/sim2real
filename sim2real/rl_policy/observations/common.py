@@ -45,6 +45,9 @@ class root_ang_vel_history(Observation, namespace=("mimic_lite", "hdmi")):
         self.history_steps = history_steps
         buffer_size = max(history_steps) + 1
         self.root_ang_vel_history = np.zeros((buffer_size, 3))
+
+    def reset(self):
+        self.root_ang_vel_history[:] = self.state_processor.root_ang_vel_b
     
     def update(self, data: Dict[str, Any]) -> None:
         self.root_ang_vel_history = np.roll(self.root_ang_vel_history, 1, axis=0)
@@ -60,6 +63,11 @@ class projected_gravity_history(Observation, namespace=("mimic_lite", "hdmi")):
         buffer_size = max(history_steps) + 1
         self.projected_gravity_history = np.zeros((buffer_size, 3))
         self.v = np.array([0, 0, -1])
+
+    def reset(self):
+        self.projected_gravity_history[:] = quat_rotate_inverse_numpy(
+            self.state_processor.root_quat_w[None, :], self.v[None, :]
+        ).squeeze(0)
     
     def update(self, data: Dict[str, Any]) -> None:
         base_quat = self.state_processor.root_quat_w
@@ -84,6 +92,9 @@ class joint_pos_history(Observation, namespace=("mimic_lite", "hdmi")):
             joint_names,
         )
         self.joint_pos_multistep = np.zeros((buffer_size, len(self.joint_ids)))
+
+    def reset(self):
+        self.joint_pos_multistep[:] = self.state_processor.joint_pos[self.joint_ids]
     
     def update(self, data: Dict[str, Any]) -> None:
         self.joint_pos_multistep = np.roll(self.joint_pos_multistep, 1, axis=0)
@@ -103,6 +114,9 @@ class joint_vel_history(Observation, namespace=("mimic_lite", "hdmi")):
             joint_names,
         )
         self.joint_vel_multistep = np.zeros((buffer_size, len(self.joint_ids)))
+
+    def reset(self):
+        self.joint_vel_multistep[:] = self.state_processor.joint_vel[self.joint_ids]
     
     def update(self, data: Dict[str, Any]) -> None:
         self.joint_vel_multistep = np.roll(self.joint_vel_multistep, 1, axis=0)
@@ -116,6 +130,9 @@ class prev_actions(Observation, namespace=("mimic_lite", "hdmi")):
         super().__init__(**kwargs)
         self.steps = steps
         self.prev_actions = np.zeros((self.env.num_actions, self.steps))
+
+    def reset(self):
+        self.prev_actions.fill(0)
     
     def update(self, data: Dict[str, Any]) -> None:
         self.prev_actions = np.roll(self.prev_actions, 1, axis=1)
