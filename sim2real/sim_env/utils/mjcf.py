@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import tempfile
 from contextlib import contextmanager
@@ -162,6 +163,16 @@ def load_sim_model(
         logger.warning("load_sim_model currently ignores non-default ground_rgb={}", ground_rgb)
     with _temp_scene_with_floor(mjcf_path) as scene_mjcf_path:
         spec = mujoco.MjSpec.from_file(str(scene_mjcf_path))
+        if robot_cfg.name == "h2":
+            # Match mimic-lite H2 CollisionCfg: foot contacts need tangential friction.
+            for geom in spec.geoms:
+                if geom.name.endswith("_collision"):
+                    is_foot = re.fullmatch(r"(left|right)_foot[1-7]_collision", geom.name) is not None
+                    geom.contype = geom.conaffinity = 1
+                    geom.condim = 3 if is_foot else 1
+                    geom.priority = 1 if is_foot else 0
+                    if is_foot:
+                        geom.friction[0] = 0.6
         added_joint_names = ensure_joint_motor_actuators(spec, robot_cfg)
         if added_joint_names:
             logger.info(
