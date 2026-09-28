@@ -18,6 +18,8 @@ from sim2real.utils.math import (
     quat_rotate_numpy,
 )
 
+from sim2real.utils.root_metrics import ROOT_ERROR_CONVENTION, root_endpoint_index, root_final_error
+
 
 TRACKING_BODY_PATTERNS = (
     "pelvis",
@@ -138,20 +140,6 @@ def _local_tracking_state(
         body_quat_w,
     )
     return body_pos_local, body_quat_local
-
-
-def _relative_translation(pos: np.ndarray, quat: np.ndarray) -> np.ndarray:
-    return quat_rotate_inverse_numpy(
-        quat[0].reshape(1, 4),
-        (pos[-1] - pos[0]).reshape(1, 3),
-    )[0]
-
-
-def _relative_translation_series(pos: np.ndarray, quat: np.ndarray) -> np.ndarray:
-    return quat_rotate_inverse_numpy(
-        np.broadcast_to(quat[0].reshape(1, 4), quat.shape),
-        pos - pos[0].reshape(1, 3),
-    )
 
 
 def _normalized_tracking_return(
@@ -320,18 +308,12 @@ def _compute_one(path: Path) -> dict[str, object]:
     wrist_tracking_error = float(np.mean(wrist_pos_error_local[:pre_end]))
     wrist_orientation_error = float(np.mean(wrist_ori_error_local[:pre_end]))
 
-    robot_root_pos = np.asarray(data["robot_root_pos_w"], dtype=np.float32)[frame_idx]
-    robot_root_quat = np.asarray(data["robot_root_quat_w"], dtype=np.float32)[frame_idx]
-    motion_root_pos = np.asarray(data["motion_root_pos_w"], dtype=np.float32)[frame_idx]
-    motion_root_quat = np.asarray(data["motion_root_quat_w"], dtype=np.float32)[frame_idx]
-    robot_root_rel = _relative_translation_series(robot_root_pos[:pre_end], robot_root_quat[:pre_end])
-    motion_root_rel = _relative_translation_series(motion_root_pos[:pre_end], motion_root_quat[:pre_end])
-    root_tracking_error = robot_root_rel - motion_root_rel
-    global_root_tracking_error = float(np.mean(np.linalg.norm(root_tracking_error, axis=-1)))
-    global_root_tracking_error_xy = float(np.mean(np.linalg.norm(root_tracking_error[:, :2], axis=-1)))
-    root_final_error = _relative_translation(robot_root_pos, robot_root_quat) - _relative_translation(
-        motion_root_pos,
-        motion_root_quat,
+    root_motion_t = np.asarray(data["motion_t"], dtype=np.int32)
+    endpoint_index = root_endpoint_index(root_motion_t, motion_length)
+    root_error = root_final_error(
+        data["robot_root_pos_w"], data["robot_root_quat_w"],
+        data["motion_root_pos_w"], data["motion_root_quat_w"],
+        endpoint_index=endpoint_index,
     )
 
     return {
@@ -348,8 +330,9 @@ def _compute_one(path: Path) -> dict[str, object]:
         "termination_reason": termination_reason,
         "terminated": int(terminated),
         "progress": progress,
-        "global_root_tracking_error": global_root_tracking_error,
-        "global_root_tracking_error_xy": global_root_tracking_error_xy,
+        "root_error_convention": ROOT_ERROR_CONVENTION,
+        "root_endpoint_scope": "last_valid_same_time_frame",
+        "root_endpoint_motion_t": int(root_motion_t[endpoint_index]),
         "local_body_tracking_error": local_body_tracking_error,
         "local_body_orientation_error": local_body_orientation_error,
         "wrist_tracking_error": wrist_tracking_error,
@@ -360,8 +343,9 @@ def _compute_one(path: Path) -> dict[str, object]:
         "return_terminated": int(return_terminated),
         "return_termination_reason": return_termination_reason,
         "return_termination_motion_t": return_termination_motion_t,
-        "root_final_error_norm": float(np.linalg.norm(root_final_error)),
-        "root_final_error_xy_norm": float(np.linalg.norm(root_final_error[:2])),
+        "root_final_error_z_abs": float(abs(root_error[2])),
+        "root_final_error_norm": float(np.linalg.norm(root_error)),
+        "root_final_error_xy_norm": float(np.linalg.norm(root_error[:2])),
     }
 
 
@@ -370,21 +354,12 @@ def _mean_std(values: list[float]) -> dict[str, float]:
     return {"mean": float(arr.mean()), "std": float(arr.std(ddof=0))}
 
 
-def _weighted_mean_std(values: list[float], weights: list[float]) -> dict[str, float]:
-    value_arr = np.asarray(values, dtype=np.float64)
-    weight_arr = np.asarray(weights, dtype=np.float64)
-    mean = float(np.average(value_arr, weights=weight_arr))
-    variance = float(np.average(np.square(value_arr - mean), weights=weight_arr))
-    return {"mean": mean, "std": variance**0.5}
-
-
 def _summary(rows: list[dict[str, object]]) -> dict[str, object]:
-    motion_steps = [max(1, int(row["motion_length"]) - 1) for row in rows]
     return {
         "count": len(rows),
         "progress": _mean_std([float(row["progress"]) for row in rows]),
-        "global_root_tracking_error": _mean_std([float(row["global_root_tracking_error"]) for row in rows]),
-        "global_root_tracking_error_xy": _mean_std([float(row["global_root_tracking_error_xy"]) for row in rows]),
+        "root_error_convention": ROOT_ERROR_CONVENTION,
+        "root_final_error_z_abs": _mean_std([float(row["root_final_error_z_abs"]) for row in rows]),
         "local_body_tracking_error": _mean_std([float(row["local_body_tracking_error"]) for row in rows]),
         "local_body_orientation_error": _mean_std(
             [float(row["local_body_orientation_error"]) for row in rows]
@@ -396,13 +371,11 @@ def _summary(rows: list[dict[str, object]]) -> dict[str, object]:
             [float(row["wrist_orientation_error"]) for row in rows]
         ),
         "mpjpe": _mean_std([float(row["mpjpe"]) for row in rows]),
-        "normalized_tracking_return": _weighted_mean_std(
+        "normalized_tracking_return": _mean_std(
             [float(row["normalized_tracking_return"]) for row in rows],
-            motion_steps,
         ),
-        "mean_tracking_reward": _weighted_mean_std(
+        "mean_tracking_reward": _mean_std(
             [float(row["mean_tracking_reward"]) for row in rows],
-            motion_steps,
         ),
         "root_final_error_norm": _mean_std([float(row["root_final_error_norm"]) for row in rows]),
         "root_final_error_xy_norm": _mean_std([float(row["root_final_error_xy_norm"]) for row in rows]),

@@ -112,16 +112,6 @@ def _mean_std(values: list[float]) -> dict[str, float]:
     return {"mean": mean, "std": variance**0.5}
 
 
-def _weighted_mean_std(values: list[float], weights: list[float]) -> dict[str, float]:
-    total = sum(weights)
-    mean = sum(value * weight for value, weight in zip(values, weights, strict=True)) / total
-    variance = sum(
-        weight * (value - mean) ** 2
-        for value, weight in zip(values, weights, strict=True)
-    ) / total
-    return {"mean": mean, "std": variance**0.5}
-
-
 def _add_policy_summary(result_json: Path, result_csv: Path, run_rows: list[dict[str, str | int]]) -> dict[str, object]:
     payload = json.loads(result_json.read_text(encoding="utf-8"))
     result_rows = payload["rows"]
@@ -144,62 +134,18 @@ def _add_policy_summary(result_json: Path, result_csv: Path, run_rows: list[dict
 
     per_policy: dict[str, dict[str, object]] = {}
     for policy_name, rows in groups.items():
-        motion_steps = [max(1, int(row["motion_length"]) - 1) for row in rows]
-        tracking_return = _weighted_mean_std(
-            [float(row["normalized_tracking_return"]) for row in rows],
-            motion_steps,
+        fields = (
+            "progress", "local_body_tracking_error", "local_body_orientation_error",
+            "wrist_tracking_error", "wrist_orientation_error", "mpjpe",
+            "normalized_tracking_return", "mean_tracking_reward",
+            "root_final_error_norm", "root_final_error_xy_norm", "root_final_error_z_abs",
         )
-        mean_tracking_reward = _weighted_mean_std(
-            [float(row["mean_tracking_reward"]) for row in rows],
-            motion_steps,
-        )
-        per_policy[policy_name] = {
-            "count": len(rows),
-            "progress_mean": _mean_std([float(row["progress"]) for row in rows])["mean"],
-            "progress_std": _mean_std([float(row["progress"]) for row in rows])["std"],
-            "global_root_tracking_error_mean": _mean_std(
-                [float(row["global_root_tracking_error"]) for row in rows]
-            )["mean"],
-            "global_root_tracking_error_std": _mean_std(
-                [float(row["global_root_tracking_error"]) for row in rows]
-            )["std"],
-            "global_root_tracking_error_xy_mean": _mean_std(
-                [float(row["global_root_tracking_error_xy"]) for row in rows]
-            )["mean"],
-            "global_root_tracking_error_xy_std": _mean_std(
-                [float(row["global_root_tracking_error_xy"]) for row in rows]
-            )["std"],
-            "local_body_tracking_error_mean": _mean_std(
-                [float(row["local_body_tracking_error"]) for row in rows]
-            )["mean"],
-            "local_body_tracking_error_std": _mean_std(
-                [float(row["local_body_tracking_error"]) for row in rows]
-            )["std"],
-            "wrist_tracking_error_mean": _mean_std(
-                [float(row["wrist_tracking_error"]) for row in rows]
-            )["mean"],
-            "wrist_tracking_error_std": _mean_std(
-                [float(row["wrist_tracking_error"]) for row in rows]
-            )["std"],
-            "mpjpe_mean": _mean_std([float(row["mpjpe"]) for row in rows])["mean"],
-            "mpjpe_std": _mean_std([float(row["mpjpe"]) for row in rows])["std"],
-            "normalized_tracking_return_mean": tracking_return["mean"],
-            "normalized_tracking_return_std": tracking_return["std"],
-            "mean_tracking_reward_mean": mean_tracking_reward["mean"],
-            "mean_tracking_reward_std": mean_tracking_reward["std"],
-            "root_final_error_norm_mean": _mean_std(
-                [float(row["root_final_error_norm"]) for row in rows]
-            )["mean"],
-            "root_final_error_norm_std": _mean_std(
-                [float(row["root_final_error_norm"]) for row in rows]
-            )["std"],
-            "root_final_error_xy_norm_mean": _mean_std(
-                [float(row["root_final_error_xy_norm"]) for row in rows]
-            )["mean"],
-            "root_final_error_xy_norm_std": _mean_std(
-                [float(row["root_final_error_xy_norm"]) for row in rows]
-            )["std"],
-        }
+        per_policy[policy_name] = {"count": len(rows),
+                                   "root_error_convention": rows[0]["root_error_convention"]}
+        for field in fields:
+            stats = _mean_std([float(row[field]) for row in rows])
+            for stat, value in stats.items():
+                per_policy[policy_name][f"{field}_{stat}"] = value
 
     payload["per_policy_summary"] = per_policy
     result_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
@@ -240,6 +186,8 @@ def main() -> None:
                         "sim2real.sim_env.integrated_sim2sim",
                         "--robot",
                         args.robot,
+                        "--inference-backend",
+                        "onnx-cpu",
                         "--policy-config",
                         policy_config,
                         "--motion-path",

@@ -1,0 +1,22 @@
+{
+  "locomotion": {
+    "repo_id": "elijahgalahad/any4hdmi-g1-motiondecode-locomotion",
+    "revision": "800e020a854af562e69056ca41bf2e6a6c2fb620",
+    "count": 80
+  },
+  "manipulation": {
+    "repo_id": "elijahgalahad/any4hdmi-g1-motiondecode-manipulation",
+    "revision": "2764a2361b60226900c2942285a7d06040b1f51d",
+    "count": 48
+  },
+  "ground": {
+    "repo_id": "elijahgalahad/any4hdmi-g1-motiondecode-ground",
+    "revision": "e234795cb78b9042ccb0a0c6fcfb4f6860136074",
+    "count": 60
+  },
+  "dance": {
+    "repo_id": "elijahgalahad/any4hdmi-g1-motiondecode-dance",
+    "revision": "f4df763cf0ab4ddf7b8cf16750214a61d6cdb7a2",
+    "count": 40
+  }
+}

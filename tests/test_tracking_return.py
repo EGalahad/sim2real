@@ -165,3 +165,20 @@ def test_orientation_metrics_capture_local_rotation_error(tmp_path: Path) -> Non
     assert row["wrist_tracking_error"] == 0.0
     assert row["wrist_orientation_error"] > 0.0
     assert row["local_body_orientation_error"] > 0.0
+
+
+def test_summary_weights_each_motion_equally():
+    from scripts.tracking_experiment.compute_tracking_metrics import _summary
+    fields = (
+        "progress", "local_body_tracking_error", "local_body_orientation_error",
+        "wrist_tracking_error", "wrist_orientation_error", "mpjpe",
+        "normalized_tracking_return", "mean_tracking_reward",
+        "root_final_error_norm", "root_final_error_xy_norm", "root_final_error_z_abs",
+    )
+    short = {field: 0.0 for field in fields}
+    long = {field: 2.0 for field in fields}
+    short["motion_length"] = 10
+    long["motion_length"] = 1000
+    result = _summary([short, long])
+    assert result["normalized_tracking_return"]["mean"] == 1.0
+    assert result["mean_tracking_reward"]["mean"] == 1.0
