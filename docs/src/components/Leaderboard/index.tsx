@@ -175,11 +175,14 @@ function drawComparison(
 ) {
   const policies = rows.filter((row) => selectedPolicies.has(row.key));
   const metrics = columns.filter((column) => selectedMetrics.has(column.key));
-  const width = Math.max(240, targetWidth);
-  const compact = width < 600;
-  const panelColumns = compact
+  // Downloads keep every metric in one row, expanding instead of wrapping.
+  const width = exportPlot
+    ? 32 + metrics.length * Math.max(320, policies.length * 36 + 80)
+    : Math.max(240, targetWidth);
+  const compact = !exportPlot && width < 600;
+  const panelColumns = exportPlot ? metrics.length : compact
     ? Math.min(2, metrics.length)
-    : Math.min(metrics.length, Math.max(1, Math.floor((width - 32) / (exportPlot ? Math.max(310, policies.length * 36 + 80) : 270))));
+    : Math.max(1, Math.floor((width - 32) / 270));
   const panelRows = Math.ceil(metrics.length / panelColumns);
   const panelWidth = (width - 32) / panelColumns;
   const legendCellWidth = exportPlot ? 220 : 175;
