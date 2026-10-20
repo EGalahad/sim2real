@@ -175,9 +175,13 @@ function drawComparison(
 ) {
   const policies = rows.filter((row) => selectedPolicies.has(row.key));
   const metrics = columns.filter((column) => selectedMetrics.has(column.key));
-  // Downloads keep every metric in one row, expanding instead of wrapping.
+  const legendCellWidth = exportPlot ? 220 : 175;
+  // Downloads keep both metrics and the legend in a single row.
   const width = exportPlot
-    ? 32 + metrics.length * Math.max(320, policies.length * 36 + 80)
+    ? Math.max(
+      32 + metrics.length * Math.max(320, policies.length * 36 + 80),
+      56 + policies.length * legendCellWidth,
+    )
     : Math.max(240, targetWidth);
   const compact = !exportPlot && width < 600;
   const panelColumns = exportPlot ? metrics.length : compact
@@ -185,8 +189,7 @@ function drawComparison(
     : Math.max(1, Math.floor((width - 32) / 270));
   const panelRows = Math.ceil(metrics.length / panelColumns);
   const panelWidth = (width - 32) / panelColumns;
-  const legendCellWidth = exportPlot ? 220 : 175;
-  const legendRows = Math.ceil(policies.length / Math.max(1, Math.floor((width - 32) / legendCellWidth)));
+  const legendRows = exportPlot ? 1 : Math.ceil(policies.length / Math.max(1, Math.floor((width - 32) / legendCellWidth)));
   const footerHeight = 45 + legendRows * 30;
   const panelHeight = exportPlot ? 340 : Math.max(1, (targetHeight - footerHeight) / panelRows);
   const legendTop = panelRows * panelHeight + 30;
@@ -293,9 +296,10 @@ function drawComparison(
     });
   });
 
-  const perRow = Math.max(1, Math.floor((width - 32) / legendCellWidth));
+  const perRow = exportPlot ? policies.length : Math.max(1, Math.floor((width - 32) / legendCellWidth));
+  const legendLeft = exportPlot ? (width - policies.length * legendCellWidth) / 2 : 28;
   policies.forEach((row, index) => {
-    const x = 28 + (index % perRow) * legendCellWidth;
+    const x = legendLeft + (index % perRow) * legendCellWidth;
     const y = legendTop + Math.floor(index / perRow) * 30;
     ctx.fillStyle = palette[rows.indexOf(row) % palette.length];
     ctx.fillRect(x, y - 13, 18, 18);
