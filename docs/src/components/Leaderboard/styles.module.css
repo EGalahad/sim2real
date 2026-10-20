@@ -144,3 +144,18 @@
   .datasetBar { align-items: stretch; display: block; padding: .65rem; }
   .datasetGroups { width: 100%; }
 }
+
+.exportControls { display: flex; gap: .4rem; margin-left: auto; align-items: center; }
+.exportControls select, .exportControls button {
+  background: #faf9f5;
+  border: 1.5px solid #171913;
+  border-radius: 0;
+  color: #171913;
+  cursor: pointer;
+  font: 700 .78rem ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: .35rem .6rem;
+}
+.exportControls button { background: #f1d36b; box-shadow: 2px 2px 0 #171913; }
+.exportControls button:hover { background: #e7c450; }
+.exportControls :focus-visible { outline: 3px solid #4f86a8; outline-offset: 3px; }
+.exportControls :disabled { cursor: wait; opacity: .6; }
