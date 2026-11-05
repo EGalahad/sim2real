@@ -6,6 +6,10 @@ English version: [README.md](./README.md)
 
 Full documentation: [https://egalahad.github.io/sim2real/](https://egalahad.github.io/sim2real/)
 
+> **C++ 版本：** [Bolt Runtime（`boltrt`）](https://github.com/EGalahad/boltrt) 是这套部署栈的原生 C++
+> 版本：MuJoCo 和真机在同一个进程里切换，observation 模块化，直接加载同样的 policy 导出。
+> 文档：[egalahad.github.io/boltrt](https://egalahad.github.io/boltrt/)。
+
 如果你在找 HDMI 的部署栈，请看 [hdmi tag](https://github.com/EGalahad/sim2real/tree/hdmi)。
 
 ## Runtime Artifacts

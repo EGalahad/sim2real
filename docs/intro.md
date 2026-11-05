@@ -4,6 +4,12 @@ sidebar_position: 1
 slug: /
 ---
 
+:::tip Bolt Runtime
+[Bolt Runtime (`boltrt`)](https://github.com/EGalahad/boltrt) is the native C++ successor of this
+stack: one process for MuJoCo and real robots, modular observations, and the same policy exports.
+See the [Bolt Runtime documentation](https://egalahad.github.io/boltrt/).
+:::
+
 ## Benchmark
 
 - [Motion Tracking Leaderboard](/leaderboard)

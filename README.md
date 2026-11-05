@@ -6,6 +6,10 @@ Chinese version: [README_zh.md](./README_zh.md)
 
 Full documentation: [https://egalahad.github.io/sim2real/](https://egalahad.github.io/sim2real/)
 
+> **C++ version:** [Bolt Runtime (`boltrt`)](https://github.com/EGalahad/boltrt) is the native C++
+> successor of this stack: one process for MuJoCo and real robots, modular observations, and the same
+> policy exports. Documentation: [egalahad.github.io/boltrt](https://egalahad.github.io/boltrt/).
+
 If you're looking for the HDMI deployment stack, go to [hdmi tag](https://github.com/EGalahad/sim2real/tree/hdmi).
 
 ## Runtime Artifacts
