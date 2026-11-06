@@ -6,7 +6,7 @@ const config: Config = {
   title: 'sim2real',
   tagline: 'Documentation for sim2sim, sim2real, and teleoperation workflows',
 
-  url: 'https://egalahad.github.io',
+  url: process.env.DOCS_SITE_URL ?? 'https://egalahad.github.io',
   baseUrl: '/sim2real/',
 
   organizationName: 'EGalahad',
