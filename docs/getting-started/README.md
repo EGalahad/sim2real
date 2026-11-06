@@ -1,6 +1,6 @@
 # Getting Started
 
-Chinese docs: [https://egalahad.github.io/sim2real/zh-Hans/getting-started/overview](https://egalahad.github.io/sim2real/zh-Hans/getting-started/overview)
+Chinese docs: [https://haoyangweng.pages.dev/sim2real/zh-Hans/getting-started/overview](https://haoyangweng.pages.dev/sim2real/zh-Hans/getting-started/overview)
 
 `sim2real` is split into two environments:
 

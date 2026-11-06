@@ -4,11 +4,11 @@ root project 负责 inference、tracking policy，以及 MuJoCo 的 sim / sim2re
 
 English version: [README.md](./README.md)
 
-Full documentation: [https://egalahad.github.io/sim2real/](https://egalahad.github.io/sim2real/)
+Full documentation: [https://haoyangweng.pages.dev/sim2real/](https://haoyangweng.pages.dev/sim2real/)
 
 > **C++ 版本：** [Bolt Runtime（`boltrt`）](https://github.com/EGalahad/boltrt) 是这套部署栈的原生 C++
 > 版本：MuJoCo 和真机在同一个进程里切换，observation 模块化，直接加载同样的 policy 导出。
-> 文档：[egalahad.github.io/boltrt](https://egalahad.github.io/boltrt/)。
+> 文档：[haoyangweng.pages.dev/boltrt](https://haoyangweng.pages.dev/boltrt/)。
 
 如果你在找 HDMI 的部署栈，请看 [hdmi tag](https://github.com/EGalahad/sim2real/tree/hdmi)。
 
@@ -84,7 +84,7 @@ Mimic Lite v1.1 保持 teacher 和 reward target 为 clean，只在 student comm
 | Wrist position | 22.15 mm | 23.57 mm | n/a | n/a |
 | Wrist orientation | 0.07745 rad | 0.09997 rad | n/a | n/a |
 
-可从共享 [sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e) 文件夹下载 `checkpoints/mimic-lite/v1_1`。完整结果见 [Motion Tracking Leaderboard](https://egalahad.github.io/sim2real/zh-Hans/leaderboard)。
+可从共享 [sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e) 文件夹下载 `checkpoints/mimic-lite/v1_1`。完整结果见 [Motion Tracking Leaderboard](https://haoyangweng.pages.dev/sim2real/zh-Hans/leaderboard)。
 
 ![统一的跨代码库动作跟踪评测](assets/mimic_lite_cross_codebase_tracking_eval.png)
 
@@ -112,11 +112,11 @@ Repo skills 统一放在 `.agents/skills/`，无需手动复制到
 
 ## 下一步
 
-- [文档首页](https://egalahad.github.io/sim2real/zh-Hans/)
-- [快速上手](https://egalahad.github.io/sim2real/zh-Hans/getting-started/overview)
-- [Root Project Setup](https://egalahad.github.io/sim2real/zh-Hans/getting-started/root-project)
-- [离线动作跟踪教程](https://egalahad.github.io/sim2real/zh-Hans/tutorials/offline-motion-tracking)
-- [Pico Teleoperation 教程](https://egalahad.github.io/sim2real/zh-Hans/tutorials/pico-teleoperation)
+- [文档首页](https://haoyangweng.pages.dev/sim2real/zh-Hans/)
+- [快速上手](https://haoyangweng.pages.dev/sim2real/zh-Hans/getting-started/overview)
+- [Root Project Setup](https://haoyangweng.pages.dev/sim2real/zh-Hans/getting-started/root-project)
+- [离线动作跟踪教程](https://haoyangweng.pages.dev/sim2real/zh-Hans/tutorials/offline-motion-tracking)
+- [Pico Teleoperation 教程](https://haoyangweng.pages.dev/sim2real/zh-Hans/tutorials/pico-teleoperation)
 
 ## Citation
 
@@ -128,6 +128,6 @@ Repo skills 统一放在 `.agents/skills/`，无需手动复制到
   title        = {sim2real: A Lightweight and Modular Sim2sim and Sim2real Deployment Stack},
   year         = {2026},
   howpublished = {\url{https://github.com/EGalahad/sim2real}},
-  note         = {Documentation: \url{https://egalahad.github.io/sim2real/}}
+  note         = {Documentation: \url{https://haoyangweng.pages.dev/sim2real/}}
 }
 ```

@@ -1,6 +1,6 @@
 # sim2real Docs
 
-Chinese docs: [https://egalahad.github.io/sim2real/zh-Hans/](https://egalahad.github.io/sim2real/zh-Hans/)
+Chinese docs: [https://haoyangweng.pages.dev/sim2real/zh-Hans/](https://haoyangweng.pages.dev/sim2real/zh-Hans/)
 
 ## Getting Started
 

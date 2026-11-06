@@ -6,7 +6,7 @@ slug: /
 :::tip Bolt Runtime
 [Bolt Runtime（`boltrt`）](https://github.com/EGalahad/boltrt) 是这套部署栈的原生 C++ 版本：
 MuJoCo 和真机在同一个进程里切换，observation 模块化，直接加载同样的 policy 导出。
-详见 [Bolt Runtime 文档](https://egalahad.github.io/boltrt/)。
+详见 [Bolt Runtime 文档](https://haoyangweng.pages.dev/boltrt/)。
 :::
 
 ## Benchmark

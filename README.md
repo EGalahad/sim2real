@@ -4,11 +4,11 @@ A lightweight and modular sim2sim and sim2real deployment stack.
 
 Chinese version: [README_zh.md](./README_zh.md)
 
-Full documentation: [https://egalahad.github.io/sim2real/](https://egalahad.github.io/sim2real/)
+Full documentation: [https://haoyangweng.pages.dev/sim2real/](https://haoyangweng.pages.dev/sim2real/)
 
 > **C++ version:** [Bolt Runtime (`boltrt`)](https://github.com/EGalahad/boltrt) is the native C++
 > successor of this stack: one process for MuJoCo and real robots, modular observations, and the same
-> policy exports. Documentation: [egalahad.github.io/boltrt](https://egalahad.github.io/boltrt/).
+> policy exports. Documentation: [haoyangweng.pages.dev/boltrt](https://haoyangweng.pages.dev/boltrt/).
 
 If you're looking for the HDMI deployment stack, go to [hdmi tag](https://github.com/EGalahad/sim2real/tree/hdmi).
 
@@ -85,7 +85,7 @@ Mimic Lite v1.1 keeps the teacher and reward target clean while adding reference
 | Wrist position | 22.15 mm | 23.57 mm | n/a | n/a |
 | Wrist orientation | 0.07745 rad | 0.09997 rad | n/a | n/a |
 
-Download `checkpoints/mimic-lite/v1_1` from the shared [sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e) folder. Full results are on the [Motion Tracking Leaderboard](https://egalahad.github.io/sim2real/leaderboard).
+Download `checkpoints/mimic-lite/v1_1` from the shared [sim2real artifacts](https://drive.google.com/drive/folders/1lrPyiiy7anyG3P4wHNIQQQlydboLPd9e) folder. Full results are on the [Motion Tracking Leaderboard](https://haoyangweng.pages.dev/sim2real/leaderboard).
 
 ![Unified cross-codebase tracking evaluation](assets/mimic_lite_cross_codebase_tracking_eval.png)
 
@@ -120,6 +120,6 @@ If you find sim2real useful in your research, please cite:
   title        = {sim2real: A Lightweight and Modular Sim2sim and Sim2real Deployment Stack},
   year         = {2026},
   howpublished = {\url{https://github.com/EGalahad/sim2real}},
-  note         = {Documentation: \url{https://egalahad.github.io/sim2real/}}
+  note         = {Documentation: \url{https://haoyangweng.pages.dev/sim2real/}}
 }
 ```
