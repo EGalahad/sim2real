@@ -27,6 +27,11 @@ LINKS = {
     "bfm_zero": "https://lecar-lab.github.io/BFM-Zero/",
     "twist2": "https://github.com/amazon-far/TWIST2",
     "grit_v0_0_1": "https://github.com/mrzuang/GRIT_teleop_deploy",
+    "partymimic_mlp": "https://github.com/Roboparty/PartyMimic",
+    "supermimic_repro": "https://github.com/HybridRobotics/supermimic",
+    "nablamimic_repro": "https://github.com/OamIcs/NablaMimic",
+    "blinkmimic_repro": "https://github.com/fuyichen0725/blinkmimic",
+    "xmimic_repro": "https://github.com/nico-bohlinger/xmimic",
 }
 POLICY_ORDER = (
     "mimic_lite_v1_1",
@@ -44,6 +49,11 @@ POLICY_ORDER = (
     "teleopit",
     "humanoid_gpt",
     "twist2",
+    "partymimic_mlp",
+    "supermimic_repro",
+    "nablamimic_repro",
+    "blinkmimic_repro",
+    "xmimic_repro",
 )
 
 
