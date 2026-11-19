@@ -47,7 +47,15 @@ class proprio_history(Observation, namespace="supermimic"):
         return self.hist.reshape(-1)
 
 
-class ref_joint(motion_joint_obs, namespace="supermimic"):
+class _policy_order_joint_obs(motion_joint_obs):
+    """Reference joints in ``policy_joint_names`` order, the order the ONNX and the action use."""
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("joint_order", "policy")
+        super().__init__(**kwargs)
+
+
+class ref_joint(_policy_order_joint_obs, namespace="supermimic"):
     def compute(self) -> np.ndarray:
         jp, jv = self._select(self.ref_joint_pos_future), self._select(self.ref_joint_vel_future)
         return np.concatenate([jp, jv], -1).reshape(-1)
@@ -72,7 +80,7 @@ class robot_anchor_quat(motion_obs, namespace="supermimic"):
         self.body = self.model.body(self.anchor_body_name).id
         free = [i for i in range(self.model.njnt) if self.model.jnt_type[i] == mujoco.mjtJoint.mjJNT_FREE][0]
         self.root_adr = int(self.model.jnt_qposadr[free])
-        self.joint_adr = np.asarray([self.model.joint(n).qposadr[0] for n in self.state_processor.joint_names])
+        self.joint_adr = np.asarray([self.model.jnt_qposadr[self.model.joint(n).id] for n in self.state_processor.joint_names])
         self.offset = np.array([1.0, 0.0, 0.0, 0.0])
 
     def _fk(self) -> np.ndarray:
@@ -84,25 +92,28 @@ class robot_anchor_quat(motion_obs, namespace="supermimic"):
 
     def reset(self):
         super().reset()
-        self.offset = quat_mul(projected_yaw_quat(self.ref_root_quat_w[0]),
+        ref = self.env.motion_data.body_quat_w[0, self._motion_step_index(-1), self._root_body_idx]
+        self.offset = quat_mul(projected_yaw_quat(ref),
                                quat_conjugate(projected_yaw_quat(self.state_processor.root_quat_w)))
 
     def compute(self) -> np.ndarray:
         return quat_mul(self.offset, self._fk()).astype(np.float32).reshape(-1)
 
 
-class ref_joint_pos(motion_joint_obs, namespace="supermimic"):
+class ref_joint_pos(_policy_order_joint_obs, namespace="supermimic"):
     def compute(self) -> np.ndarray:
         return self._select(self.ref_joint_pos_future).reshape(-1)
 
 
-class residual_proprio_history(motion_joint_obs, namespace="supermimic"):
+class residual_proprio_history(_policy_order_joint_obs, namespace="supermimic"):
     """proprio_history of a residual-action policy (NablaMimic --residual-action): the setpoint is the next reference
     frame's joint pos + scale * a, so the previous action is handed over as a = output - (ref - default) / scale,
     with ref the reference at motion step -1 after the step (the frame that action aimed at); 0 after a reset."""
 
     def __init__(self, history_steps: int = 10, **kwargs):
         super().__init__(future_steps=[-1], **kwargs)
+        if list(self.selected_joint_names) != list(self.env.policy_joint_names):
+            raise ValueError("residual_proprio_history needs the reference joints in policy_joint_names order")
         names = list(self.state_processor.joint_names)
         self.joint_ids = np.asarray([names.index(n) for n in self.env.policy_joint_names], dtype=int)
         self.default = np.asarray(self.env.default_dof_angles, dtype=np.float32)[
