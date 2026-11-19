@@ -28,7 +28,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 0.303422980196774,
+          "locomotion": 0.5456506788800285,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -116,7 +116,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 0.2609265518374741,
+          "locomotion": 0.5253273461461415,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -204,7 +204,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 0.2545467473566532,
+          "locomotion": 0.3439254985046716,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -292,7 +292,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 0.40286889765411615,
+          "locomotion": 0.4992084866521421,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -380,7 +380,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 0.8885666381567716,
+          "locomotion": 1.1585344866617695,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -468,7 +468,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 0.3633348483592272,
+          "locomotion": 0.5071716477913818,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -556,7 +556,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 0.8893161617219448,
+          "locomotion": 1.0827611029761102,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -644,7 +644,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 0.6231905802618712,
+          "locomotion": 0.7582733678741412,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -732,7 +732,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 0.39534731982275845,
+          "locomotion": 0.5949136489670434,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -820,7 +820,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 0.6327748152893037,
+          "locomotion": 0.7226074551394818,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -908,7 +908,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 0.9622803730890155,
+          "locomotion": 1.0920344977857748,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -996,7 +996,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 3.090029053017497,
+          "locomotion": 6.837742761202375,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -1084,7 +1084,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 0.33986674901098013,
+          "locomotion": 0.4621374234487023,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -1172,7 +1172,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 1.323306903988123,
+          "locomotion": 2.0899891399378894,
           "manipulation": null,
           "ground": null,
           "dance": null,
@@ -1260,7 +1260,7 @@
       },
       "globalRoot": {
         "datasets": {
-          "locomotion": 3.867755672335625,
+          "locomotion": 8.048405920356005,
           "manipulation": null,
           "ground": null,
           "dance": null,

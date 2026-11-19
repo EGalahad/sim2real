@@ -20,10 +20,21 @@ def test_leaderboard_snapshot_preserves_legacy_and_adds_motiondecode() -> None:
         }
     page = json.loads((ROOT / "docs/src/data/leaderboard.json").read_text())
 
-    assert len(source) == 15
-    assert len(page) == 15
-    assert {"mimic_lite_v1_1", "mimic_lite_ppo", "mimic_lite_roa", "grit_v0_0_1"} <= {
-        row["key"] for row in page
+    assert len(source) == 20
+    assert len(page) == 20
+    assert {
+        "mimic_lite_v1_1",
+        "mimic_lite_ppo",
+        "mimic_lite_roa",
+        "grit_v0_0_1",
+        "partymimic_mlp",
+        "supermimic_repro",
+        "nablamimic_repro",
+        "blinkmimic_repro",
+        "xmimic_repro",
+    } <= {row["key"] for row in page}
+    assert {row["key"] for row in page} <= {
+        policy for policy, _dataset in motiondecode
     }
     assert {"mimic_lite_huge", "mimic_lite_base", "mimic_lite_small", "g1_roa_huge_student_20260814"}.isdisjoint(
         row["key"] for row in page
@@ -84,6 +95,9 @@ def test_leaderboard_snapshot_preserves_legacy_and_adds_motiondecode() -> None:
     sonic = next(row for row in page if row["key"] == "sonic_g1")
     assert sonic["metrics"]["gpuHours"]["mean"] == 21000.0
     assert sonic["metrics"]["gpuHours"]["sourceUrl"].startswith("https://")
+    # Global Root uses root_final_error_norm (initial_xy_yaw_aligned_endpoint_xyz_v1)
+    # for every row, rescored from the saved MotionDecode trajectories.
+    assert math.isclose(sonic["metrics"]["globalRoot"]["datasets"]["locomotion"], 0.5071716477913818)
 
     heft = next(row for row in page if row["key"] == "heft")
     assert heft["metrics"]["gpuHours"]["mean"] == 116.01
