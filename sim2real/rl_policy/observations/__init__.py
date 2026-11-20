@@ -10,6 +10,7 @@ from .motion import *
 from .mimic_lite import *
 from .scalebfm import *
 from .sonic import *
+from .supermimic import *
 from .teleopit import *
 from .twist2 import *
 from .velocity import *

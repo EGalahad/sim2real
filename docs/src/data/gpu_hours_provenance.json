@@ -283,5 +283,85 @@
       "result": "no relevant issue/discussion hits in current search"
     },
     "notes": "Leave blank until an official compute disclosure is located."
+  },
+  "partymimic_mlp": {
+    "display_name": "PartyMimic",
+    "value_gpu_hours": 0.5166666666666667,
+    "status": "measured",
+    "confidence": "high",
+    "policy_family_match": "exact public release (checkpoints/g1_mlp.pt)",
+    "authoritative_sources": [
+      {
+        "kind": "official_readme",
+        "url": "https://github.com/Roboparty/PartyMimic#readme",
+        "fact": "PartyMimic README reports 31 min of training wall-clock on one RTX 4090 for PartyMimic."
+      }
+    ],
+    "derivation": "31 min x 1 GPU / 60 = 0.5167 GPU hours.",
+    "notes": "Released seed-0 checkpoint, 12,000 iterations on one RTX 4090."
+  },
+  "supermimic_repro": {
+    "display_name": "SuperMimic (repro.)",
+    "value_gpu_hours": 1.65,
+    "status": "measured",
+    "confidence": "medium",
+    "policy_family_match": "reproduction",
+    "authoritative_sources": [
+      {
+        "kind": "official_readme",
+        "url": "https://github.com/Roboparty/PartyMimic#readme",
+        "fact": "PartyMimic README reports 99 min of training wall-clock on one RTX 4090 for SuperMimic (repro.) (2-seed mean of the reproduction runs)."
+      }
+    ],
+    "derivation": "99 min x 1 GPU / 60 = 1.6500 GPU hours.",
+    "notes": "Retrained by the PartyMimic authors with the method's public code on the PartyMimic 10,745-clip G1 library, one RTX 4090, seed 0; not an official release of the original authors."
+  },
+  "nablamimic_repro": {
+    "display_name": "NablaMimic (repro.)",
+    "value_gpu_hours": 2.0,
+    "status": "measured",
+    "confidence": "medium",
+    "policy_family_match": "reproduction",
+    "authoritative_sources": [
+      {
+        "kind": "official_readme",
+        "url": "https://github.com/Roboparty/PartyMimic#readme",
+        "fact": "PartyMimic README reports 120 min of training wall-clock on one RTX 4090 for NablaMimic (repro.) (2-seed mean of the reproduction runs)."
+      }
+    ],
+    "derivation": "120 min x 1 GPU / 60 = 2.0000 GPU hours.",
+    "notes": "Retrained by the PartyMimic authors with the method's public code on the PartyMimic 10,745-clip G1 library, one RTX 4090, seed 0; not an official release of the original authors."
+  },
+  "blinkmimic_repro": {
+    "display_name": "BlinkMimic (repro.)",
+    "value_gpu_hours": 0.9833333333333333,
+    "status": "measured",
+    "confidence": "medium",
+    "policy_family_match": "reproduction",
+    "authoritative_sources": [
+      {
+        "kind": "official_readme",
+        "url": "https://github.com/Roboparty/PartyMimic#readme",
+        "fact": "PartyMimic README reports 59 min of training wall-clock on one RTX 4090 for BlinkMimic (repro.) (2-seed mean of the reproduction runs)."
+      }
+    ],
+    "derivation": "59 min x 1 GPU / 60 = 0.9833 GPU hours.",
+    "notes": "Retrained by the PartyMimic authors with the method's public code on the PartyMimic 10,745-clip G1 library, one RTX 4090, seed 0; not an official release of the original authors."
+  },
+  "xmimic_repro": {
+    "display_name": "XMimic (repro.)",
+    "value_gpu_hours": 0.8333333333333334,
+    "status": "measured",
+    "confidence": "medium",
+    "policy_family_match": "reproduction",
+    "authoritative_sources": [
+      {
+        "kind": "official_readme",
+        "url": "https://github.com/Roboparty/PartyMimic#readme",
+        "fact": "PartyMimic README reports 50 min of training wall-clock on one RTX 4090 for XMimic (repro.) (2-seed mean of the reproduction runs)."
+      }
+    ],
+    "derivation": "50 min x 1 GPU / 60 = 0.8333 GPU hours.",
+    "notes": "Retrained by the PartyMimic authors with the method's public code on the PartyMimic 10,745-clip G1 library, one RTX 4090, seed 0; not an official release of the original authors."
   }
 }
