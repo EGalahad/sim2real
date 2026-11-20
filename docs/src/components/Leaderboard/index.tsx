@@ -67,7 +67,7 @@ const copy = {
 };
 
 const defaultPolicies = new Set([
-  'mimic_lite_v1_1', 'mimic_lite_roa', 'mimic_lite_ppo', 'sonic_g1', 'heft', 'holomotion',
+  'partymimic_mlp', 'supermimic_repro', 'mimic_lite_v1_1', 'heft', 'holomotion', 'sonic_g1',
 ]);
 const defaultMetrics = new Set<MetricKey>([
   'bodyPos', 'globalRoot', 'gpuHours', 'wristPos', 'trackingReturn',

@@ -34,6 +34,8 @@ LINKS = {
     "xmimic_repro": "https://github.com/nico-bohlinger/xmimic",
 }
 POLICY_ORDER = (
+    "partymimic_mlp",
+    "supermimic_repro",
     "mimic_lite_v1_1",
     "mimic_lite_roa",
     "mimic_lite_ppo",
@@ -49,8 +51,6 @@ POLICY_ORDER = (
     "teleopit",
     "humanoid_gpt",
     "twist2",
-    "partymimic_mlp",
-    "supermimic_repro",
     "nablamimic_repro",
     "blinkmimic_repro",
     "xmimic_repro",

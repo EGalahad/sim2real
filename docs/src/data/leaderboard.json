@@ -1,5 +1,181 @@
 [
   {
+    "key": "partymimic_mlp",
+    "name": "PartyMimic",
+    "url": "https://github.com/Roboparty/PartyMimic",
+    "metrics": {
+      "bodyPos": {
+        "datasets": {
+          "locomotion": 26.38921805191785,
+          "manipulation": 23.182051702557754,
+          "ground": 79.29352506374319,
+          "dance": 36.89143816009164,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "bodyOri": {
+        "datasets": {
+          "locomotion": 0.07463983949273825,
+          "manipulation": 0.06530365363384287,
+          "ground": 0.34058465001483756,
+          "dance": 0.1292604859918356,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "datasets": {
+          "locomotion": 0.7512289457965425,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "gpuHours": {
+        "mean": 0.5166666666666667,
+        "sourceUrl": "https://github.com/Roboparty/PartyMimic#readme"
+      },
+      "wristPos": {
+        "datasets": {
+          "locomotion": 28.453927021473646,
+          "manipulation": 22.868201660458,
+          "ground": null,
+          "dance": null,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristOri": {
+        "datasets": {
+          "locomotion": 0.08487831186503172,
+          "manipulation": 0.07766865030862391,
+          "ground": null,
+          "dance": null,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "datasets": {
+          "locomotion": 1.9170423745745606,
+          "manipulation": 1.9275655399394438,
+          "ground": 1.528316674942135,
+          "dance": 1.7565372339143956,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "progress": {
+        "datasets": {
+          "locomotion": 99.05180107593526,
+          "manipulation": 98.95108695652173,
+          "ground": 95.28064324176874,
+          "dance": 96.25122597749274,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      }
+    }
+  },
+  {
+    "key": "supermimic_repro",
+    "name": "SuperMimic (repro.)",
+    "url": "https://github.com/HybridRobotics/supermimic",
+    "metrics": {
+      "bodyPos": {
+        "datasets": {
+          "locomotion": 40.53794627543539,
+          "manipulation": 39.79298057189832,
+          "ground": 167.77829490602016,
+          "dance": 64.29910762235522,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "bodyOri": {
+        "datasets": {
+          "locomotion": 0.1649381817318499,
+          "manipulation": 0.17334695098300776,
+          "ground": 0.8329549128810565,
+          "dance": 0.2811331287026405,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "globalRoot": {
+        "datasets": {
+          "locomotion": 0.7480337855065001,
+          "manipulation": null,
+          "ground": null,
+          "dance": null,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "gpuHours": {
+        "mean": 1.65,
+        "sourceUrl": "https://github.com/Roboparty/PartyMimic#readme"
+      },
+      "wristPos": {
+        "datasets": {
+          "locomotion": 51.187328808009624,
+          "manipulation": 50.88140023872256,
+          "ground": null,
+          "dance": null,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "wristOri": {
+        "datasets": {
+          "locomotion": 0.24423627192154526,
+          "manipulation": 0.28244145680218935,
+          "ground": null,
+          "dance": null,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "trackingReturn": {
+        "datasets": {
+          "locomotion": 1.7624074528391922,
+          "manipulation": 1.7406068732720026,
+          "ground": 0.936020887117488,
+          "dance": 1.4420242383802562,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      },
+      "progress": {
+        "datasets": {
+          "locomotion": 100.0,
+          "manipulation": 100.0,
+          "ground": 80.03248508739001,
+          "dance": 98.04669920074754,
+          "lafan": null,
+          "phuma": null,
+          "root90": null
+        }
+      }
+    }
+  },
+  {
     "key": "mimic_lite_v1_1",
     "name": "Mimic Lite v1.1",
     "url": "https://github.com/EGalahad/sim2real#mimic-lite-v11",
@@ -1315,182 +1491,6 @@
           "lafan": 40.4993981130683,
           "phuma": 99.6398671398671,
           "root90": 100.0
-        }
-      }
-    }
-  },
-  {
-    "key": "partymimic_mlp",
-    "name": "PartyMimic",
-    "url": "https://github.com/Roboparty/PartyMimic",
-    "metrics": {
-      "bodyPos": {
-        "datasets": {
-          "locomotion": 26.38921805191785,
-          "manipulation": 23.182051702557754,
-          "ground": 79.29352506374319,
-          "dance": 36.89143816009164,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "bodyOri": {
-        "datasets": {
-          "locomotion": 0.07463983949273825,
-          "manipulation": 0.06530365363384287,
-          "ground": 0.34058465001483756,
-          "dance": 0.1292604859918356,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "globalRoot": {
-        "datasets": {
-          "locomotion": 0.7512289457965425,
-          "manipulation": null,
-          "ground": null,
-          "dance": null,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "gpuHours": {
-        "mean": 0.5166666666666667,
-        "sourceUrl": "https://github.com/Roboparty/PartyMimic#readme"
-      },
-      "wristPos": {
-        "datasets": {
-          "locomotion": 28.453927021473646,
-          "manipulation": 22.868201660458,
-          "ground": null,
-          "dance": null,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "wristOri": {
-        "datasets": {
-          "locomotion": 0.08487831186503172,
-          "manipulation": 0.07766865030862391,
-          "ground": null,
-          "dance": null,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "trackingReturn": {
-        "datasets": {
-          "locomotion": 1.9170423745745606,
-          "manipulation": 1.9275655399394438,
-          "ground": 1.528316674942135,
-          "dance": 1.7565372339143956,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "progress": {
-        "datasets": {
-          "locomotion": 99.05180107593526,
-          "manipulation": 98.95108695652173,
-          "ground": 95.28064324176874,
-          "dance": 96.25122597749274,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      }
-    }
-  },
-  {
-    "key": "supermimic_repro",
-    "name": "SuperMimic (repro.)",
-    "url": "https://github.com/HybridRobotics/supermimic",
-    "metrics": {
-      "bodyPos": {
-        "datasets": {
-          "locomotion": 40.53794627543539,
-          "manipulation": 39.79298057189832,
-          "ground": 167.77829490602016,
-          "dance": 64.29910762235522,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "bodyOri": {
-        "datasets": {
-          "locomotion": 0.1649381817318499,
-          "manipulation": 0.17334695098300776,
-          "ground": 0.8329549128810565,
-          "dance": 0.2811331287026405,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "globalRoot": {
-        "datasets": {
-          "locomotion": 0.7480337855065001,
-          "manipulation": null,
-          "ground": null,
-          "dance": null,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "gpuHours": {
-        "mean": 1.65,
-        "sourceUrl": "https://github.com/Roboparty/PartyMimic#readme"
-      },
-      "wristPos": {
-        "datasets": {
-          "locomotion": 51.187328808009624,
-          "manipulation": 50.88140023872256,
-          "ground": null,
-          "dance": null,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "wristOri": {
-        "datasets": {
-          "locomotion": 0.24423627192154526,
-          "manipulation": 0.28244145680218935,
-          "ground": null,
-          "dance": null,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "trackingReturn": {
-        "datasets": {
-          "locomotion": 1.7624074528391922,
-          "manipulation": 1.7406068732720026,
-          "ground": 0.936020887117488,
-          "dance": 1.4420242383802562,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
-        }
-      },
-      "progress": {
-        "datasets": {
-          "locomotion": 100.0,
-          "manipulation": 100.0,
-          "ground": 80.03248508739001,
-          "dance": 98.04669920074754,
-          "lafan": null,
-          "phuma": null,
-          "root90": null
         }
       }
     }

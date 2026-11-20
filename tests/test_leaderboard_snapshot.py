@@ -33,6 +33,7 @@ def test_leaderboard_snapshot_preserves_legacy_and_adds_motiondecode() -> None:
         "blinkmimic_repro",
         "xmimic_repro",
     } <= {row["key"] for row in page}
+    assert [row["key"] for row in page][:3] == ["partymimic_mlp", "supermimic_repro", "mimic_lite_v1_1"]
     assert {row["key"] for row in page} <= {
         policy for policy, _dataset in motiondecode
     }
